@@ -1,0 +1,38 @@
+# Platform (Shared Kernel)
+
+แพ็กเกจกลางที่ทุก module ใช้ร่วมได้ — **บางและไม่มี business rule ของโดเมนใดโดเมนหนึ่ง**
+
+```
+internal/platform/
+  apperr/       # typed application errors + HTTP status mapping
+  database/     # pgx pool + WithinTransaction
+  http/         # DecodeJSON, WriteJSON, WriteError
+```
+
+## `apperr`
+
+- Type `Error` มี `Code` + `Message` + `HTTPStatus()`
+- Factory: `Validation`, `NotFound`, `Conflict`, `FailedPrecondition`, …
+- Domain และ adapters คืน `*apperr.Error` สำหรับเคสที่ client ต้องแยกชนิดได้
+- เพิ่ม code ใหม่เมื่อมีเคสธุรกิจซ้ำๆ — อย่าใส่ชื่อ module เฉพาะใน platform ถ้าใช้ครั้งเดียว (ใส่ใน domain ของ module นั้นแล้ว map ใน adapter ได้)
+
+## `database`
+
+- `NewPool(ctx, databaseURL)` — parse, ping, ตั้ง conn limits
+- `WithinTransaction(ctx, fn)` — begin → fn → commit; error หรือ panic path ผ่าน rollback ด้วย `defer`
+- Cross-module use case เป็นผู้เรียก `WithinTransaction` แล้วส่ง `tx` เข้า `WithTx`
+
+## `http` (package `httpx`)
+
+- ไม่ผูกกับ module
+- `WriteError` ใช้ `errors.As` หา `*apperr.Error`
+- ไม่ log รายละเอียดที่นี่ถ้ายังไม่มี requirement — เก็บให้บาง
+
+## Bootstrap vs platform
+
+| `platform` | `bootstrap` |
+|------------|-------------|
+| primitive ใช้ซ้ำได้ | ประกอบกราฟ dependency ของแอปนี้ |
+| ไม่รู้จัก Product/Order | สร้าง repo/service/handler และ mount routes |
+
+`cmd/api/main.go` เหลือแค่ signal context + เรียก `bootstrap.Run`

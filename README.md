@@ -4,21 +4,28 @@ Monorepo for Quick Feed.
 
 ```
 quick-feed/
-├── frontend/   # React (placeholder — scaffold later)
-└── backend/    # Go API
+├── frontend/          # React (placeholder — scaffold later)
+├── backend/           # Go modular monolith (hexagonal)
+└── docs/
+    ├── patterns/      # architecture & scaffold patterns
+    └── adr/           # architecture decisions
 ```
 
-## Commands
+## Backend
+
+Stack: Go + chi + pgx (no ORM). First bounded context: **feed** (`Feed` aggregate).
 
 ```bash
-make backend    # Go API on :8080
-make frontend   # React dev server (after scaffold)
-make build      # build Go binary → backend/bin/server
-make test       # Go tests
-make tidy       # go mod tidy
+make up         # Postgres on :54330
+make migrate    # apply migrations
+make backend    # API on :8080
+make test-unit  # domain/unit tests, no Docker
 ```
 
-Health check: `GET http://localhost:8080/health`
+- Health: `GET http://localhost:8080/healthz`
+- Feeds: `POST/GET /api/v1/feeds`, `POST /api/v1/feeds/{id}/publish|archive`
+
+Default `DATABASE_URL`: `postgres://quickfeed:quickfeed@localhost:54330/quick_feed?sslmode=disable`
 
 ## Frontend
 

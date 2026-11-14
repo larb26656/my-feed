@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: quickfeed
+      POSTGRES_PASSWORD: quickfeed
+      POSTGRES_DB: quick_feed
+    ports:
+      - "54330:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quickfeed -d quick_feed"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
