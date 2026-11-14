@@ -1,3 +1,6 @@
+# Agent scratch / local issue tracker
+.scratch/
+
 # OS
 .DS_Store
 Thumbs.db
