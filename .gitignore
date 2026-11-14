@@ -1,0 +1,33 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Go
+backend/bin/
+backend/dist/
+*.exe
+*.test
+*.out
+coverage.out
+
+# Node / frontend (when scaffolded)
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
