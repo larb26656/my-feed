@@ -1,7 +1,10 @@
 package http
 
 import (
+	"context"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -20,101 +23,254 @@ func NewHandler(svc *service.Service) *Handler {
 	return &Handler{svc: svc}
 }
 
-func (h *Handler) Routes() chi.Router {
+func (h *Handler) SourceRoutes() chi.Router {
 	r := chi.NewRouter()
-	r.Post("/", h.create)
-	r.Get("/{id}", h.get)
-	r.Post("/{id}/publish", h.publish)
-	r.Post("/{id}/archive", h.archive)
+	r.Post("/", h.createSource)
+	r.Get("/{id}", h.getSource)
 	return r
 }
 
-type createRequest struct {
-	Slug        string `json:"slug"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
+// Routes keeps Source mount compatibility for callers that still use Routes().
+func (h *Handler) Routes() chi.Router {
+	return h.SourceRoutes()
 }
 
-type feedResponse struct {
-	ID          string `json:"id"`
-	Slug        string `json:"slug"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Status      string `json:"status"`
+func (h *Handler) EntryRoutes() chi.Router {
+	r := chi.NewRouter()
+	r.Post("/", h.recordEntry)
+	r.Get("/", h.listEntries)
+	r.Get("/{id}", h.getEntry)
+	r.Post("/{id}/read", h.markEntryRead)
+	r.Post("/{id}/clear-read", h.clearEntryRead)
+	r.Post("/{id}/save", h.markEntrySaved)
+	r.Post("/{id}/clear-save", h.clearEntrySaved)
+	return r
 }
 
-func toResponse(f *domain.Feed) feedResponse {
-	return feedResponse{
-		ID:          f.ID.String(),
-		Slug:        f.Slug,
-		Title:       f.Title,
-		Description: f.Description,
-		Status:      string(f.Status),
+type createSourceRequest struct {
+	Name string `json:"name"`
+}
+
+type sourceResponse struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	CreatedAt string `json:"createdAt"`
+	UpdatedAt string `json:"updatedAt"`
+}
+
+func toSourceResponse(s *domain.Source) sourceResponse {
+	return sourceResponse{
+		ID:        s.ID.String(),
+		Name:      s.Name,
+		CreatedAt: s.CreatedAt.UTC().Format(time.RFC3339Nano),
+		UpdatedAt: s.UpdatedAt.UTC().Format(time.RFC3339Nano),
 	}
 }
 
-func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
-	var req createRequest
+func (h *Handler) createSource(w http.ResponseWriter, r *http.Request) {
+	var req createSourceRequest
 	if err := httpx.DecodeJSON(r, &req); err != nil {
 		httpx.WriteError(w, err)
 		return
 	}
-	f, err := h.svc.Create(r.Context(), service.CreateInput{
-		Slug: req.Slug, Title: req.Title, Description: req.Description,
+	s, err := h.svc.CreateSource(r.Context(), service.CreateSourceInput{Name: req.Name})
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusCreated, toSourceResponse(s))
+}
+
+func (h *Handler) getSource(w http.ResponseWriter, r *http.Request) {
+	id, err := parseID(r, "invalid source id")
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	s, err := h.svc.GetSource(r.Context(), id)
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, toSourceResponse(s))
+}
+
+type recordEntryRequest struct {
+	SourceID    string  `json:"sourceId"`
+	Title       string  `json:"title"`
+	Link        string  `json:"link"`
+	Description string  `json:"description"`
+	Thumbnail   *string `json:"thumbnail"`
+	PublishedAt *string `json:"publishedAt"`
+}
+
+type entryResponse struct {
+	ID          string  `json:"id"`
+	SourceID    string  `json:"sourceId"`
+	Title       string  `json:"title"`
+	Link        string  `json:"link"`
+	Description string  `json:"description"`
+	Thumbnail   *string `json:"thumbnail,omitempty"`
+	PublishedAt *string `json:"publishedAt,omitempty"`
+	CreatedAt   string  `json:"createdAt"`
+	UpdatedAt   string  `json:"updatedAt"`
+	ReadAt      *string `json:"readAt,omitempty"`
+	SavedAt     *string `json:"savedAt,omitempty"`
+}
+
+type listEntriesResponse struct {
+	Entries    []entryResponse `json:"entries"`
+	NextCursor *string         `json:"nextCursor,omitempty"`
+}
+
+func toEntryResponse(e *domain.Entry) entryResponse {
+	return entryResponse{
+		ID:          e.ID.String(),
+		SourceID:    e.SourceID.String(),
+		Title:       e.Title,
+		Link:        e.Link,
+		Description: e.Description,
+		Thumbnail:   e.Thumbnail,
+		PublishedAt: formatTimePtr(e.PublishedAt),
+		CreatedAt:   e.CreatedAt.UTC().Format(time.RFC3339Nano),
+		UpdatedAt:   e.UpdatedAt.UTC().Format(time.RFC3339Nano),
+		ReadAt:      formatTimePtr(e.ReadAt),
+		SavedAt:     formatTimePtr(e.SavedAt),
+	}
+}
+
+func formatTimePtr(t *time.Time) *string {
+	if t == nil {
+		return nil
+	}
+	s := t.UTC().Format(time.RFC3339Nano)
+	return &s
+}
+
+func parseOptionalTime(raw *string) (*time.Time, error) {
+	if raw == nil || *raw == "" {
+		return nil, nil
+	}
+	t, err := time.Parse(time.RFC3339Nano, *raw)
+	if err != nil {
+		t, err = time.Parse(time.RFC3339, *raw)
+	}
+	if err != nil {
+		return nil, apperr.Validation("invalid publishedAt")
+	}
+	utc := t.UTC()
+	return &utc, nil
+}
+
+func (h *Handler) recordEntry(w http.ResponseWriter, r *http.Request) {
+	var req recordEntryRequest
+	if err := httpx.DecodeJSON(r, &req); err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	sourceID, err := uuid.Parse(req.SourceID)
+	if err != nil {
+		httpx.WriteError(w, apperr.Validation("invalid source id"))
+		return
+	}
+	publishedAt, err := parseOptionalTime(req.PublishedAt)
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	entry, err := h.svc.RecordEntry(r.Context(), service.RecordEntryInput{
+		SourceID:    sourceID,
+		Title:       req.Title,
+		Link:        req.Link,
+		Description: req.Description,
+		Thumbnail:   req.Thumbnail,
+		PublishedAt: publishedAt,
 	})
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusCreated, toResponse(f))
+	httpx.WriteJSON(w, http.StatusCreated, toEntryResponse(entry))
 }
 
-func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
-	id, err := parseFeedID(r)
+func (h *Handler) getEntry(w http.ResponseWriter, r *http.Request) {
+	id, err := parseID(r, "invalid entry id")
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
 	}
-	f, err := h.svc.Get(r.Context(), id)
+	entry, err := h.svc.GetEntry(r.Context(), id)
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, toResponse(f))
+	httpx.WriteJSON(w, http.StatusOK, toEntryResponse(entry))
 }
 
-func (h *Handler) publish(w http.ResponseWriter, r *http.Request) {
-	id, err := parseFeedID(r)
+func (h *Handler) listEntries(w http.ResponseWriter, r *http.Request) {
+	in := service.ListEntriesInput{}
+	if raw := r.URL.Query().Get("cursor"); raw != "" {
+		in.Cursor = &raw
+	}
+	if raw := r.URL.Query().Get("pageSize"); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil {
+			httpx.WriteError(w, apperr.Validation("invalid pageSize"))
+			return
+		}
+		in.PageSize = &n
+	}
+	page, err := h.svc.ListEntries(r.Context(), in)
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
 	}
-	f, err := h.svc.Publish(r.Context(), id)
-	if err != nil {
-		httpx.WriteError(w, err)
-		return
+	resp := listEntriesResponse{
+		Entries:    make([]entryResponse, 0, len(page.Entries)),
+		NextCursor: page.NextCursor,
 	}
-	httpx.WriteJSON(w, http.StatusOK, toResponse(f))
+	for _, e := range page.Entries {
+		resp.Entries = append(resp.Entries, toEntryResponse(e))
+	}
+	httpx.WriteJSON(w, http.StatusOK, resp)
 }
 
-func (h *Handler) archive(w http.ResponseWriter, r *http.Request) {
-	id, err := parseFeedID(r)
-	if err != nil {
-		httpx.WriteError(w, err)
-		return
-	}
-	f, err := h.svc.Archive(r.Context(), id)
-	if err != nil {
-		httpx.WriteError(w, err)
-		return
-	}
-	httpx.WriteJSON(w, http.StatusOK, toResponse(f))
+type entryMutator func(ctx context.Context, id uuid.UUID) (*domain.Entry, error)
+
+func (h *Handler) markEntryRead(w http.ResponseWriter, r *http.Request) {
+	h.mutateEntry(w, r, h.svc.MarkEntryRead)
 }
 
-func parseFeedID(r *http.Request) (uuid.UUID, error) {
+func (h *Handler) clearEntryRead(w http.ResponseWriter, r *http.Request) {
+	h.mutateEntry(w, r, h.svc.ClearEntryRead)
+}
+
+func (h *Handler) markEntrySaved(w http.ResponseWriter, r *http.Request) {
+	h.mutateEntry(w, r, h.svc.MarkEntrySaved)
+}
+
+func (h *Handler) clearEntrySaved(w http.ResponseWriter, r *http.Request) {
+	h.mutateEntry(w, r, h.svc.ClearEntrySaved)
+}
+
+func (h *Handler) mutateEntry(w http.ResponseWriter, r *http.Request, fn entryMutator) {
+	id, err := parseID(r, "invalid entry id")
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	entry, err := fn(r.Context(), id)
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, toEntryResponse(entry))
+}
+
+func parseID(r *http.Request, invalidMsg string) (uuid.UUID, error) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
-		return uuid.Nil, apperr.Validation("invalid feed id")
+		return uuid.Nil, apperr.Validation(invalidMsg)
 	}
 	return id, nil
 }

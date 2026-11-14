@@ -42,7 +42,9 @@ func New(ctx context.Context) (*App, error) {
 		_, _ = w.Write([]byte("ok"))
 	})
 
-	r.Mount("/api/v1/feeds", feedhttp.NewHandler(feedService).Routes())
+	h := feedhttp.NewHandler(feedService)
+	r.Mount("/api/v1/sources", h.SourceRoutes())
+	r.Mount("/api/v1/entries", h.EntryRoutes())
 
 	return &App{Pool: pool, Router: r}, nil
 }

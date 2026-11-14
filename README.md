@@ -13,7 +13,7 @@ quick-feed/
 
 ## Backend
 
-Stack: Go + chi + pgx (no ORM). First bounded context: **feed** (`Feed` aggregate).
+Stack: Go + chi + pgx (no ORM). First bounded context: **feed** (Source + Entry; module folder name only).
 
 ```bash
 make up         # Postgres on :54330
@@ -23,7 +23,7 @@ make test-unit  # domain/unit tests, no Docker
 ```
 
 - Health: `GET http://localhost:8080/healthz`
-- Feeds: `POST/GET /api/v1/feeds`, `POST /api/v1/feeds/{id}/publish|archive`
+- Sources: `POST/GET /api/v1/sources`
 
 Default `DATABASE_URL`: `postgres://quickfeed:quickfeed@localhost:54330/quick_feed?sslmode=disable`
 
