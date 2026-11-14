@@ -9,8 +9,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
-	"github.com/larb26656/quick-feed/backend/internal/feed/domain"
-	"github.com/larb26656/quick-feed/backend/internal/feed/service"
+	"github.com/larb26656/quick-feed/backend/internal/entry/domain"
+	"github.com/larb26656/quick-feed/backend/internal/entry/service"
 	"github.com/larb26656/quick-feed/backend/internal/platform/apperr"
 	httpx "github.com/larb26656/quick-feed/backend/internal/platform/http"
 )
@@ -23,21 +23,10 @@ func NewHandler(svc *service.Service) *Handler {
 	return &Handler{svc: svc}
 }
 
-func (h *Handler) SourceRoutes() chi.Router {
-	r := chi.NewRouter()
-	r.Post("/", h.createSource)
-	r.Get("/{id}", h.getSource)
-	return r
-}
-
-// Routes keeps Source mount compatibility for callers that still use Routes().
 func (h *Handler) Routes() chi.Router {
-	return h.SourceRoutes()
-}
-
-func (h *Handler) EntryRoutes() chi.Router {
 	r := chi.NewRouter()
-	r.Post("/", h.recordEntry)
+	r.Post("/save-link", h.saveLink)
+	r.Post("/", h.ingestEntry)
 	r.Get("/", h.listEntries)
 	r.Get("/{id}", h.getEntry)
 	r.Post("/{id}/read", h.markEntryRead)
@@ -47,55 +36,15 @@ func (h *Handler) EntryRoutes() chi.Router {
 	return r
 }
 
-type createSourceRequest struct {
-	Name string `json:"name"`
+type saveLinkRequest struct {
+	Title       string  `json:"title"`
+	Link        string  `json:"link"`
+	Description string  `json:"description"`
+	Thumbnail   *string `json:"thumbnail"`
+	PublishedAt *string `json:"publishedAt"`
 }
 
-type sourceResponse struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	CreatedAt string `json:"createdAt"`
-	UpdatedAt string `json:"updatedAt"`
-}
-
-func toSourceResponse(s *domain.Source) sourceResponse {
-	return sourceResponse{
-		ID:        s.ID.String(),
-		Name:      s.Name,
-		CreatedAt: s.CreatedAt.UTC().Format(time.RFC3339Nano),
-		UpdatedAt: s.UpdatedAt.UTC().Format(time.RFC3339Nano),
-	}
-}
-
-func (h *Handler) createSource(w http.ResponseWriter, r *http.Request) {
-	var req createSourceRequest
-	if err := httpx.DecodeJSON(r, &req); err != nil {
-		httpx.WriteError(w, err)
-		return
-	}
-	s, err := h.svc.CreateSource(r.Context(), service.CreateSourceInput{Name: req.Name})
-	if err != nil {
-		httpx.WriteError(w, err)
-		return
-	}
-	httpx.WriteJSON(w, http.StatusCreated, toSourceResponse(s))
-}
-
-func (h *Handler) getSource(w http.ResponseWriter, r *http.Request) {
-	id, err := parseID(r, "invalid source id")
-	if err != nil {
-		httpx.WriteError(w, err)
-		return
-	}
-	s, err := h.svc.GetSource(r.Context(), id)
-	if err != nil {
-		httpx.WriteError(w, err)
-		return
-	}
-	httpx.WriteJSON(w, http.StatusOK, toSourceResponse(s))
-}
-
-type recordEntryRequest struct {
+type ingestEntryRequest struct {
 	SourceID    string  `json:"sourceId"`
 	Title       string  `json:"title"`
 	Link        string  `json:"link"`
@@ -162,8 +111,33 @@ func parseOptionalTime(raw *string) (*time.Time, error) {
 	return &utc, nil
 }
 
-func (h *Handler) recordEntry(w http.ResponseWriter, r *http.Request) {
-	var req recordEntryRequest
+func (h *Handler) saveLink(w http.ResponseWriter, r *http.Request) {
+	var req saveLinkRequest
+	if err := httpx.DecodeJSON(r, &req); err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	publishedAt, err := parseOptionalTime(req.PublishedAt)
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	entry, err := h.svc.SaveLink(r.Context(), service.SaveLinkInput{
+		Title:       req.Title,
+		Link:        req.Link,
+		Description: req.Description,
+		Thumbnail:   req.Thumbnail,
+		PublishedAt: publishedAt,
+	})
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusCreated, toEntryResponse(entry))
+}
+
+func (h *Handler) ingestEntry(w http.ResponseWriter, r *http.Request) {
+	var req ingestEntryRequest
 	if err := httpx.DecodeJSON(r, &req); err != nil {
 		httpx.WriteError(w, err)
 		return
@@ -178,7 +152,7 @@ func (h *Handler) recordEntry(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, err)
 		return
 	}
-	entry, err := h.svc.RecordEntry(r.Context(), service.RecordEntryInput{
+	entry, err := h.svc.IngestEntry(r.Context(), service.IngestEntryInput{
 		SourceID:    sourceID,
 		Title:       req.Title,
 		Link:        req.Link,

@@ -9,39 +9,68 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/larb26656/quick-feed/backend/internal/feed/domain"
-	"github.com/larb26656/quick-feed/backend/internal/feed/repository"
+	"github.com/larb26656/quick-feed/backend/internal/entry/domain"
+	"github.com/larb26656/quick-feed/backend/internal/entry/repository"
 	"github.com/larb26656/quick-feed/backend/internal/platform/apperr"
 )
 
+// SourceType is the Entry module's view of a Source's type (not imported from source/domain).
+type SourceType string
+
+const (
+	SourceTypeRSS    SourceType = "rss"
+	SourceTypeManual SourceType = "manual"
+)
+
+// SourceRef is the Entry module's lookup view of a Source for write-path rules.
+type SourceRef struct {
+	ID     uuid.UUID
+	Type   SourceType
+	Active bool
+}
+
+// Sources is the consumer-defined port Entry uses for Source lookups.
+// Missing Source must surface as apperr NotFound. Entry must not import source postgres.
+type Sources interface {
+	Get(ctx context.Context, id uuid.UUID) (*SourceRef, error)
+	GetManual(ctx context.Context) (*SourceRef, error)
+}
+
 type Service struct {
-	repo repository.Repository
+	repo    repository.Repository
+	sources Sources
 }
 
-func New(repo repository.Repository) *Service {
-	return &Service{repo: repo}
+func New(repo repository.Repository, sources Sources) *Service {
+	return &Service{repo: repo, sources: sources}
 }
 
-type CreateSourceInput struct {
-	Name string
+type SaveLinkInput struct {
+	Title       string
+	Link        string
+	Description string
+	Thumbnail   *string
+	PublishedAt *time.Time
 }
 
-func (s *Service) CreateSource(ctx context.Context, in CreateSourceInput) (*domain.Source, error) {
-	src, err := domain.NewSource(in.Name)
+// SaveLink records an Entry on the system manual "Saved links" Source.
+// The client does not pass a Source id; the server resolves the singleton.
+func (s *Service) SaveLink(ctx context.Context, in SaveLinkInput) (*domain.Entry, error) {
+	src, err := s.sources.GetManual(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.repo.CreateSource(ctx, src); err != nil {
-		return nil, err
-	}
-	return src, nil
+	return s.upsertEntry(ctx, src.ID, entryMeta{
+		Title:       in.Title,
+		Link:        in.Link,
+		Description: in.Description,
+		Thumbnail:   in.Thumbnail,
+		PublishedAt: in.PublishedAt,
+	})
 }
 
-func (s *Service) GetSource(ctx context.Context, id uuid.UUID) (*domain.Source, error) {
-	return s.repo.GetSourceByID(ctx, id)
-}
-
-type RecordEntryInput struct {
+// IngestEntryInput is the worker/ingest write path into an RSS Source by id.
+type IngestEntryInput struct {
 	SourceID    uuid.UUID
 	Title       string
 	Link        string
@@ -50,11 +79,37 @@ type RecordEntryInput struct {
 	PublishedAt *time.Time
 }
 
-func (s *Service) RecordEntry(ctx context.Context, in RecordEntryInput) (*domain.Entry, error) {
-	if _, err := s.repo.GetSourceByID(ctx, in.SourceID); err != nil {
+// IngestEntry records an Entry into an active RSS Source.
+// Rejects manual, missing, and deactivated Sources.
+func (s *Service) IngestEntry(ctx context.Context, in IngestEntryInput) (*domain.Entry, error) {
+	src, err := s.sources.Get(ctx, in.SourceID)
+	if err != nil {
 		return nil, err
 	}
+	if src.Type != SourceTypeRSS {
+		return nil, apperr.Validation("ingest can only record entries into rss sources")
+	}
+	if !src.Active {
+		return nil, apperr.FailedPrecondition("cannot ingest into a deactivated source")
+	}
+	return s.upsertEntry(ctx, src.ID, entryMeta{
+		Title:       in.Title,
+		Link:        in.Link,
+		Description: in.Description,
+		Thumbnail:   in.Thumbnail,
+		PublishedAt: in.PublishedAt,
+	})
+}
 
+type entryMeta struct {
+	Title       string
+	Link        string
+	Description string
+	Thumbnail   *string
+	PublishedAt *time.Time
+}
+
+func (s *Service) upsertEntry(ctx context.Context, sourceID uuid.UUID, in entryMeta) (*domain.Entry, error) {
 	meta := domain.EntryMetadata{
 		Title:       in.Title,
 		Link:        in.Link,
@@ -64,7 +119,7 @@ func (s *Service) RecordEntry(ctx context.Context, in RecordEntryInput) (*domain
 	}
 
 	link := strings.TrimSpace(in.Link)
-	existing, err := s.repo.GetEntryBySourceAndLink(ctx, in.SourceID, link)
+	existing, err := s.repo.GetEntryBySourceAndLink(ctx, sourceID, link)
 	if err == nil {
 		if err := existing.RefreshMetadata(meta); err != nil {
 			return nil, err
@@ -75,7 +130,7 @@ func (s *Service) RecordEntry(ctx context.Context, in RecordEntryInput) (*domain
 		return nil, err
 	}
 
-	entry, err := domain.NewEntry(in.SourceID, meta)
+	entry, err := domain.NewEntry(sourceID, meta)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +143,7 @@ func (s *Service) RecordEntry(ctx context.Context, in RecordEntryInput) (*domain
 	}
 
 	// Race: another writer inserted the same Source+link first.
-	existing, err = s.repo.GetEntryBySourceAndLink(ctx, in.SourceID, entry.Link)
+	existing, err = s.repo.GetEntryBySourceAndLink(ctx, sourceID, entry.Link)
 	if err != nil {
 		return nil, err
 	}

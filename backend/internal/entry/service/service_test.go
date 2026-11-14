@@ -12,24 +12,84 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 
-	"github.com/larb26656/quick-feed/backend/internal/feed/domain"
-	"github.com/larb26656/quick-feed/backend/internal/feed/repository"
-	"github.com/larb26656/quick-feed/backend/internal/feed/service"
+	"github.com/larb26656/quick-feed/backend/internal/entry/domain"
+	"github.com/larb26656/quick-feed/backend/internal/entry/repository"
+	"github.com/larb26656/quick-feed/backend/internal/entry/service"
 	"github.com/larb26656/quick-feed/backend/internal/platform/apperr"
 )
 
 type fakeRepo struct {
-	sources map[uuid.UUID]*domain.Source
 	entries map[uuid.UUID]*domain.Entry
 	byKey   map[string]uuid.UUID
 }
 
 func newFakeRepo() *fakeRepo {
 	return &fakeRepo{
-		sources: make(map[uuid.UUID]*domain.Source),
 		entries: make(map[uuid.UUID]*domain.Entry),
 		byKey:   make(map[string]uuid.UUID),
 	}
+}
+
+type fakeSource struct {
+	id     uuid.UUID
+	typ    service.SourceType
+	active bool
+}
+
+type fakeSources struct {
+	byID   map[uuid.UUID]fakeSource
+	manual *fakeSource
+}
+
+func newFakeSources() *fakeSources {
+	return &fakeSources{byID: make(map[uuid.UUID]fakeSource)}
+}
+
+func (f *fakeSources) seed(id uuid.UUID, typ service.SourceType, active bool) {
+	src := fakeSource{id: id, typ: typ, active: active}
+	f.byID[id] = src
+	if typ == service.SourceTypeManual {
+		cp := src
+		f.manual = &cp
+	}
+}
+
+func (f *fakeSources) Get(_ context.Context, id uuid.UUID) (*service.SourceRef, error) {
+	src, ok := f.byID[id]
+	if !ok {
+		return nil, apperr.NotFound("source not found")
+	}
+	return &service.SourceRef{ID: src.id, Type: src.typ, Active: src.active}, nil
+}
+
+func (f *fakeSources) GetManual(_ context.Context) (*service.SourceRef, error) {
+	if f.manual == nil {
+		return nil, apperr.NotFound("source not found")
+	}
+	return &service.SourceRef{ID: f.manual.id, Type: f.manual.typ, Active: f.manual.active}, nil
+}
+
+func newService() (*service.Service, *fakeRepo, *fakeSources) {
+	repo := newFakeRepo()
+	sources := newFakeSources()
+	return service.New(repo, sources), repo, sources
+}
+
+func seedRSSSource(sources *fakeSources) uuid.UUID {
+	id := uuid.New()
+	sources.seed(id, service.SourceTypeRSS, true)
+	return id
+}
+
+func seedManualSource(sources *fakeSources) uuid.UUID {
+	id := uuid.New()
+	sources.seed(id, service.SourceTypeManual, true)
+	return id
+}
+
+// seedSource seeds an active RSS Source — the ingest write path default for legacy tests.
+func seedSource(sources *fakeSources) uuid.UUID {
+	return seedRSSSource(sources)
 }
 
 func entryKey(sourceID uuid.UUID, link string) string {
@@ -55,21 +115,6 @@ func cloneEntry(e *domain.Entry) *domain.Entry {
 		cp.SavedAt = &s
 	}
 	return &cp
-}
-
-func (f *fakeRepo) CreateSource(_ context.Context, s *domain.Source) error {
-	cp := *s
-	f.sources[s.ID] = &cp
-	return nil
-}
-
-func (f *fakeRepo) GetSourceByID(_ context.Context, id uuid.UUID) (*domain.Source, error) {
-	s, ok := f.sources[id]
-	if !ok {
-		return nil, apperr.NotFound("source not found")
-	}
-	cp := *s
-	return &cp, nil
 }
 
 func (f *fakeRepo) CreateEntry(_ context.Context, e *domain.Entry) (*domain.Entry, error) {
@@ -110,165 +155,6 @@ func (f *fakeRepo) UpdateEntry(_ context.Context, e *domain.Entry) (*domain.Entr
 
 func (f *fakeRepo) WithTx(_ pgx.Tx) repository.Repository {
 	return f
-}
-
-func TestCreateSourceMakesItRetrievable(t *testing.T) {
-	svc := service.New(newFakeRepo())
-
-	created, err := svc.CreateSource(context.Background(), service.CreateSourceInput{Name: "HN RSS"})
-	require.NoError(t, err)
-	require.NotEqual(t, uuid.Nil, created.ID)
-	require.Equal(t, "HN RSS", created.Name)
-
-	got, err := svc.GetSource(context.Background(), created.ID)
-	require.NoError(t, err)
-	require.Equal(t, created.ID, got.ID)
-	require.Equal(t, "HN RSS", got.Name)
-}
-
-func TestGetSourceMissingIDNotFound(t *testing.T) {
-	svc := service.New(newFakeRepo())
-
-	_, err := svc.GetSource(context.Background(), uuid.New())
-	require.Error(t, err)
-	var ae *apperr.Error
-	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeNotFound, ae.Code)
-}
-
-func TestRecordEntryMakesItRetrievable(t *testing.T) {
-	svc := service.New(newFakeRepo())
-	src, err := svc.CreateSource(context.Background(), service.CreateSourceInput{Name: "HN RSS"})
-	require.NoError(t, err)
-
-	thumb := "https://example.com/thumb.png"
-	published := time.Date(2024, 6, 1, 12, 0, 0, 0, time.UTC)
-	recorded, err := svc.RecordEntry(context.Background(), service.RecordEntryInput{
-		SourceID:    src.ID,
-		Title:       "Show HN: Quick Feed",
-		Link:        "https://example.com/a",
-		Description: "A personal reader",
-		Thumbnail:   &thumb,
-		PublishedAt: &published,
-	})
-	require.NoError(t, err)
-	require.NotEqual(t, uuid.Nil, recorded.ID)
-	require.Equal(t, src.ID, recorded.SourceID)
-	require.Equal(t, "Show HN: Quick Feed", recorded.Title)
-	require.Equal(t, "https://example.com/a", recorded.Link)
-	require.Equal(t, "A personal reader", recorded.Description)
-	require.NotNil(t, recorded.Thumbnail)
-	require.Equal(t, thumb, *recorded.Thumbnail)
-	require.NotNil(t, recorded.PublishedAt)
-	require.True(t, published.Equal(recorded.PublishedAt.UTC()))
-
-	got, err := svc.GetEntry(context.Background(), recorded.ID)
-	require.NoError(t, err)
-	require.Equal(t, recorded.ID, got.ID)
-	require.Equal(t, "Show HN: Quick Feed", got.Title)
-	require.Equal(t, "https://example.com/a", got.Link)
-}
-
-func TestGetEntryMissingIDNotFound(t *testing.T) {
-	svc := service.New(newFakeRepo())
-
-	_, err := svc.GetEntry(context.Background(), uuid.New())
-	require.Error(t, err)
-	var ae *apperr.Error
-	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeNotFound, ae.Code)
-}
-
-func TestRecordEntryBlankTitleValidation(t *testing.T) {
-	svc := service.New(newFakeRepo())
-	src, err := svc.CreateSource(context.Background(), service.CreateSourceInput{Name: "HN RSS"})
-	require.NoError(t, err)
-
-	_, err = svc.RecordEntry(context.Background(), service.RecordEntryInput{
-		SourceID: src.ID,
-		Title:    "   ",
-		Link:     "https://example.com/a",
-	})
-	require.Error(t, err)
-	var ae *apperr.Error
-	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeValidation, ae.Code)
-}
-
-func TestRecordEntryBlankLinkValidation(t *testing.T) {
-	svc := service.New(newFakeRepo())
-	src, err := svc.CreateSource(context.Background(), service.CreateSourceInput{Name: "HN RSS"})
-	require.NoError(t, err)
-
-	_, err = svc.RecordEntry(context.Background(), service.RecordEntryInput{
-		SourceID: src.ID,
-		Title:    "Show HN",
-		Link:     "",
-	})
-	require.Error(t, err)
-	var ae *apperr.Error
-	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeValidation, ae.Code)
-}
-
-func TestRecordEntryMissingSourceRejected(t *testing.T) {
-	svc := service.New(newFakeRepo())
-
-	_, err := svc.RecordEntry(context.Background(), service.RecordEntryInput{
-		SourceID: uuid.New(),
-		Title:    "Show HN",
-		Link:     "https://example.com/a",
-	})
-	require.Error(t, err)
-	var ae *apperr.Error
-	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeNotFound, ae.Code)
-}
-
-func TestRecordEntrySameSourceAndLinkUpsertsMetadata(t *testing.T) {
-	repo := newFakeRepo()
-	svc := service.New(repo)
-	src, err := svc.CreateSource(context.Background(), service.CreateSourceInput{Name: "HN RSS"})
-	require.NoError(t, err)
-
-	first, err := svc.RecordEntry(context.Background(), service.RecordEntryInput{
-		SourceID:    src.ID,
-		Title:       "Original title",
-		Link:        "https://example.com/a",
-		Description: "original",
-	})
-	require.NoError(t, err)
-	createdAt := first.CreatedAt
-	updatedAt := first.UpdatedAt
-
-	time.Sleep(2 * time.Millisecond)
-
-	thumb := "https://example.com/new.png"
-	published := time.Date(2025, 1, 2, 3, 4, 5, 0, time.UTC)
-	second, err := svc.RecordEntry(context.Background(), service.RecordEntryInput{
-		SourceID:    src.ID,
-		Title:       "Updated title",
-		Link:        "https://example.com/a",
-		Description: "refreshed",
-		Thumbnail:   &thumb,
-		PublishedAt: &published,
-	})
-	require.NoError(t, err)
-	require.Equal(t, first.ID, second.ID)
-	require.Equal(t, "Updated title", second.Title)
-	require.Equal(t, "refreshed", second.Description)
-	require.NotNil(t, second.Thumbnail)
-	require.Equal(t, thumb, *second.Thumbnail)
-	require.NotNil(t, second.PublishedAt)
-	require.True(t, published.Equal(second.PublishedAt.UTC()))
-	require.Equal(t, createdAt, second.CreatedAt)
-	require.True(t, second.UpdatedAt.After(updatedAt))
-
-	got, err := svc.GetEntry(context.Background(), first.ID)
-	require.NoError(t, err)
-	require.Equal(t, "Updated title", got.Title)
-
-	require.Len(t, repo.entries, 1)
 }
 
 func (f *fakeRepo) seedEntry(e *domain.Entry) {
@@ -315,11 +201,314 @@ func (f *fakeRepo) ListEntries(_ context.Context, after *repository.EntryListCur
 	return out, nil
 }
 
-func TestListEntriesNewestFirstPublishedAtFallbackCreatedAtIDTieBreak(t *testing.T) {
-	repo := newFakeRepo()
-	svc := service.New(repo)
-	src, err := svc.CreateSource(context.Background(), service.CreateSourceInput{Name: "HN RSS"})
+func TestSaveLinkRecordsOnManualWithoutClientSourceID(t *testing.T) {
+	svc, _, sources := newService()
+	manualID := seedManualSource(sources)
+	_ = seedRSSSource(sources) // other Sources must not be chosen
+
+	recorded, err := svc.SaveLink(context.Background(), service.SaveLinkInput{
+		Title: "Interesting article",
+		Link:  "https://example.com/saved",
+	})
 	require.NoError(t, err)
+	require.Equal(t, manualID, recorded.SourceID)
+	require.Equal(t, "Interesting article", recorded.Title)
+	require.Equal(t, "https://example.com/saved", recorded.Link)
+
+	got, err := svc.GetEntry(context.Background(), recorded.ID)
+	require.NoError(t, err)
+	require.Equal(t, manualID, got.SourceID)
+}
+
+func TestSaveLinkSameLinkUpsertsMetadata(t *testing.T) {
+	svc, repo, sources := newService()
+	manualID := seedManualSource(sources)
+
+	first, err := svc.SaveLink(context.Background(), service.SaveLinkInput{
+		Title:       "Original",
+		Link:        "https://example.com/saved",
+		Description: "first",
+	})
+	require.NoError(t, err)
+
+	time.Sleep(2 * time.Millisecond)
+	second, err := svc.SaveLink(context.Background(), service.SaveLinkInput{
+		Title:       "Updated",
+		Link:        "https://example.com/saved",
+		Description: "second",
+	})
+	require.NoError(t, err)
+	require.Equal(t, first.ID, second.ID)
+	require.Equal(t, manualID, second.SourceID)
+	require.Equal(t, "Updated", second.Title)
+	require.Equal(t, "second", second.Description)
+	require.Len(t, repo.entries, 1)
+}
+
+func TestIngestEntryIntoActiveRSSWorks(t *testing.T) {
+	svc, _, sources := newService()
+	rssID := seedRSSSource(sources)
+
+	recorded, err := svc.IngestEntry(context.Background(), service.IngestEntryInput{
+		SourceID: rssID,
+		Title:    "From feed",
+		Link:     "https://example.com/feed-item",
+	})
+	require.NoError(t, err)
+	require.Equal(t, rssID, recorded.SourceID)
+	require.Equal(t, "From feed", recorded.Title)
+}
+
+func TestIngestEntryIntoManualRejected(t *testing.T) {
+	svc, _, sources := newService()
+	manualID := seedManualSource(sources)
+
+	_, err := svc.IngestEntry(context.Background(), service.IngestEntryInput{
+		SourceID: manualID,
+		Title:    "Worker should not",
+		Link:     "https://example.com/x",
+	})
+	require.Error(t, err)
+	var ae *apperr.Error
+	require.ErrorAs(t, err, &ae)
+	require.Equal(t, apperr.CodeValidation, ae.Code)
+}
+
+func TestIngestEntryIntoDeactivatedRSSRejected(t *testing.T) {
+	svc, _, sources := newService()
+	id := uuid.New()
+	sources.seed(id, service.SourceTypeRSS, false)
+
+	_, err := svc.IngestEntry(context.Background(), service.IngestEntryInput{
+		SourceID: id,
+		Title:    "Stopped feed",
+		Link:     "https://example.com/stopped",
+	})
+	require.Error(t, err)
+	var ae *apperr.Error
+	require.ErrorAs(t, err, &ae)
+	require.Equal(t, apperr.CodeFailedPrecondition, ae.Code)
+}
+
+func TestSameURLUnderManualAndRSSYieldsTwoEntries(t *testing.T) {
+	svc, repo, sources := newService()
+	manualID := seedManualSource(sources)
+	rssID := seedRSSSource(sources)
+	link := "https://example.com/shared"
+
+	manualEntry, err := svc.SaveLink(context.Background(), service.SaveLinkInput{
+		Title: "Saved myself",
+		Link:  link,
+	})
+	require.NoError(t, err)
+
+	rssEntry, err := svc.IngestEntry(context.Background(), service.IngestEntryInput{
+		SourceID: rssID,
+		Title:    "From RSS",
+		Link:     link,
+	})
+	require.NoError(t, err)
+
+	require.NotEqual(t, manualEntry.ID, rssEntry.ID)
+	require.Equal(t, manualID, manualEntry.SourceID)
+	require.Equal(t, rssID, rssEntry.SourceID)
+	require.Len(t, repo.entries, 2)
+}
+
+func TestReadAndSavedBookmarksWorkOnManualAndRSSEntries(t *testing.T) {
+	svc, _, sources := newService()
+	manualID := seedManualSource(sources)
+	rssID := seedRSSSource(sources)
+
+	manualEntry, err := svc.SaveLink(context.Background(), service.SaveLinkInput{
+		Title: "Manual item",
+		Link:  "https://example.com/manual-bm",
+	})
+	require.NoError(t, err)
+	require.Equal(t, manualID, manualEntry.SourceID)
+
+	rssEntry, err := svc.IngestEntry(context.Background(), service.IngestEntryInput{
+		SourceID: rssID,
+		Title:    "RSS item",
+		Link:     "https://example.com/rss-bm",
+	})
+	require.NoError(t, err)
+
+	for _, id := range []uuid.UUID{manualEntry.ID, rssEntry.ID} {
+		read, err := svc.MarkEntryRead(context.Background(), id)
+		require.NoError(t, err)
+		require.NotNil(t, read.ReadAt)
+
+		saved, err := svc.MarkEntrySaved(context.Background(), id)
+		require.NoError(t, err)
+		require.NotNil(t, saved.SavedAt)
+		require.NotNil(t, saved.ReadAt)
+
+		clearedRead, err := svc.ClearEntryRead(context.Background(), id)
+		require.NoError(t, err)
+		require.Nil(t, clearedRead.ReadAt)
+		require.NotNil(t, clearedRead.SavedAt)
+
+		clearedSaved, err := svc.ClearEntrySaved(context.Background(), id)
+		require.NoError(t, err)
+		require.Nil(t, clearedSaved.SavedAt)
+	}
+}
+
+func TestIngestEntryMakesItRetrievable(t *testing.T) {
+	svc, _, sources := newService()
+	sourceID := seedSource(sources)
+
+	thumb := "https://example.com/thumb.png"
+	published := time.Date(2024, 6, 1, 12, 0, 0, 0, time.UTC)
+	recorded, err := svc.IngestEntry(context.Background(), service.IngestEntryInput{
+		SourceID:    sourceID,
+		Title:       "Show HN: Quick Feed",
+		Link:        "https://example.com/a",
+		Description: "A personal reader",
+		Thumbnail:   &thumb,
+		PublishedAt: &published,
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, uuid.Nil, recorded.ID)
+	require.Equal(t, sourceID, recorded.SourceID)
+	require.Equal(t, "Show HN: Quick Feed", recorded.Title)
+	require.Equal(t, "https://example.com/a", recorded.Link)
+	require.Equal(t, "A personal reader", recorded.Description)
+	require.NotNil(t, recorded.Thumbnail)
+	require.Equal(t, thumb, *recorded.Thumbnail)
+	require.NotNil(t, recorded.PublishedAt)
+	require.True(t, published.Equal(recorded.PublishedAt.UTC()))
+
+	got, err := svc.GetEntry(context.Background(), recorded.ID)
+	require.NoError(t, err)
+	require.Equal(t, recorded.ID, got.ID)
+	require.Equal(t, "Show HN: Quick Feed", got.Title)
+	require.Equal(t, "https://example.com/a", got.Link)
+}
+
+func TestGetEntryMissingIDNotFound(t *testing.T) {
+	svc, _, _ := newService()
+
+	_, err := svc.GetEntry(context.Background(), uuid.New())
+	require.Error(t, err)
+	var ae *apperr.Error
+	require.ErrorAs(t, err, &ae)
+	require.Equal(t, apperr.CodeNotFound, ae.Code)
+}
+
+func TestIngestEntryBlankTitleValidation(t *testing.T) {
+	svc, _, sources := newService()
+	sourceID := seedSource(sources)
+
+	_, err := svc.IngestEntry(context.Background(), service.IngestEntryInput{
+		SourceID: sourceID,
+		Title:    "   ",
+		Link:     "https://example.com/a",
+	})
+	require.Error(t, err)
+	var ae *apperr.Error
+	require.ErrorAs(t, err, &ae)
+	require.Equal(t, apperr.CodeValidation, ae.Code)
+}
+
+func TestIngestEntryBlankLinkValidation(t *testing.T) {
+	svc, _, sources := newService()
+	sourceID := seedSource(sources)
+
+	_, err := svc.IngestEntry(context.Background(), service.IngestEntryInput{
+		SourceID: sourceID,
+		Title:    "Show HN",
+		Link:     "",
+	})
+	require.Error(t, err)
+	var ae *apperr.Error
+	require.ErrorAs(t, err, &ae)
+	require.Equal(t, apperr.CodeValidation, ae.Code)
+}
+
+func TestIngestEntryMissingSourceRejected(t *testing.T) {
+	svc, _, _ := newService()
+
+	_, err := svc.IngestEntry(context.Background(), service.IngestEntryInput{
+		SourceID: uuid.New(),
+		Title:    "Show HN",
+		Link:     "https://example.com/a",
+	})
+	require.Error(t, err)
+	var ae *apperr.Error
+	require.ErrorAs(t, err, &ae)
+	require.Equal(t, apperr.CodeNotFound, ae.Code)
+}
+
+func TestIngestEntrySameSourceAndLinkUpsertsMetadata(t *testing.T) {
+	svc, repo, sources := newService()
+	sourceID := seedSource(sources)
+
+	first, err := svc.IngestEntry(context.Background(), service.IngestEntryInput{
+		SourceID:    sourceID,
+		Title:       "Original title",
+		Link:        "https://example.com/a",
+		Description: "original",
+	})
+	require.NoError(t, err)
+	createdAt := first.CreatedAt
+	updatedAt := first.UpdatedAt
+
+	time.Sleep(2 * time.Millisecond)
+
+	thumb := "https://example.com/new.png"
+	published := time.Date(2025, 1, 2, 3, 4, 5, 0, time.UTC)
+	second, err := svc.IngestEntry(context.Background(), service.IngestEntryInput{
+		SourceID:    sourceID,
+		Title:       "Updated title",
+		Link:        "https://example.com/a",
+		Description: "refreshed",
+		Thumbnail:   &thumb,
+		PublishedAt: &published,
+	})
+	require.NoError(t, err)
+	require.Equal(t, first.ID, second.ID)
+	require.Equal(t, "Updated title", second.Title)
+	require.Equal(t, "refreshed", second.Description)
+	require.NotNil(t, second.Thumbnail)
+	require.Equal(t, thumb, *second.Thumbnail)
+	require.NotNil(t, second.PublishedAt)
+	require.True(t, published.Equal(second.PublishedAt.UTC()))
+	require.Equal(t, createdAt, second.CreatedAt)
+	require.True(t, second.UpdatedAt.After(updatedAt))
+
+	got, err := svc.GetEntry(context.Background(), first.ID)
+	require.NoError(t, err)
+	require.Equal(t, "Updated title", got.Title)
+
+	require.Len(t, repo.entries, 1)
+}
+
+func TestListEntriesIncludesEntriesWhoseSourceIsDeactivated(t *testing.T) {
+	// Entry list does not filter by Source active state. After a Source is
+	// deactivated (source module), its existing Entries stay in the stream.
+	svc, _, sources := newService()
+	sourceID := seedSource(sources)
+
+	recorded, err := svc.IngestEntry(context.Background(), service.IngestEntryInput{
+		SourceID: sourceID,
+		Title:    "From a feed I unfollow",
+		Link:     "https://example.com/kept",
+	})
+	require.NoError(t, err)
+
+	pageSize := 10
+	page, err := svc.ListEntries(context.Background(), service.ListEntriesInput{PageSize: &pageSize})
+	require.NoError(t, err)
+	require.Len(t, page.Entries, 1)
+	require.Equal(t, recorded.ID, page.Entries[0].ID)
+	require.Equal(t, sourceID, page.Entries[0].SourceID)
+}
+
+func TestListEntriesNewestFirstPublishedAtFallbackCreatedAtIDTieBreak(t *testing.T) {
+	svc, repo, sources := newService()
+	sourceID := seedSource(sources)
 
 	pubSame := time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
 	pubNewest := time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC)
@@ -333,19 +522,19 @@ func TestListEntriesNewestFirstPublishedAtFallbackCreatedAtIDTieBreak(t *testing
 	idFallback := uuid.MustParse("00000000-0000-4000-8000-0000000000bb")
 
 	repo.seedEntry(&domain.Entry{
-		ID: idHexA, SourceID: src.ID, Title: "same-a", Link: "https://example.com/same-a",
+		ID: idHexA, SourceID: sourceID, Title: "same-a", Link: "https://example.com/same-a",
 		PublishedAt: &pubSame, CreatedAt: pubSame, UpdatedAt: pubSame,
 	})
 	repo.seedEntry(&domain.Entry{
-		ID: idHex10, SourceID: src.ID, Title: "same-10", Link: "https://example.com/same-10",
+		ID: idHex10, SourceID: sourceID, Title: "same-10", Link: "https://example.com/same-10",
 		PublishedAt: &pubSame, CreatedAt: pubSame, UpdatedAt: pubSame,
 	})
 	repo.seedEntry(&domain.Entry{
-		ID: idNewest, SourceID: src.ID, Title: "newest", Link: "https://example.com/newest",
+		ID: idNewest, SourceID: sourceID, Title: "newest", Link: "https://example.com/newest",
 		PublishedAt: &pubNewest, CreatedAt: pubNewest, UpdatedAt: pubNewest,
 	})
 	repo.seedEntry(&domain.Entry{
-		ID: idFallback, SourceID: src.ID, Title: "no-pub", Link: "https://example.com/no-pub",
+		ID: idFallback, SourceID: sourceID, Title: "no-pub", Link: "https://example.com/no-pub",
 		CreatedAt: createdFallback, UpdatedAt: createdFallback,
 	})
 
@@ -373,10 +562,8 @@ func seedTimedEntry(repo *fakeRepo, sourceID, id uuid.UUID, link string, publish
 }
 
 func TestListEntriesCursorContinuesWithoutOffsetDrift(t *testing.T) {
-	repo := newFakeRepo()
-	svc := service.New(repo)
-	src, err := svc.CreateSource(context.Background(), service.CreateSourceInput{Name: "HN RSS"})
-	require.NoError(t, err)
+	svc, repo, sources := newService()
+	sourceID := seedSource(sources)
 
 	t1 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	t2 := time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
@@ -388,10 +575,10 @@ func TestListEntriesCursorContinuesWithoutOffsetDrift(t *testing.T) {
 	id3 := uuid.MustParse("00000000-0000-4000-8000-000000000003")
 	id4 := uuid.MustParse("00000000-0000-4000-8000-000000000004")
 
-	seedTimedEntry(repo, src.ID, id1, "https://example.com/1", &t1, t1)
-	seedTimedEntry(repo, src.ID, id2, "https://example.com/2", &t2, t2)
-	seedTimedEntry(repo, src.ID, id3, "https://example.com/3", &t3, t3)
-	seedTimedEntry(repo, src.ID, id4, "https://example.com/4", &t4, t4)
+	seedTimedEntry(repo, sourceID, id1, "https://example.com/1", &t1, t1)
+	seedTimedEntry(repo, sourceID, id2, "https://example.com/2", &t2, t2)
+	seedTimedEntry(repo, sourceID, id3, "https://example.com/3", &t3, t3)
+	seedTimedEntry(repo, sourceID, id4, "https://example.com/4", &t4, t4)
 
 	pageSize := 2
 	first, err := svc.ListEntries(context.Background(), service.ListEntriesInput{PageSize: &pageSize})
@@ -404,7 +591,7 @@ func TestListEntriesCursorContinuesWithoutOffsetDrift(t *testing.T) {
 	// Newer entry arrives after first page was fetched — cursor must not drift like offset paging.
 	t5 := time.Date(2024, 1, 5, 0, 0, 0, 0, time.UTC)
 	id5 := uuid.MustParse("00000000-0000-4000-8000-000000000005")
-	seedTimedEntry(repo, src.ID, id5, "https://example.com/5", &t5, t5)
+	seedTimedEntry(repo, sourceID, id5, "https://example.com/5", &t5, t5)
 
 	second, err := svc.ListEntries(context.Background(), service.ListEntriesInput{
 		Cursor:   first.NextCursor,
@@ -418,13 +605,11 @@ func TestListEntriesCursorContinuesWithoutOffsetDrift(t *testing.T) {
 }
 
 func TestListEntriesEndOfListHasNoNextCursor(t *testing.T) {
-	repo := newFakeRepo()
-	svc := service.New(repo)
-	src, err := svc.CreateSource(context.Background(), service.CreateSourceInput{Name: "HN RSS"})
-	require.NoError(t, err)
+	svc, repo, sources := newService()
+	sourceID := seedSource(sources)
 
 	t1 := time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC)
-	seedTimedEntry(repo, src.ID, uuid.MustParse("00000000-0000-4000-8000-000000000011"), "https://example.com/a", &t1, t1)
+	seedTimedEntry(repo, sourceID, uuid.MustParse("00000000-0000-4000-8000-000000000011"), "https://example.com/a", &t1, t1)
 
 	pageSize := 5
 	page, err := svc.ListEntries(context.Background(), service.ListEntriesInput{PageSize: &pageSize})
@@ -434,7 +619,7 @@ func TestListEntriesEndOfListHasNoNextCursor(t *testing.T) {
 }
 
 func TestListEntriesInvalidCursorFailsClearly(t *testing.T) {
-	svc := service.New(newFakeRepo())
+	svc, _, _ := newService()
 	bad := "not-a-valid-cursor"
 	_, err := svc.ListEntries(context.Background(), service.ListEntriesInput{Cursor: &bad})
 	require.Error(t, err)
@@ -450,17 +635,15 @@ func TestListEntriesInvalidCursorFailsClearly(t *testing.T) {
 }
 
 func TestListEntriesOmittingPageSizeUsesDefault(t *testing.T) {
-	repo := newFakeRepo()
-	svc := service.New(repo)
-	src, err := svc.CreateSource(context.Background(), service.CreateSourceInput{Name: "HN RSS"})
-	require.NoError(t, err)
+	svc, repo, sources := newService()
+	sourceID := seedSource(sources)
 
 	base := time.Date(2024, 3, 1, 0, 0, 0, 0, time.UTC)
 	total := service.DefaultEntryPageSize + 3
 	for i := 0; i < total; i++ {
 		id := uuid.MustParse(fmt.Sprintf("00000000-0000-4000-8000-%012x", i+1))
 		pub := base.Add(time.Duration(i) * time.Hour)
-		seedTimedEntry(repo, src.ID, id, fmt.Sprintf("https://example.com/%d", i), &pub, pub)
+		seedTimedEntry(repo, sourceID, id, fmt.Sprintf("https://example.com/%d", i), &pub, pub)
 	}
 
 	page, err := svc.ListEntries(context.Background(), service.ListEntriesInput{})
@@ -470,17 +653,15 @@ func TestListEntriesOmittingPageSizeUsesDefault(t *testing.T) {
 }
 
 func TestListEntriesInvalidSmallPageSizeUsesDefault(t *testing.T) {
-	repo := newFakeRepo()
-	svc := service.New(repo)
-	src, err := svc.CreateSource(context.Background(), service.CreateSourceInput{Name: "HN RSS"})
-	require.NoError(t, err)
+	svc, repo, sources := newService()
+	sourceID := seedSource(sources)
 
 	base := time.Date(2024, 3, 1, 0, 0, 0, 0, time.UTC)
 	total := service.DefaultEntryPageSize + 2
 	for i := 0; i < total; i++ {
 		id := uuid.MustParse(fmt.Sprintf("00000000-0000-4000-8000-%012x", i+1))
 		pub := base.Add(time.Duration(i) * time.Hour)
-		seedTimedEntry(repo, src.ID, id, fmt.Sprintf("https://example.com/%d", i), &pub, pub)
+		seedTimedEntry(repo, sourceID, id, fmt.Sprintf("https://example.com/%d", i), &pub, pub)
 	}
 
 	for _, size := range []int{0, -1} {
@@ -493,12 +674,11 @@ func TestListEntriesInvalidSmallPageSizeUsesDefault(t *testing.T) {
 }
 
 func TestMarkEntryReadSetsReadAt(t *testing.T) {
-	svc := service.New(newFakeRepo())
-	src, err := svc.CreateSource(context.Background(), service.CreateSourceInput{Name: "HN RSS"})
-	require.NoError(t, err)
+	svc, _, sources := newService()
+	sourceID := seedSource(sources)
 
-	recorded, err := svc.RecordEntry(context.Background(), service.RecordEntryInput{
-		SourceID: src.ID,
+	recorded, err := svc.IngestEntry(context.Background(), service.IngestEntryInput{
+		SourceID: sourceID,
 		Title:    "Show HN",
 		Link:     "https://example.com/a",
 	})
@@ -519,12 +699,11 @@ func TestMarkEntryReadSetsReadAt(t *testing.T) {
 }
 
 func TestMarkEntrySavedSetsSavedAt(t *testing.T) {
-	svc := service.New(newFakeRepo())
-	src, err := svc.CreateSource(context.Background(), service.CreateSourceInput{Name: "HN RSS"})
-	require.NoError(t, err)
+	svc, _, sources := newService()
+	sourceID := seedSource(sources)
 
-	recorded, err := svc.RecordEntry(context.Background(), service.RecordEntryInput{
-		SourceID: src.ID,
+	recorded, err := svc.IngestEntry(context.Background(), service.IngestEntryInput{
+		SourceID: sourceID,
 		Title:    "Show HN",
 		Link:     "https://example.com/a",
 	})
@@ -545,12 +724,11 @@ func TestMarkEntrySavedSetsSavedAt(t *testing.T) {
 }
 
 func TestMarkEntrySavedWithoutReadLeavesReadAtNil(t *testing.T) {
-	svc := service.New(newFakeRepo())
-	src, err := svc.CreateSource(context.Background(), service.CreateSourceInput{Name: "HN RSS"})
-	require.NoError(t, err)
+	svc, _, sources := newService()
+	sourceID := seedSource(sources)
 
-	recorded, err := svc.RecordEntry(context.Background(), service.RecordEntryInput{
-		SourceID: src.ID,
+	recorded, err := svc.IngestEntry(context.Background(), service.IngestEntryInput{
+		SourceID: sourceID,
 		Title:    "Show HN",
 		Link:     "https://example.com/a",
 	})
@@ -563,12 +741,11 @@ func TestMarkEntrySavedWithoutReadLeavesReadAtNil(t *testing.T) {
 }
 
 func TestMarkEntryReadWithoutSaveLeavesSavedAtNil(t *testing.T) {
-	svc := service.New(newFakeRepo())
-	src, err := svc.CreateSource(context.Background(), service.CreateSourceInput{Name: "HN RSS"})
-	require.NoError(t, err)
+	svc, _, sources := newService()
+	sourceID := seedSource(sources)
 
-	recorded, err := svc.RecordEntry(context.Background(), service.RecordEntryInput{
-		SourceID: src.ID,
+	recorded, err := svc.IngestEntry(context.Background(), service.IngestEntryInput{
+		SourceID: sourceID,
 		Title:    "Show HN",
 		Link:     "https://example.com/a",
 	})
@@ -581,7 +758,7 @@ func TestMarkEntryReadWithoutSaveLeavesSavedAtNil(t *testing.T) {
 }
 
 func TestMarkEntryReadUnknownIDNotFound(t *testing.T) {
-	svc := service.New(newFakeRepo())
+	svc, _, _ := newService()
 
 	_, err := svc.MarkEntryRead(context.Background(), uuid.New())
 	require.Error(t, err)
@@ -591,7 +768,7 @@ func TestMarkEntryReadUnknownIDNotFound(t *testing.T) {
 }
 
 func TestMarkEntrySavedUnknownIDNotFound(t *testing.T) {
-	svc := service.New(newFakeRepo())
+	svc, _, _ := newService()
 
 	_, err := svc.MarkEntrySaved(context.Background(), uuid.New())
 	require.Error(t, err)
@@ -601,12 +778,11 @@ func TestMarkEntrySavedUnknownIDNotFound(t *testing.T) {
 }
 
 func TestClearEntryReadClearsReadAt(t *testing.T) {
-	svc := service.New(newFakeRepo())
-	src, err := svc.CreateSource(context.Background(), service.CreateSourceInput{Name: "HN RSS"})
-	require.NoError(t, err)
+	svc, _, sources := newService()
+	sourceID := seedSource(sources)
 
-	recorded, err := svc.RecordEntry(context.Background(), service.RecordEntryInput{
-		SourceID: src.ID,
+	recorded, err := svc.IngestEntry(context.Background(), service.IngestEntryInput{
+		SourceID: sourceID,
 		Title:    "Show HN",
 		Link:     "https://example.com/a",
 	})
@@ -625,12 +801,11 @@ func TestClearEntryReadClearsReadAt(t *testing.T) {
 }
 
 func TestClearEntrySavedClearsSavedAt(t *testing.T) {
-	svc := service.New(newFakeRepo())
-	src, err := svc.CreateSource(context.Background(), service.CreateSourceInput{Name: "HN RSS"})
-	require.NoError(t, err)
+	svc, _, sources := newService()
+	sourceID := seedSource(sources)
 
-	recorded, err := svc.RecordEntry(context.Background(), service.RecordEntryInput{
-		SourceID: src.ID,
+	recorded, err := svc.IngestEntry(context.Background(), service.IngestEntryInput{
+		SourceID: sourceID,
 		Title:    "Show HN",
 		Link:     "https://example.com/a",
 	})
@@ -649,7 +824,7 @@ func TestClearEntrySavedClearsSavedAt(t *testing.T) {
 }
 
 func TestClearEntryReadUnknownIDNotFound(t *testing.T) {
-	svc := service.New(newFakeRepo())
+	svc, _, _ := newService()
 
 	_, err := svc.ClearEntryRead(context.Background(), uuid.New())
 	require.Error(t, err)

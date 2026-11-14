@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	"github.com/larb26656/quick-feed/backend/internal/feed/domain"
+	"github.com/larb26656/quick-feed/backend/internal/entry/domain"
 	"github.com/larb26656/quick-feed/backend/internal/platform/apperr"
 )
 

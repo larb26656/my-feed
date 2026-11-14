@@ -9,8 +9,8 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/larb26656/quick-feed/backend/internal/feed/domain"
-	"github.com/larb26656/quick-feed/backend/internal/feed/repository"
+	"github.com/larb26656/quick-feed/backend/internal/entry/domain"
+	"github.com/larb26656/quick-feed/backend/internal/entry/repository"
 	"github.com/larb26656/quick-feed/backend/internal/platform/apperr"
 )
 
@@ -36,36 +36,8 @@ func (r *Repository) WithTx(tx pgx.Tx) repository.Repository {
 	return &Repository{q: tx}
 }
 
-func (r *Repository) CreateSource(ctx context.Context, s *domain.Source) error {
-	_, err := r.q.Exec(ctx, `
-		INSERT INTO sources (id, name, created_at, updated_at)
-		VALUES ($1,$2,$3,$4)`,
-		s.ID, s.Name, s.CreatedAt, s.UpdatedAt,
-	)
-	return err
-}
-
-func (r *Repository) GetSourceByID(ctx context.Context, id uuid.UUID) (*domain.Source, error) {
-	row := r.q.QueryRow(ctx, `
-		SELECT id, name, created_at, updated_at
-		FROM sources WHERE id = $1`, id)
-	return scanSource(row)
-}
-
 type scannable interface {
 	Scan(dest ...any) error
-}
-
-func scanSource(row scannable) (*domain.Source, error) {
-	var s domain.Source
-	err := row.Scan(&s.ID, &s.Name, &s.CreatedAt, &s.UpdatedAt)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, apperr.NotFound("source not found")
-		}
-		return nil, err
-	}
-	return &s, nil
 }
 
 func (r *Repository) CreateEntry(ctx context.Context, e *domain.Entry) (*domain.Entry, error) {
