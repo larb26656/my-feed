@@ -1,4 +1,5 @@
 import { Search } from "lucide-react";
+import { CursorPaginationControls } from "#/components/CursorPaginationControls";
 import { ErrorState } from "#/components/ErrorState";
 import { NoDataState } from "#/components/NoDataState";
 import { Button } from "#/components/ui/button";
@@ -13,7 +14,7 @@ import { FetchHistoryRow } from "./FetchHistoryRow";
 
 type ActivityTab = "all" | "succeeded" | "failed" | "in-progress";
 
-export function FetchActivityHistory({
+export function FetchActivityHistory<TPageSize extends number>({
 	jobs,
 	activeJobs,
 	sources,
@@ -24,9 +25,14 @@ export function FetchActivityHistory({
 	isLoading,
 	error,
 	onRetry,
+	pageSize,
+	pageSizeOptions,
+	onPageSizeChange,
+	hasPreviousPage,
 	hasNextPage,
-	isFetchingNextPage,
-	onLoadMore,
+	isLoadingPage,
+	onPreviousPage,
+	onNextPage,
 }: {
 	jobs: FetchJob[];
 	activeJobs: FetchJob[];
@@ -38,9 +44,14 @@ export function FetchActivityHistory({
 	isLoading: boolean;
 	error?: Error | null;
 	onRetry: () => void;
+	pageSize: TPageSize;
+	pageSizeOptions: readonly TPageSize[];
+	onPageSizeChange: (pageSize: TPageSize) => void;
+	hasPreviousPage: boolean;
 	hasNextPage: boolean;
-	isFetchingNextPage: boolean;
-	onLoadMore: () => void;
+	isLoadingPage: boolean;
+	onPreviousPage: () => void;
+	onNextPage: () => void;
 }) {
 	const sourceById = new Map(sources.map((source) => [source.id, source]));
 	const visibleJobs = (tab === "in-progress" ? activeJobs : jobs).filter(
@@ -143,21 +154,18 @@ export function FetchActivityHistory({
 							<Card>
 								<CardContent>
 									{content}
-									{!error &&
-										!isLoading &&
-										visibleJobs.length > 0 &&
-										hasNextPage &&
-										value !== "in-progress" && (
-											<div className="flex justify-center pt-4">
-												<Button
-													variant="outline"
-													onClick={onLoadMore}
-													disabled={isFetchingNextPage}
-												>
-													{isFetchingNextPage ? "Loading…" : "Load older runs"}
-												</Button>
-											</div>
-										)}
+									{!error && value === tab && value !== "in-progress" && (
+										<CursorPaginationControls
+											pageSize={pageSize}
+											pageSizeOptions={pageSizeOptions}
+											onPageSizeChange={onPageSizeChange}
+											hasPreviousPage={hasPreviousPage}
+											hasNextPage={hasNextPage}
+											isLoading={isLoadingPage}
+											onPrevious={onPreviousPage}
+											onNext={onNextPage}
+										/>
+									)}
 								</CardContent>
 							</Card>
 						</TabsContent>

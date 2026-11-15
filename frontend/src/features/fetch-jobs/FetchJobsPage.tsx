@@ -1,31 +1,62 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Play } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "#/components/ui/button";
 import { useFeedState } from "#/features/feed/FeedState";
-import type { FetchJob } from "#/features/fetch-jobs/types";
 import {
 	useActiveFetchJobs,
 	useFetchJobHistory,
 	useStartFetchJobs,
 } from "#/hooks/queries";
-import { useQueryClient } from "@tanstack/react-query";
+import type { FetchJobHistoryPageSize } from "#/hooks/queries/useFetchJobs";
 import { fetchJobKeys } from "#/lib/query-keys";
 import { ActiveRunsCard } from "./components/ActiveRunsCard";
 import { FetchActivityHistory } from "./components/FetchActivityHistory";
 
 type ActivityTab = "all" | "succeeded" | "failed" | "in-progress";
+type HistoryTab = Exclude<ActivityTab, "in-progress">;
+type HistoryNavigation = Record<
+	HistoryTab,
+	{ cursors: (string | null)[]; pageIndex: number }
+>;
+
+const initialHistoryNavigation: HistoryNavigation = {
+	all: { cursors: [null], pageIndex: 0 },
+	succeeded: { cursors: [null], pageIndex: 0 },
+	failed: { cursors: [null], pageIndex: 0 },
+};
+const historyPageSizeOptions = [20, 50, 100] as const;
 
 export function FetchJobsPage() {
 	const { allSources } = useFeedState();
 	const activeQuery = useActiveFetchJobs();
-	const allHistory = useFetchJobHistory();
-	const succeededHistory = useFetchJobHistory("succeeded");
-	const failedHistory = useFetchJobHistory("failed");
 	const startJobs = useStartFetchJobs();
 	const queryClient = useQueryClient();
 	const [tab, setTab] = useState<ActivityTab>("all");
 	const [search, setSearch] = useState("");
+	const [pageSize, setPageSize] = useState<FetchJobHistoryPageSize>(20);
+	const [historyNavigation, setHistoryNavigation] = useState<HistoryNavigation>(
+		initialHistoryNavigation,
+	);
 	const [startMessage, setStartMessage] = useState("");
+	const allNavigation = historyNavigation.all;
+	const succeededNavigation = historyNavigation.succeeded;
+	const failedNavigation = historyNavigation.failed;
+	const allHistory = useFetchJobHistory(
+		undefined,
+		allNavigation.cursors[allNavigation.pageIndex],
+		pageSize,
+	);
+	const succeededHistory = useFetchJobHistory(
+		"succeeded",
+		succeededNavigation.cursors[succeededNavigation.pageIndex],
+		pageSize,
+	);
+	const failedHistory = useFetchJobHistory(
+		"failed",
+		failedNavigation.cursors[failedNavigation.pageIndex],
+		pageSize,
+	);
 	const activeJobs = activeQuery.data ?? [];
 	const activeSourceIds = useMemo(
 		() => new Set(activeJobs.map((job) => job.sourceId)),
@@ -43,7 +74,7 @@ export function FetchJobsPage() {
 			: tab === "failed"
 				? failedHistory
 				: allHistory;
-	const jobs = selectedHistory.data?.pages.flatMap((page) => page.data) ?? [];
+	const jobs = selectedHistory.data?.data ?? [];
 	const terminalJobs =
 		tab === "all"
 			? jobs.filter(
@@ -93,6 +124,42 @@ export function FetchJobsPage() {
 		if (tab === "in-progress") void activeQuery.refetch();
 		else void selectedHistory.refetch();
 	};
+	const hasPreviousPage =
+		tab !== "in-progress" && historyNavigation[tab].pageIndex > 0;
+	const hasNextPage =
+		tab !== "in-progress" && Boolean(selectedHistory.data?.page.hasNext);
+	const goToPreviousPage = () => {
+		if (tab === "in-progress") return;
+		setHistoryNavigation((current) => ({
+			...current,
+			[tab]: { ...current[tab], pageIndex: current[tab].pageIndex - 1 },
+		}));
+	};
+	const goToNextPage = () => {
+		if (tab === "in-progress") return;
+		const nextCursor = selectedHistory.data?.page.nextCursor;
+		if (!nextCursor) return;
+		setHistoryNavigation((current) => {
+			const navigation = current[tab];
+			if (navigation.pageIndex < navigation.cursors.length - 1) {
+				return {
+					...current,
+					[tab]: { ...navigation, pageIndex: navigation.pageIndex + 1 },
+				};
+			}
+			return {
+				...current,
+				[tab]: {
+					cursors: [...navigation.cursors, nextCursor],
+					pageIndex: navigation.pageIndex + 1,
+				},
+			};
+		});
+	};
+	const changePageSize = (nextPageSize: FetchJobHistoryPageSize) => {
+		setPageSize(nextPageSize);
+		setHistoryNavigation(initialHistoryNavigation);
+	};
 
 	return (
 		<div className="space-y-8">
@@ -137,11 +204,14 @@ export function FetchJobsPage() {
 				isLoading={historyLoading}
 				error={displayedHistoryError}
 				onRetry={retryHistory}
-				hasNextPage={
-					tab !== "in-progress" && Boolean(selectedHistory.hasNextPage)
-				}
-				isFetchingNextPage={selectedHistory.isFetchingNextPage}
-				onLoadMore={() => void selectedHistory.fetchNextPage()}
+				pageSize={pageSize}
+				pageSizeOptions={historyPageSizeOptions}
+				onPageSizeChange={changePageSize}
+				hasPreviousPage={hasPreviousPage}
+				hasNextPage={hasNextPage}
+				isLoadingPage={selectedHistory.isFetching}
+				onPreviousPage={goToPreviousPage}
+				onNextPage={goToNextPage}
 			/>
 		</div>
 	);

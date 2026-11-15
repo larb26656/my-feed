@@ -1,9 +1,4 @@
-import {
-	useInfiniteQuery,
-	useMutation,
-	useQuery,
-	useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
 	FetchJob,
 	FetchJobsPage,
@@ -12,20 +7,21 @@ import type {
 import { api } from "#/lib/api";
 import { fetchJobKeys } from "#/lib/query-keys";
 
-const historyPageSize = 20;
+export type FetchJobHistoryPageSize = 20 | 50 | 100;
 
-export function useFetchJobHistory(status?: "succeeded" | "failed") {
-	return useInfiniteQuery({
-		queryKey: fetchJobKeys.history(status),
-		initialPageParam: null as string | null,
-		queryFn: ({ pageParam }) => {
-			const params = new URLSearchParams({ pageSize: String(historyPageSize) });
+export function useFetchJobHistory(
+	status: "succeeded" | "failed" | undefined,
+	cursor: string | null,
+	pageSize: FetchJobHistoryPageSize,
+) {
+	return useQuery({
+		queryKey: fetchJobKeys.history(status, cursor, pageSize),
+		queryFn: () => {
+			const params = new URLSearchParams({ pageSize: String(pageSize) });
 			if (status) params.set("status", status);
-			if (pageParam) params.set("cursor", pageParam);
+			if (cursor) params.set("cursor", cursor);
 			return api<FetchJobsPage>(`/fetch-jobs/?${params}`);
 		},
-		getNextPageParam: (lastPage) =>
-			lastPage.page.hasNext ? lastPage.page.nextCursor : undefined,
 	});
 }
 

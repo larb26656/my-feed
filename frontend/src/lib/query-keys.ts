@@ -12,8 +12,11 @@ export const entryKeys = {
 
 export const fetchJobKeys = {
 	root: ["fetch-jobs"] as const,
-	history: (status?: string) =>
-		["fetch-jobs", "history", status ?? "all"] as const,
+	history: (
+		status: string | undefined,
+		cursor: string | null,
+		pageSize: number,
+	) => ["fetch-jobs", "history", status ?? "all", pageSize, cursor] as const,
 	active: ["fetch-jobs", "active"] as const,
 	detail: (id: string | null) => ["fetch-jobs", id] as const,
 };
