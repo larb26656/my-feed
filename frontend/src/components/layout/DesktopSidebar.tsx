@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Bookmark, Layers3, RefreshCw, Rss, Settings } from "lucide-react";
+import { Bookmark, Layers3, RefreshCw, Settings } from "lucide-react";
 import { buttonVariants } from "#/components/ui/button";
 import { useFeedState } from "#/features/feed/FeedState";
 
@@ -14,8 +14,8 @@ export function DesktopSidebar() {
 				to="/"
 				className="flex items-center gap-2 text-left text-xl font-bold tracking-tight"
 			>
-				<span className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground">
-					<Rss size={20} strokeWidth={3} />
+				<span className="grid size-9 place-items-center">
+					<img src="/quick-feed-mascot.png" alt="" className="size-9 object-contain" />
 				</span>
 				quick.feed
 			</Link>

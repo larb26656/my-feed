@@ -1,13 +1,13 @@
 import { Link } from "@tanstack/react-router";
-import { Rss, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
 import { buttonVariants } from "#/components/ui/button";
 
 export function PageHeader() {
 	return (
 		<header className="flex h-16 items-center justify-between border-b bg-card px-5 md:hidden">
 			<Link to="/" className="flex items-center gap-2 font-bold">
-				<span className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground">
-					<Rss size={17} />
+				<span className="grid size-8 place-items-center">
+					<img src="/quick-feed-mascot.png" alt="" className="size-8 object-contain" />
 				</span>
 				quick.feed
 			</Link>
