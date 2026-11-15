@@ -5,158 +5,200 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/require"
-
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	"github.com/larb26656/my-feed/backend/internal/source/domain"
+	"github.com/stretchr/testify/require"
 )
 
-func TestNewRSSSourceHappyPath(t *testing.T) {
-	s, err := domain.NewRSSSource("  HN RSS  ", "  https://hn.example/rss  ")
+func TestNewRSSSourceNormalizesSubscriptionDetails(t *testing.T) {
+	// Arrange
+	name, feedURL := " News ", " https://example.test/rss "
+
+	// Act
+	source, err := domain.NewRSSSource(name, feedURL)
+
+	// Assert
 	require.NoError(t, err)
-	require.NotEqual(t, uuid.Nil, s.ID)
-	require.Equal(t, "HN RSS", s.Name)
-	require.Equal(t, domain.TypeRSS, s.Type)
-	require.Equal(t, "https://hn.example/rss", s.RSSURL)
-	require.False(t, s.CreatedAt.IsZero())
-	require.Equal(t, s.CreatedAt, s.UpdatedAt)
+	require.Equal(t, "News", source.Name)
+	require.Equal(t, "https://example.test/rss", source.RSSURL)
 }
 
-func TestNewRSSSourceRejectsBlankName(t *testing.T) {
-	_, err := domain.NewRSSSource("   ", "https://hn.example/rss")
-	require.Error(t, err)
-	var ae *apperr.Error
-	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeValidation, ae.Code)
+func TestNewRSSSourceStartsActiveWithAnRSSIdentity(t *testing.T) {
+	// Arrange
+	name, feedURL := "News", "https://example.test/rss"
 
-	_, err = domain.NewRSSSource("", "https://hn.example/rss")
-	require.Error(t, err)
-	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeValidation, ae.Code)
+	// Act
+	source, err := domain.NewRSSSource(name, feedURL)
+
+	// Assert
+	require.NoError(t, err)
+	require.NotEqual(t, uuid.Nil, source.ID)
+	require.Equal(t, domain.TypeRSS, source.Type)
+	require.True(t, source.Active)
+	require.False(t, source.CreatedAt.IsZero())
+	require.Equal(t, source.CreatedAt, source.UpdatedAt)
 }
 
-func TestNewRSSSourceRejectsMissingURL(t *testing.T) {
-	_, err := domain.NewRSSSource("HN RSS", "   ")
-	require.Error(t, err)
-	var ae *apperr.Error
-	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeValidation, ae.Code)
+func TestNewManualSourceStartsActiveWithoutAFeedURL(t *testing.T) {
+	// Arrange
+	name := domain.SavedLinksName
+
+	// Act
+	source, err := domain.NewManualSource(name)
+
+	// Assert
+	require.NoError(t, err)
+	require.NotEqual(t, uuid.Nil, source.ID)
+	require.Equal(t, domain.TypeManual, source.Type)
+	require.True(t, source.Active)
+	require.Empty(t, source.RSSURL)
 }
 
-func TestSourceTypeFixedAtConstruction(t *testing.T) {
-	rss, err := domain.NewRSSSource("HN", "https://hn.example/rss")
-	require.NoError(t, err)
-	require.Equal(t, domain.TypeRSS, rss.Type)
+func TestNewRSSSourceRejectsBlankNames(t *testing.T) {
+	for _, scenario := range []struct{ name, value string }{{"empty", ""}, {"whitespace", " "}} {
+		t.Run(scenario.name, func(t *testing.T) {
+			// Arrange
+			feedURL := "https://example.test/rss"
 
-	manual, err := domain.NewManualSource("Saved links")
-	require.NoError(t, err)
-	require.Equal(t, domain.TypeManual, manual.Type)
-	require.Empty(t, manual.RSSURL)
+			// Act
+			_, err := domain.NewRSSSource(scenario.value, feedURL)
 
-	// Type is set only by constructors; no domain operation changes it.
-	require.Equal(t, domain.TypeRSS, rss.Type)
-	require.Equal(t, domain.TypeManual, manual.Type)
+			// Assert
+			var failure *apperr.Error
+			require.ErrorAs(t, err, &failure)
+			require.Equal(t, apperr.CodeValidation, failure.Code)
+		})
+	}
 }
 
-func TestNewSourcesStartActive(t *testing.T) {
-	rss, err := domain.NewRSSSource("HN", "https://hn.example/rss")
-	require.NoError(t, err)
-	require.True(t, rss.Active)
+func TestNewRSSSourceRejectsMissingFeedURLs(t *testing.T) {
+	// Arrange
+	name, feedURL := "News", " "
 
-	manual, err := domain.NewManualSource("Saved links")
-	require.NoError(t, err)
-	require.True(t, manual.Active)
+	// Act
+	_, err := domain.NewRSSSource(name, feedURL)
+
+	// Assert
+	var failure *apperr.Error
+	require.ErrorAs(t, err, &failure)
+	require.Equal(t, apperr.CodeValidation, failure.Code)
 }
 
-func TestDeactivateRSSSource(t *testing.T) {
-	s, err := domain.NewRSSSource("HN", "https://hn.example/rss")
+func TestPausingAnRSSSourceUpdatesItsStateAndTimestamp(t *testing.T) {
+	// Arrange
+	source, err := domain.NewRSSSource("News", "https://example.test/rss")
 	require.NoError(t, err)
-	before := s.UpdatedAt
+	previous := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	source.UpdatedAt = previous
 
-	time.Sleep(2 * time.Millisecond)
-	require.NoError(t, s.Deactivate())
-	require.False(t, s.Active)
-	require.True(t, s.UpdatedAt.After(before))
+	// Act
+	err = source.Deactivate()
+
+	// Assert
+	require.NoError(t, err)
+	require.False(t, source.Active)
+	require.True(t, source.UpdatedAt.After(previous))
 }
 
-func TestDeactivateManualSourceRejected(t *testing.T) {
-	s, err := domain.NewManualSource("Saved links")
+func TestManualSourcesCannotBePaused(t *testing.T) {
+	// Arrange
+	source, err := domain.NewManualSource(domain.SavedLinksName)
 	require.NoError(t, err)
 
-	err = s.Deactivate()
-	require.Error(t, err)
-	var ae *apperr.Error
-	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeFailedPrecondition, ae.Code)
-	require.True(t, s.Active)
+	// Act
+	err = source.Deactivate()
+
+	// Assert
+	var failure *apperr.Error
+	require.ErrorAs(t, err, &failure)
+	require.Equal(t, apperr.CodeFailedPrecondition, failure.Code)
+	require.True(t, source.Active)
 }
 
-func TestReactivateRSSSource(t *testing.T) {
-	s, err := domain.NewRSSSource("HN", "https://hn.example/rss")
+func TestResumingAnRSSSourceUpdatesItsStateAndTimestamp(t *testing.T) {
+	// Arrange
+	source, err := domain.NewRSSSource("News", "https://example.test/rss")
 	require.NoError(t, err)
-	require.NoError(t, s.Deactivate())
-	require.False(t, s.Active)
+	source.Active = false
+	previous := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	source.UpdatedAt = previous
 
-	before := s.UpdatedAt
-	time.Sleep(2 * time.Millisecond)
-	require.NoError(t, s.Reactivate())
-	require.True(t, s.Active)
-	require.True(t, s.UpdatedAt.After(before))
+	// Act
+	err = source.Reactivate()
+
+	// Assert
+	require.NoError(t, err)
+	require.True(t, source.Active)
+	require.True(t, source.UpdatedAt.After(previous))
 }
 
-func TestReactivateManualSourceRejected(t *testing.T) {
-	s, err := domain.NewManualSource("Saved links")
+func TestManualSourcesCannotBeResumed(t *testing.T) {
+	// Arrange
+	source, err := domain.NewManualSource(domain.SavedLinksName)
 	require.NoError(t, err)
 
-	err = s.Reactivate()
-	require.Error(t, err)
-	var ae *apperr.Error
-	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeFailedPrecondition, ae.Code)
-	require.True(t, s.Active)
+	// Act
+	err = source.Reactivate()
+
+	// Assert
+	var failure *apperr.Error
+	require.ErrorAs(t, err, &failure)
+	require.Equal(t, apperr.CodeFailedPrecondition, failure.Code)
+	require.True(t, source.Active)
 }
 
-func TestUpdateDetailsRSSSource(t *testing.T) {
-	s, err := domain.NewRSSSource("HN", "https://hn.example/rss")
+func TestEditingRSSDetailsNormalizesFieldsAndPreservesTheSourceType(t *testing.T) {
+	// Arrange
+	source, err := domain.NewRSSSource("News", "https://example.test/rss")
 	require.NoError(t, err)
-	before := s.UpdatedAt
-	typ := s.Type
+	previous := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	source.UpdatedAt = previous
 
-	time.Sleep(2 * time.Millisecond)
-	require.NoError(t, s.UpdateDetails("  HN Front  ", "  https://hn.example/front  "))
-	require.Equal(t, "HN Front", s.Name)
-	require.Equal(t, "https://hn.example/front", s.RSSURL)
-	require.Equal(t, typ, s.Type)
-	require.True(t, s.UpdatedAt.After(before))
+	// Act
+	err = source.UpdateDetails(" Weekly news ", " https://example.test/weekly ")
+
+	// Assert
+	require.NoError(t, err)
+	require.Equal(t, "Weekly news", source.Name)
+	require.Equal(t, "https://example.test/weekly", source.RSSURL)
+	require.Equal(t, domain.TypeRSS, source.Type)
+	require.True(t, source.UpdatedAt.After(previous))
 }
 
-func TestUpdateDetailsRejectsBlankNameOrURL(t *testing.T) {
-	s, err := domain.NewRSSSource("HN", "https://hn.example/rss")
-	require.NoError(t, err)
+func TestInvalidSourceEditsLeaveTheSourceUnchanged(t *testing.T) {
+	for _, scenario := range []struct{ name, title, url string }{
+		{"blank name", " ", "https://example.test/new"}, {"blank feed URL", "Changed", " "},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			// Arrange
+			source, err := domain.NewRSSSource("News", "https://example.test/rss")
+			require.NoError(t, err)
+			original := *source
 
-	err = s.UpdateDetails("   ", "https://hn.example/front")
-	require.Error(t, err)
-	var ae *apperr.Error
-	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeValidation, ae.Code)
-	require.Equal(t, "HN", s.Name)
+			// Act
+			err = source.UpdateDetails(scenario.title, scenario.url)
 
-	err = s.UpdateDetails("HN Front", "   ")
-	require.Error(t, err)
-	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeValidation, ae.Code)
-	require.Equal(t, "https://hn.example/rss", s.RSSURL)
+			// Assert
+			var failure *apperr.Error
+			require.ErrorAs(t, err, &failure)
+			require.Equal(t, apperr.CodeValidation, failure.Code)
+			require.Equal(t, original, *source)
+		})
+	}
 }
 
-func TestUpdateDetailsManualSourceRejected(t *testing.T) {
-	s, err := domain.NewManualSource("Saved links")
+func TestManualSourcesCannotBeEdited(t *testing.T) {
+	// Arrange
+	source, err := domain.NewManualSource(domain.SavedLinksName)
 	require.NoError(t, err)
+	original := *source
 
-	err = s.UpdateDetails("Bookmarks", "https://example.com")
-	require.Error(t, err)
-	var ae *apperr.Error
-	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeFailedPrecondition, ae.Code)
-	require.Equal(t, "Saved links", s.Name)
-	require.Empty(t, s.RSSURL)
+	// Act
+	err = source.UpdateDetails("Bookmarks", "https://example.test/rss")
+
+	// Assert
+	var failure *apperr.Error
+	require.ErrorAs(t, err, &failure)
+	require.Equal(t, apperr.CodeFailedPrecondition, failure.Code)
+	require.Equal(t, original, *source)
 }
