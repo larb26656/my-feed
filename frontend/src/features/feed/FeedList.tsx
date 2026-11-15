@@ -1,4 +1,6 @@
-import { Bookmark } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { buttonVariants } from "#/components/ui/button";
+import { NoDataState } from "#/components/NoDataState";
 import { FeedItem } from "./FeedItem";
 import type { Entry, Source } from "./types";
 export function FeedList({
@@ -15,10 +17,16 @@ export function FeedList({
 	return (
 		<div>
 			{visible.length === 0 ? (
-				<div className="flex flex-col items-center gap-2 py-14 text-center text-muted-foreground">
-					<Bookmark />
-					<strong className="text-foreground">ยังไม่มีรายการในส่วนนี้</strong>
-				</div>
+				<NoDataState
+					illustration="feed"
+					title="ยังไม่มีรายการให้อ่าน"
+					description="เพิ่มแหล่งที่มาติดตาม หรือบันทึกลิงก์ที่อยากอ่านไว้ที่นี่"
+					action={
+						<Link to="/record-link" className={buttonVariants()}>
+							บันทึกลิงก์
+						</Link>
+					}
+				/>
 			) : (
 				visible.map((entry) => (
 					<FeedItem

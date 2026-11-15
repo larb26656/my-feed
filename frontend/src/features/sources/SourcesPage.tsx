@@ -3,8 +3,11 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { ErrorState } from "#/components/ErrorState";
+import { NoDataState } from "#/components/NoDataState";
 import { Button } from "#/components/ui/button";
 import { FormField } from "#/components/ui/form-field";
+import { Skeleton } from "#/components/ui/skeleton";
 import { toastManager } from "#/components/ui/toaster";
 import { useFeedState } from "#/features/feed/FeedState";
 import type { Source } from "#/features/feed/types";
@@ -17,7 +20,13 @@ const sourceSchema = z.object({
 type SourceForm = z.infer<typeof sourceSchema>;
 
 export function SourcesPage() {
-	const { allSources, sourcesLoading, sourcesError } = useFeedState();
+	const {
+		allSources,
+		sourcesLoading,
+		sourcesError,
+		sourcesErrorValue,
+		refetchSources,
+	} = useFeedState();
 	const [editing, setEditing] = useState<Source | null>(null);
 	const [showForm, setShowForm] = useState(false);
 	const form = useForm<SourceForm>({
@@ -113,11 +122,30 @@ export function SourcesPage() {
 				</form>
 			)}
 
-			{sourcesLoading && <p className="mt-8">กำลังโหลด Sources...</p>}
+			{sourcesLoading && (
+				<output className="mt-8 border-t" aria-busy="true">
+					<span className="sr-only">กำลังโหลด Sources</span>
+					{["first", "second", "third"].map((row) => (
+						<div key={row} className="flex items-center gap-3 border-b py-5">
+							<div className="flex-1 space-y-2">
+								<Skeleton className="h-4 w-40 max-w-2/3" />
+								<Skeleton className="h-3 w-28" />
+							</div>
+							<Skeleton className="h-9 w-20" />
+							<Skeleton className="h-9 w-24" />
+						</div>
+					))}
+				</output>
+			)}
 			{sourcesError && (
-				<p role="alert" className="mt-8 text-destructive">
-					ไม่สามารถโหลด Sources ได้
-				</p>
+				<ErrorState
+					size="compact"
+					error={sourcesErrorValue ?? "Sources unavailable"}
+					message="โหลด Sources ไม่สำเร็จ ลองอีกครั้งได้เลย"
+					action={
+						<Button onClick={() => void refetchSources()}>ลองอีกครั้ง</Button>
+					}
+				/>
 			)}
 			{activationMutation.isError && (
 				<p role="alert" className="mt-4 text-sm text-destructive">
@@ -125,64 +153,70 @@ export function SourcesPage() {
 				</p>
 			)}
 			{!sourcesLoading && !sourcesError && allSources.length === 0 && (
-				<p className="mt-8 rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-					ยังไม่มี Source เพิ่ม RSS Source เพื่อเริ่มติดตามบทความ
-				</p>
+				<NoDataState
+					size="compact"
+					illustration="feed"
+					title="ยังไม่มี Source"
+					description="เพิ่ม RSS Source เพื่อเริ่มติดตามบทความ"
+					action={<Button onClick={openCreate}>เพิ่ม Source</Button>}
+				/>
 			)}
-			<div className="mt-8 border-t">
-				{allSources.map((source) => (
-					<div
-						key={source.id}
-						className="flex items-center gap-3 border-b py-5"
-					>
-						<span className="min-w-0 flex-1">
-							<Link
-								to="/sources/$sourceId"
-								params={{ sourceId: source.id }}
-								className="block truncate text-sm font-semibold hover:underline"
-							>
-								{source.name}
-							</Link>
-							<span className="text-xs text-muted-foreground">
-								{source.type.toUpperCase()} ·{" "}
-								{source.active ? "ใช้งานอยู่" : "ปิดใช้งาน"}
+			{!sourcesLoading && !sourcesError && allSources.length > 0 && (
+				<div className="mt-8 border-t">
+					{allSources.map((source) => (
+						<div
+							key={source.id}
+							className="flex items-center gap-3 border-b py-5"
+						>
+							<span className="min-w-0 flex-1">
+								<Link
+									to="/sources/$sourceId"
+									params={{ sourceId: source.id }}
+									className="block truncate text-sm font-semibold hover:underline"
+								>
+									{source.name}
+								</Link>
+								<span className="text-xs text-muted-foreground">
+									{source.type.toUpperCase()} ·{" "}
+									{source.active ? "ใช้งานอยู่" : "ปิดใช้งาน"}
+								</span>
 							</span>
-						</span>
-						{source.type === "rss" && (
-							<div className="flex gap-2">
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => openEdit(source)}
-								>
-									แก้ไข {source.name}
-								</Button>
-								<Button
-									variant="outline"
-									size="sm"
-									disabled={activationMutation.isPending}
-									onClick={() => {
-										activationMutation.reset();
-										activationMutation.mutate(
-											{ id: source.id, active: !source.active },
-											{ onSuccess: handleActivationSuccess },
-										);
-									}}
-								>
-									{activationMutation.isPending &&
-									activationMutation.variables?.id === source.id
-										? source.active
-											? "กำลังปิดใช้งาน..."
-											: "กำลังเปิดใช้งาน..."
-										: source.active
-											? `ปิดใช้งาน ${source.name}`
-											: `เปิดใช้งาน ${source.name}`}
-								</Button>
-							</div>
-						)}
-					</div>
-				))}
-			</div>
+							{source.type === "rss" && (
+								<div className="flex gap-2">
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => openEdit(source)}
+									>
+										แก้ไข {source.name}
+									</Button>
+									<Button
+										variant="outline"
+										size="sm"
+										disabled={activationMutation.isPending}
+										onClick={() => {
+											activationMutation.reset();
+											activationMutation.mutate(
+												{ id: source.id, active: !source.active },
+												{ onSuccess: handleActivationSuccess },
+											);
+										}}
+									>
+										{activationMutation.isPending &&
+										activationMutation.variables?.id === source.id
+											? source.active
+												? "กำลังปิดใช้งาน..."
+												: "กำลังเปิดใช้งาน..."
+											: source.active
+												? `ปิดใช้งาน ${source.name}`
+												: `เปิดใช้งาน ${source.name}`}
+									</Button>
+								</div>
+							)}
+						</div>
+					))}
+				</div>
+			)}
 		</section>
 	);
 }

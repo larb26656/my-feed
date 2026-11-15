@@ -1,10 +1,12 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
+import { ErrorState } from "#/components/ErrorState";
 import { Button, buttonVariants } from "#/components/ui/button";
 import { useEntries, useToggleEntry } from "#/hooks/queries";
 import { FeedFilters } from "./FeedFilters";
 import { FeedList } from "./FeedList";
+import { FeedSkeleton } from "./FeedSkeleton";
 import { useFeedState } from "./FeedState";
 import type { FeedFilter } from "./types";
 export function FeedPage({
@@ -57,9 +59,15 @@ export function FeedPage({
 				setSavedOnly={setSavedFilter}
 			/>
 			{query.isLoading ? (
-				<p>กำลังโหลด...</p>
+				<FeedSkeleton />
 			) : query.isError ? (
-				<p role="alert">ไม่สามารถโหลดรายการได้</p>
+				<ErrorState
+					error={query.error}
+					message="โหลดรายการไม่สำเร็จ ลองอีกครั้งได้เลย"
+					action={
+						<Button onClick={() => void query.refetch()}>ลองอีกครั้ง</Button>
+					}
+				/>
 			) : (
 				<FeedList
 					visible={visible}

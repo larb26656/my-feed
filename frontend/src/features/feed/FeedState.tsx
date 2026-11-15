@@ -11,6 +11,8 @@ function useFeedStateValue() {
 		allSources: query.data ?? [],
 		sourcesLoading: query.isLoading,
 		sourcesError: query.isError,
+		sourcesErrorValue: query.error,
+		refetchSources: query.refetch,
 	};
 }
 const FeedContext = createContext<ReturnType<typeof useFeedStateValue> | null>(

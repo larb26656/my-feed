@@ -1,4 +1,8 @@
 import { useState } from "react";
+import { ErrorState } from "#/components/ErrorState";
+import { NoDataState } from "#/components/NoDataState";
+import { Button } from "#/components/ui/button";
+import { Skeleton } from "#/components/ui/skeleton";
 import { useFeedState } from "#/features/feed/FeedState";
 import type { Source } from "#/features/feed/types";
 import { useCreateFetchJob, useFetchJob } from "#/hooks/queries";
@@ -14,7 +18,13 @@ const exampleHistory = [
 ];
 
 export function FetchJobsPage() {
-	const { allSources, sourcesLoading, sourcesError } = useFeedState();
+	const {
+		allSources,
+		sourcesLoading,
+		sourcesError,
+		sourcesErrorValue,
+		refetchSources,
+	} = useFeedState();
 	const fetchableSources = allSources.filter(
 		(source: Source) => source.active && source.type !== "manual",
 	);
@@ -77,16 +87,30 @@ export function FetchJobsPage() {
 						{createJob.isPending ? "กำลังเริ่ม..." : "เริ่ม Fetch"}
 					</button>
 				</div>
-				{sourcesLoading && <p className="mt-3 text-sm">กำลังโหลด Sources...</p>}
+				{sourcesLoading && (
+					<output className="mt-3 space-y-2" aria-busy="true">
+						<span className="sr-only">กำลังโหลด Sources</span>
+						<Skeleton className="h-3 w-28" />
+						<Skeleton className="h-11 w-full rounded-lg" />
+					</output>
+				)}
 				{sourcesError && (
-					<p role="alert" className="mt-3 text-sm text-destructive">
-						โหลด Sources ไม่สำเร็จ
-					</p>
+					<ErrorState
+						size="compact"
+						error={sourcesErrorValue ?? "Sources unavailable"}
+						message="โหลด Sources ไม่สำเร็จ ลองอีกครั้งได้เลย"
+						action={
+							<Button onClick={() => void refetchSources()}>ลองอีกครั้ง</Button>
+						}
+					/>
 				)}
 				{!sourcesLoading && !sourcesError && fetchableSources.length === 0 && (
-					<p className="mt-3 text-sm text-muted-foreground">
-						ยังไม่มี Source ที่ Fetch ได้
-					</p>
+					<NoDataState
+						size="compact"
+						illustration="feed"
+						title="ยังไม่มี Source ที่ Fetch ได้"
+						description="เพิ่มหรือเปิดใช้งาน RSS Source ก่อนเริ่ม Fetch"
+					/>
 				)}
 				{createJob.isError && (
 					<p role="alert" className="mt-3 text-sm text-destructive">
@@ -103,17 +127,29 @@ export function FetchJobsPage() {
 					Fetch Job ล่าสุด
 				</h2>
 				{!jobId && (
-					<p className="mt-3 text-sm text-muted-foreground">
-						ยังไม่มี Fetch Job ในหน้านี้
-					</p>
+					<NoDataState
+						size="compact"
+						illustration="sleeping"
+						title="ยังไม่มี Fetch Job"
+						description="เลือก Source แล้วเริ่ม Fetch เพื่อดูสถานะงานที่นี่"
+					/>
 				)}
 				{jobQuery.isLoading && (
-					<p className="mt-3 text-sm">กำลังโหลดสถานะ Fetch Job...</p>
+					<output className="mt-3 space-y-2" aria-busy="true">
+						<span className="sr-only">กำลังโหลดสถานะ Fetch Job</span>
+						<Skeleton className="h-4 w-48" />
+						<Skeleton className="h-4 w-36" />
+					</output>
 				)}
 				{jobQuery.isError && (
-					<p role="alert" className="mt-3 text-sm text-destructive">
-						โหลดสถานะ Fetch Job ไม่สำเร็จ
-					</p>
+					<ErrorState
+						size="compact"
+						error={jobQuery.error}
+						message="โหลดสถานะ Fetch Job ไม่สำเร็จ"
+						action={
+							<Button onClick={() => void jobQuery.refetch()}>ลองอีกครั้ง</Button>
+						}
+					/>
 				)}
 				{job && (
 					<div className="mt-3 space-y-1 text-sm">
