@@ -1,18 +1,17 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Link } from "@tanstack/react-router";
 import { Rss, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { ErrorState } from "#/components/ErrorState";
 import { NoDataState } from "#/components/NoDataState";
-import { SourceAvatar } from "#/components/SourceAvatar";
 import { Button } from "#/components/ui/button";
 import { FormField } from "#/components/ui/form-field";
 import { Skeleton } from "#/components/ui/skeleton";
 import { toastManager } from "#/components/ui/toaster";
 import { useFeedState } from "#/features/feed/FeedState";
 import type { Source } from "#/features/feed/types";
+import { SourcesItem } from "#/features/sources/SourcesItem";
 import { useSaveSource, useSetSourceActive } from "#/hooks/queries";
 
 const sourceSchema = z.object({
@@ -99,7 +98,7 @@ export function SourcesPage() {
 						className="max-h-[90dvh] w-full overflow-y-auto rounded-t-3xl border bg-background shadow-2xl sm:max-w-lg sm:rounded-2xl"
 					>
 						<div className="mx-auto mt-3 h-1 w-10 rounded-full bg-muted-foreground/30 sm:hidden" />
-						<div className="flex items-start justify-between border-b px-6 py-5 sm:px-7">
+						<div className="flex items-start justify-between px-6 py-5 sm:px-7">
 							<div>
 								<h2 id="source-dialog-title" className="text-xl font-semibold">
 									{editing ? "Edit RSS source" : "Add RSS source"}
@@ -134,7 +133,9 @@ export function SourcesPage() {
 								registration={form.register("name")}
 							/>
 							<fieldset>
-								<legend className="mb-2 text-sm font-medium">Source type</legend>
+								<legend className="mb-2 text-sm font-medium">
+									Source type
+								</legend>
 								<button
 									type="button"
 									aria-pressed="true"
@@ -167,8 +168,12 @@ export function SourcesPage() {
 									Could not save source: {mutation.error.message}
 								</p>
 							)}
-							<div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end">
-								<Button type="button" variant="outline" onClick={() => setShowForm(false)}>
+							<div className="flex flex-col-reverse gap-2 pt-4 sm:flex-row sm:justify-end">
+								<Button
+									type="button"
+									variant="outline"
+									onClick={() => setShowForm(false)}
+								>
 									Cancel
 								</Button>
 								<Button type="submit" disabled={mutation.isPending}>
@@ -222,57 +227,20 @@ export function SourcesPage() {
 			{!sourcesLoading && !sourcesError && allSources.length > 0 && (
 				<div className="mt-8 border-t">
 					{allSources.map((source) => (
-						<div
+						<SourcesItem
 							key={source.id}
-							className="flex items-center gap-3 border-b py-5"
-						>
-							<SourceAvatar name={source.name} image={source.image} size={40} />
-							<span className="min-w-0 flex-1">
-								<Link
-									to="/sources/$sourceId"
-									params={{ sourceId: source.id }}
-									className="block truncate text-sm font-semibold hover:underline"
-								>
-									{source.name}
-								</Link>
-								<span className="text-xs text-muted-foreground">
-									{source.type.toUpperCase()} ·{" "}
-									{source.active ? "Active" : "Inactive"}
-								</span>
-							</span>
-							{source.type === "rss" && (
-								<div className="flex gap-2">
-									<Button
-										variant="outline"
-										size="sm"
-										onClick={() => openEdit(source)}
-									>
-										Edit {source.name}
-									</Button>
-									<Button
-										variant="outline"
-										size="sm"
-										disabled={activationMutation.isPending}
-										onClick={() => {
-											activationMutation.reset();
-											activationMutation.mutate(
-												{ id: source.id, active: !source.active },
-												{ onSuccess: handleActivationSuccess },
-											);
-										}}
-									>
-										{activationMutation.isPending &&
-										activationMutation.variables?.id === source.id
-											? source.active
-												? "Deactivating..."
-												: "Activating..."
-											: source.active
-												? `Inactive ${source.name}`
-												: `Activate ${source.name}`}
-									</Button>
-								</div>
-							)}
-						</div>
+							source={source}
+							activationPending={activationMutation.isPending}
+							activationSourceId={activationMutation.variables?.id}
+							onEdit={openEdit}
+							onToggleActive={(item) => {
+								activationMutation.reset();
+								activationMutation.mutate(
+									{ id: item.id, active: !item.active },
+									{ onSuccess: handleActivationSuccess },
+								);
+							}}
+						/>
 					))}
 				</div>
 			)}

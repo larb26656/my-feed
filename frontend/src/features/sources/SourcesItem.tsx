@@ -1,0 +1,97 @@
+import { Link } from "@tanstack/react-router";
+import { Ellipsis, Pencil, Power } from "lucide-react";
+import { useState } from "react";
+import { SourceAvatar } from "#/components/SourceAvatar";
+import { Button } from "#/components/ui/button";
+import type { Source } from "#/features/feed/types";
+
+type SourcesItemProps = {
+	source: Source;
+	activationPending: boolean;
+	activationSourceId?: string;
+	onEdit: (source: Source) => void;
+	onToggleActive: (source: Source) => void;
+};
+
+export function SourcesItem({
+	source,
+	activationPending,
+	activationSourceId,
+	onEdit,
+	onToggleActive,
+}: SourcesItemProps) {
+	const [menuOpen, setMenuOpen] = useState(false);
+
+	return (
+		<div className="flex items-center gap-3 border-b py-5">
+			<SourceAvatar name={source.name} image={source.image} size={40} />
+			<span className="min-w-0 flex-1">
+				<Link
+					to="/sources/$sourceId"
+					params={{ sourceId: source.id }}
+					className="block truncate text-sm font-semibold hover:underline"
+				>
+					{source.name}
+				</Link>
+				<span className="text-xs text-muted-foreground">
+					{source.type.toUpperCase()} · {source.active ? "Active" : "Inactive"}
+				</span>
+			</span>
+			{source.type === "rss" && (
+				<div className="flex gap-2">
+					<div className="relative">
+						<Button
+							variant="outline"
+							size="icon"
+							aria-label={`Actions for ${source.name}`}
+							aria-haspopup="menu"
+							aria-expanded={menuOpen}
+							onClick={() => setMenuOpen((open) => !open)}
+						>
+							<Ellipsis size={18} />
+						</Button>
+						{menuOpen && (
+							<div
+								role="menu"
+								aria-label={`${source.name} actions`}
+								className="absolute right-0 top-full z-20 mt-2 min-w-52 rounded-xl border bg-popover p-1 shadow-lg"
+							>
+								<button
+									type="button"
+									role="menuitem"
+									className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-muted"
+									onClick={() => {
+										setMenuOpen(false);
+										onEdit(source);
+									}}
+								>
+									<Pencil size={14} />
+									Edit source
+								</button>
+								<button
+									type="button"
+									role="menuitem"
+									disabled={activationPending}
+									className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-muted disabled:opacity-50"
+									onClick={() => {
+										setMenuOpen(false);
+										onToggleActive(source);
+									}}
+								>
+									<Power size={14} />
+									{activationPending && activationSourceId === source.id
+										? source.active
+											? "Deactivating..."
+											: "Activating..."
+										: source.active
+											? "Deactivate source"
+											: "Activate source"}
+								</button>
+							</div>
+						)}
+					</div>
+				</div>
+			)}
+		</div>
+	);
+}

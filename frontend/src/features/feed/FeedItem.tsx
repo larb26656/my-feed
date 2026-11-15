@@ -8,6 +8,7 @@ import {
 import { useState } from "react";
 import { SourceAvatar } from "#/components/SourceAvatar";
 import { cn } from "#/lib/utils";
+import { RichDescription } from "./RichDescription";
 import type { Entry, Source } from "./types";
 export function FeedItem({
 	entry,
@@ -71,9 +72,7 @@ export function FeedItem({
 						</a>
 					</h3>
 					{description && (
-						<p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-foreground/90">
-							{description}
-						</p>
+						<RichDescription html={description} />
 					)}
 					{entry.thumbnail && (
 						<a
