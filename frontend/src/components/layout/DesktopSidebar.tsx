@@ -1,10 +1,10 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Bookmark, Layers3, Rss, Settings } from "lucide-react";
+import { Bookmark, Layers3, RefreshCw, Rss, Settings } from "lucide-react";
 import { buttonVariants } from "#/components/ui/button";
 import { useFeedState } from "#/features/feed/FeedState";
 
 export function DesktopSidebar() {
-	const { sources, savedCount } = useFeedState();
+	const { sources, savedCount, savedCountError } = useFeedState();
 	const path = useRouterState({ select: (state) => state.location.pathname });
 	const navClass = (active: boolean, className: string) =>
 		buttonVariants({ variant: active ? "secondary" : "ghost", className });
@@ -32,13 +32,30 @@ export function DesktopSidebar() {
 					ฟีดของฉัน
 				</Link>
 				<Link
+					to="/fetch-jobs"
+					className={navClass(path === "/fetch-jobs", "h-11 justify-start")}
+				>
+					<RefreshCw data-icon="inline-start" />
+					Fetch Jobs
+				</Link>
+				<Link
 					to="/saved"
 					className={navClass(path === "/saved", "h-11 justify-start")}
 				>
 					<Bookmark data-icon="inline-start" />
 					บันทึกไว้
-					{savedCount !== undefined && (
-						<span className="ml-auto">{savedCount}</span>
+					{savedCountError ? (
+						<span
+							className="ml-auto"
+							role="alert"
+							aria-label="จำนวน Saved โหลดไม่สำเร็จ"
+						>
+							!
+						</span>
+					) : (
+						savedCount !== undefined && (
+							<span className="ml-auto">{savedCount}</span>
+						)
 					)}
 				</Link>
 			</nav>

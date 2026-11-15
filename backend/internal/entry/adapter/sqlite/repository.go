@@ -89,6 +89,12 @@ func (r *Repository) ListEntries(ctx context.Context, after *repository.EntryLis
 	return out, rows.Err()
 }
 
+func (r *Repository) CountSavedEntries(ctx context.Context) (int, error) {
+	var count int
+	err := r.q.QueryRowContext(ctx, `SELECT COUNT(*) FROM entries WHERE saved_at IS NOT NULL`).Scan(&count)
+	return count, err
+}
+
 func (r *Repository) UpdateEntry(ctx context.Context, e *domain.Entry) (*domain.Entry, error) {
 	row := r.q.QueryRowContext(ctx, `UPDATE entries SET title = ?, link = ?, description = ?, thumbnail = ?, published_at = ?, updated_at = ?, read_at = ?, saved_at = ? WHERE id = ? RETURNING `+entryColumns,
 		e.Title, e.Link, e.Description, e.Thumbnail, timeArg(e.PublishedAt), e.UpdatedAt.UTC().UnixNano(), timeArg(e.ReadAt), timeArg(e.SavedAt), e.ID.String())

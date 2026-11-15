@@ -76,7 +76,7 @@ test("combines Source, Saved and unread while retaining names of deactivated Sou
 	);
 });
 
-test("keeps active navigation separate and updates the Saved count without reloading it on mutations", async () => {
+test("loads the persisted Saved count endpoint and refreshes it after confirmed save and unsave", async () => {
 	let saved = false;
 	let read = false;
 	let countRequests = 0;
@@ -89,9 +89,13 @@ test("keeps active navigation separate and updates the Saved count without reloa
 					{ id: "active", name: "Active", type: "rss", active: true },
 					{ id: "inactive", name: "Inactive", type: "rss", active: false },
 				];
+			} else if (url.endsWith("/entries/saved-count")) {
+				countRequests++;
+				body = { count: Number(saved) };
 			} else {
 				if (init?.method === "POST") {
 					if (url.endsWith("/save")) saved = true;
+					if (url.endsWith("/clear-save")) saved = false;
 					if (url.endsWith("/read")) read = true;
 				}
 				const entry = {
@@ -105,13 +109,7 @@ test("keeps active navigation separate and updates the Saved count without reloa
 					...(read ? { readAt: "2025-01-01T00:00:00Z" } : {}),
 				};
 				if (init?.method === "POST") body = entry;
-				else if (url.includes("pageSize=100")) {
-					countRequests++;
-					body = {
-						data: saved ? [entry] : [],
-						page: { nextCursor: null, hasNext: false },
-					};
-				} else
+				else
 					body = { data: [entry], page: { nextCursor: null, hasNext: false } };
 			}
 			return { ok: true, json: async () => body };
@@ -145,5 +143,37 @@ test("keeps active navigation separate and updates the Saved count without reloa
 	await screen.findByRole("button", { name: "อ่านแล้ว" });
 	await user.click(screen.getByRole("button", { name: "บันทึก An Entry" }));
 	await screen.findByText("Navigation: Active / Saved: 1");
-	expect(countRequests).toBe(1);
+	await waitFor(() => expect(countRequests).toBe(2));
+	await user.click(
+		screen.getByRole("button", { name: "นำ An Entry ออกจาก Saved" }),
+	);
+	await screen.findByText("Navigation: Active / Saved: 0");
+	await waitFor(() => expect(countRequests).toBe(3));
+});
+
+test("announces when the persisted Saved count cannot load", async () => {
+	vi.stubGlobal(
+		"fetch",
+		vi.fn(async (url: string) => {
+			if (url.includes("/sources/")) return { ok: true, json: async () => [] };
+			return { ok: false, json: async () => ({ error: "unavailable" }) };
+		}),
+	);
+	function Navigation() {
+		const { savedCountError } = useFeedState();
+		return savedCountError ? <p role="alert">Saved count unavailable</p> : null;
+	}
+	const client = new QueryClient({
+		defaultOptions: { queries: { retry: false } },
+	});
+	render(
+		<QueryClientProvider client={client}>
+			<FeedProvider>
+				<Navigation />
+			</FeedProvider>
+		</QueryClientProvider>,
+	);
+	expect((await screen.findByRole("alert")).textContent).toBe(
+		"Saved count unavailable",
+	);
 });

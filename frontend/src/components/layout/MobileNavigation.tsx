@@ -1,10 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import { Bookmark, Layers3, Rss } from "lucide-react";
+import { Bookmark, Layers3, RefreshCw, Rss } from "lucide-react";
 import { buttonVariants } from "#/components/ui/button";
 import { useFeedState } from "#/features/feed/FeedState";
 
 export function MobileNavigation() {
-	const { savedCount } = useFeedState();
+	const { savedCount, savedCountError } = useFeedState();
 	const className = buttonVariants({
 		variant: "ghost",
 		className: "h-full flex-col gap-1 text-xs aria-[current=page]:text-primary",
@@ -18,9 +18,23 @@ export function MobileNavigation() {
 				<Layers3 />
 				ฟีดของฉัน
 			</Link>
+			<Link to="/fetch-jobs" className={className}>
+				<RefreshCw />
+				Fetch Jobs
+			</Link>
 			<Link to="/saved" className={className}>
 				<Bookmark />
-				<span>บันทึกไว้{savedCount !== undefined && ` (${savedCount})`}</span>
+				<span>
+					บันทึกไว้
+					{savedCountError ? (
+						<span role="alert" aria-label="จำนวน Saved โหลดไม่สำเร็จ">
+							{" "}
+							(!)
+						</span>
+					) : savedCount !== undefined ? (
+						` (${savedCount})`
+					) : null}
+				</span>
 			</Link>
 			<Link to="/sources" className={className}>
 				<Rss />

@@ -1,6 +1,6 @@
 import { Bookmark } from "lucide-react";
-import type { Entry, Source } from "./data";
 import { FeedItem } from "./FeedItem";
+import type { Entry, Source } from "./types";
 export function FeedList({
 	visible,
 	sources,

@@ -153,6 +153,16 @@ func (f *fakeRepo) UpdateEntry(_ context.Context, e *domain.Entry) (*domain.Entr
 	return cloneEntry(stored), nil
 }
 
+func (f *fakeRepo) CountSavedEntries(context.Context) (int, error) {
+	count := 0
+	for _, entry := range f.entries {
+		if entry.SavedAt != nil {
+			count++
+		}
+	}
+	return count, nil
+}
+
 func (f *fakeRepo) WithTx(_ database.Transaction) repository.Repository {
 	return f
 }

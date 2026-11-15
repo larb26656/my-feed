@@ -10,20 +10,34 @@ export type Entry = {
 	readAt?: string;
 	savedAt?: string;
 };
+
 export type Source = {
 	id: string;
 	name: string;
 	type: string;
+	rssUrl?: string | null;
 	active: boolean;
 };
+
 export type EntryPage = {
 	data: Entry[];
 	page: { nextCursor: string | null; hasNext: boolean };
 };
+
+export type EntryFilters = {
+	sourceId?: string;
+	savedOnly: boolean;
+	unread: boolean;
+};
+
+export type FetchJob = {
+	id: string;
+	sourceId: string;
+	status: "pending" | "running" | "succeeded" | "failed";
+	attempt: number;
+	maxAttempts: number;
+	entriesCreated: number;
+};
+
 export const filters = ["ทั้งหมด", "ยังไม่อ่าน"] as const;
 export type FeedFilter = (typeof filters)[number];
-export async function api<T>(path: string, init?: RequestInit): Promise<T> {
-	const response = await fetch(`/api/v1${path}`, init);
-	if (!response.ok) throw new Error(`Request failed (${response.status})`);
-	return response.json() as Promise<T>;
-}

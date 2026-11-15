@@ -30,6 +30,9 @@ func (s stubEntryAPI) GetEntry(context.Context, uuid.UUID) (*domain.Entry, error
 func (s stubEntryAPI) ListEntries(context.Context, service.ListEntriesInput) (*service.ListEntriesResult, error) {
 	panic("unexpected ListEntries")
 }
+func (s stubEntryAPI) CountSavedEntries(context.Context) (int, error) {
+	panic("unexpected CountSavedEntries")
+}
 func (s stubEntryAPI) MarkEntryRead(context.Context, uuid.UUID) (*domain.Entry, error) {
 	panic("unexpected MarkEntryRead")
 }

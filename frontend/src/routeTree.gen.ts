@@ -11,8 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppRecordLinkRouteImport } from './routes/_app/record-link'
 import { Route as AppSavedRouteImport } from './routes/_app/saved'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppFetchJobsIndexRouteImport } from './routes/_app/fetch-jobs/index'
 import { Route as AppSourcesIndexRouteImport } from './routes/_app/sources/index'
 import { Route as AppSourcesSourceIdRouteImport } from './routes/_app/sources/$sourceId'
 
@@ -25,6 +27,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppRecordLinkRoute = AppRecordLinkRouteImport.update({
+  id: '/record-link',
+  path: '/record-link',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSavedRoute = AppSavedRouteImport.update({
   id: '/saved',
   path: '/saved',
@@ -33,6 +40,11 @@ const AppSavedRoute = AppSavedRouteImport.update({
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFetchJobsIndexRoute = AppFetchJobsIndexRouteImport.update({
+  id: '/fetch-jobs/',
+  path: '/fetch-jobs/',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSourcesIndexRoute = AppSourcesIndexRouteImport.update({
@@ -48,39 +60,61 @@ const AppSourcesSourceIdRoute = AppSourcesSourceIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/record-link': typeof AppRecordLinkRoute
   '/saved': typeof AppSavedRoute
   '/settings': typeof AppSettingsRoute
   '/sources/$sourceId': typeof AppSourcesSourceIdRoute
+  '/fetch-jobs/': typeof AppFetchJobsIndexRoute
   '/sources/': typeof AppSourcesIndexRoute
 }
 export interface FileRoutesByTo {
+  '/record-link': typeof AppRecordLinkRoute
   '/saved': typeof AppSavedRoute
   '/settings': typeof AppSettingsRoute
   '/': typeof AppIndexRoute
   '/sources/$sourceId': typeof AppSourcesSourceIdRoute
+  '/fetch-jobs': typeof AppFetchJobsIndexRoute
   '/sources': typeof AppSourcesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
+  '/_app/record-link': typeof AppRecordLinkRoute
   '/_app/saved': typeof AppSavedRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/': typeof AppIndexRoute
   '/_app/sources/$sourceId': typeof AppSourcesSourceIdRoute
+  '/_app/fetch-jobs/': typeof AppFetchJobsIndexRoute
   '/_app/sources/': typeof AppSourcesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/saved' | '/settings' | '/sources/$sourceId' | '/sources/'
+  fullPaths:
+    | '/'
+    | '/record-link'
+    | '/saved'
+    | '/settings'
+    | '/sources/$sourceId'
+    | '/fetch-jobs/'
+    | '/sources/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/saved' | '/settings' | '/' | '/sources/$sourceId' | '/sources'
+  to:
+    | '/record-link'
+    | '/saved'
+    | '/settings'
+    | '/'
+    | '/sources/$sourceId'
+    | '/fetch-jobs'
+    | '/sources'
   id:
     | '__root__'
     | '/_app'
+    | '/_app/record-link'
     | '/_app/saved'
     | '/_app/settings'
     | '/_app/'
     | '/_app/sources/$sourceId'
+    | '/_app/fetch-jobs/'
     | '/_app/sources/'
   fileRoutesById: FileRoutesById
 }
@@ -104,6 +138,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/record-link': {
+      id: '/_app/record-link'
+      path: '/record-link'
+      fullPath: '/record-link'
+      preLoaderRoute: typeof AppRecordLinkRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/saved': {
       id: '/_app/saved'
       path: '/saved'
@@ -116,6 +157,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/fetch-jobs/': {
+      id: '/_app/fetch-jobs/'
+      path: '/fetch-jobs'
+      fullPath: '/fetch-jobs/'
+      preLoaderRoute: typeof AppFetchJobsIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/sources/': {
@@ -136,18 +184,22 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppRecordLinkRoute: typeof AppRecordLinkRoute
   AppSavedRoute: typeof AppSavedRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
   AppSourcesSourceIdRoute: typeof AppSourcesSourceIdRoute
+  AppFetchJobsIndexRoute: typeof AppFetchJobsIndexRoute
   AppSourcesIndexRoute: typeof AppSourcesIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppRecordLinkRoute: AppRecordLinkRoute,
   AppSavedRoute: AppSavedRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,
   AppSourcesSourceIdRoute: AppSourcesSourceIdRoute,
+  AppFetchJobsIndexRoute: AppFetchJobsIndexRoute,
   AppSourcesIndexRoute: AppSourcesIndexRoute,
 }
 

@@ -21,6 +21,7 @@ type EntryAPI interface {
 	IngestEntry(ctx context.Context, in service.IngestEntryInput) (*service.IngestEntryResult, error)
 	GetEntry(ctx context.Context, id uuid.UUID) (*domain.Entry, error)
 	ListEntries(ctx context.Context, in service.ListEntriesInput) (*service.ListEntriesResult, error)
+	CountSavedEntries(ctx context.Context) (int, error)
 	MarkEntryRead(ctx context.Context, id uuid.UUID) (*domain.Entry, error)
 	ClearEntryRead(ctx context.Context, id uuid.UUID) (*domain.Entry, error)
 	MarkEntrySaved(ctx context.Context, id uuid.UUID) (*domain.Entry, error)
@@ -40,12 +41,24 @@ func (h *Handler) Routes() chi.Router {
 	r.Post("/save-link", h.saveLink)
 	r.Post("/", h.ingestEntry)
 	r.Get("/", h.listEntries)
+	r.Get("/saved-count", h.savedCount)
 	r.Get("/{id}", h.getEntry)
 	r.Post("/{id}/read", h.markEntryRead)
 	r.Post("/{id}/clear-read", h.clearEntryRead)
 	r.Post("/{id}/save", h.markEntrySaved)
 	r.Post("/{id}/clear-save", h.clearEntrySaved)
 	return r
+}
+
+func (h *Handler) savedCount(w http.ResponseWriter, r *http.Request) {
+	count, err := h.svc.CountSavedEntries(r.Context())
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, struct {
+		Count int `json:"count"`
+	}{Count: count})
 }
 
 type saveLinkRequest struct {

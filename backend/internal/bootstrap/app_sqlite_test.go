@@ -504,3 +504,57 @@ func TestEntryListFiltersAndCursor(t *testing.T) {
 		require.Equal(t, http.StatusBadRequest, res.Code, query)
 	}
 }
+
+func TestSavedCountEndpointTracksSavedEntriesAcrossPages(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	dbPath := filepath.Join(t.TempDir(), "saved-count.db")
+	require.NoError(t, goose.SetDialect("sqlite3"))
+	db, err := sql.Open("sqlite", sqliteTestDSN(dbPath))
+	require.NoError(t, err)
+	require.NoError(t, goose.Up(db, "../../migrations"))
+	require.NoError(t, db.Close())
+	cfg := Config{DatabasePath: dbPath, HTTPAddr: ":0", Fetch: FetchConfig{RetryBackoff: time.Hour, ScheduleInterval: time.Hour, ExecutorPoll: time.Hour}}
+	app, err := NewWithConfig(ctx, cfg)
+	require.NoError(t, err)
+	defer func() { app.Close() }()
+
+	count := func() int {
+		response := requestJSON(t, app.Router, http.MethodGet, "/api/v1/entries/saved-count", nil)
+		require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+		var result struct {
+			Count int `json:"count"`
+		}
+		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &result))
+		return result.Count
+	}
+	require.Equal(t, 0, count())
+
+	entryIDs := make([]string, 21)
+	for i := range entryIDs {
+		created := requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/save-link", map[string]any{
+			"title": fmt.Sprintf("Entry %d", i), "link": fmt.Sprintf("https://example.test/%d", i),
+		})
+		require.Equal(t, http.StatusCreated, created.Code)
+		var entry struct {
+			ID string `json:"id"`
+		}
+		require.NoError(t, json.Unmarshal(created.Body.Bytes(), &entry))
+		entryIDs[i] = entry.ID
+		require.Equal(t, http.StatusOK, requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/"+entry.ID+"/save", nil).Code)
+	}
+	require.Equal(t, 21, count())
+	page := requestJSON(t, app.Router, http.MethodGet, "/api/v1/entries/?savedOnly=true", nil)
+	require.Equal(t, http.StatusOK, page.Code)
+	var result struct {
+		Data []json.RawMessage `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(page.Body.Bytes(), &result))
+	require.Len(t, result.Data, 20)
+	require.Equal(t, http.StatusOK, requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/"+entryIDs[0]+"/clear-save", nil).Code)
+	require.Equal(t, 20, count())
+	require.NoError(t, app.Pool.Close())
+	app, err = NewWithConfig(ctx, cfg)
+	require.NoError(t, err)
+	require.Equal(t, 20, count())
+}

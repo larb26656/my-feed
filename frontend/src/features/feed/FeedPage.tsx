@@ -1,16 +1,12 @@
-import {
-	useInfiniteQuery,
-	useMutation,
-	useQueryClient,
-} from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { Button, buttonVariants } from "#/components/ui/button";
-import { api, type Entry, type EntryPage, type FeedFilter } from "./data";
+import { useEntries, useToggleEntry } from "#/hooks/queries";
 import { FeedFilters } from "./FeedFilters";
 import { FeedList } from "./FeedList";
 import { useFeedState } from "./FeedState";
+import type { FeedFilter } from "./types";
 export function FeedPage({
 	sourceId,
 	savedOnly = false,
@@ -21,56 +17,12 @@ export function FeedPage({
 	const [filter, setFilter] = useState<FeedFilter>("ทั้งหมด");
 	const { allSources } = useFeedState();
 	const [savedFilter, setSavedFilter] = useState(savedOnly);
-	const client = useQueryClient();
-	const query = useInfiniteQuery({
-		queryKey: [
-			"entries",
-			{ sourceId, savedOnly: savedFilter, unread: filter === "ยังไม่อ่าน" },
-		],
-		initialPageParam: null as string | null,
-		queryFn: ({ pageParam }) => {
-			const params = new URLSearchParams();
-			if (sourceId) params.set("sourceId", sourceId);
-			if (savedFilter) params.set("savedOnly", "true");
-			if (filter === "ยังไม่อ่าน") params.set("unread", "true");
-			if (pageParam) params.set("cursor", pageParam);
-			return api<EntryPage>(`/entries/?${params}`);
-		},
-		getNextPageParam: (last) =>
-			last.page.hasNext ? last.page.nextCursor : undefined,
+	const query = useEntries({
+		sourceId,
+		savedOnly: savedFilter,
+		unread: filter === "ยังไม่อ่าน",
 	});
-	const mutation = useMutation({
-		mutationFn: ({
-			entry,
-			action,
-		}: {
-			entry: Entry;
-			action: "read" | "save";
-		}) => {
-			const active = action === "read" ? entry.readAt : entry.savedAt;
-			return api<Entry>(
-				`/entries/${entry.id}/${active ? `clear-${action}` : action}`,
-				{ method: "POST" },
-			);
-		},
-		onSuccess: async (updated, { entry, action }) => {
-			if (action === "save") {
-				await client.cancelQueries({ queryKey: ["saved-count"] });
-				const count = client.getQueryData<number>(["saved-count"]);
-				if (count === undefined) {
-					void client.invalidateQueries({ queryKey: ["saved-count"] });
-				} else {
-					client.setQueryData(
-						["saved-count"],
-						count +
-							Number(Boolean(updated.savedAt)) -
-							Number(Boolean(entry.savedAt)),
-					);
-				}
-			}
-			await client.invalidateQueries({ queryKey: ["entries"] });
-		},
-	});
+	const mutation = useToggleEntry();
 	const visible = query.data?.pages.flatMap((page) => page.data) ?? [];
 	return (
 		<section>
@@ -86,10 +38,18 @@ export function FeedPage({
 					Sources ทั้งหมด
 				</Link>
 			)}
-			<h1 className="mb-6 text-2xl font-bold">
-				{allSources.find((source) => source.id === sourceId)?.name ??
-					(savedOnly ? "บันทึกไว้" : "ฟีดของฉัน")}
-			</h1>
+			<div className="mb-6 flex items-center justify-between gap-3">
+				<h1 className="text-2xl font-bold">
+					{allSources.find((source) => source.id === sourceId)?.name ??
+						(savedOnly ? "บันทึกไว้" : "ฟีดของฉัน")}
+				</h1>
+				<Link
+					to="/record-link"
+					className={buttonVariants({ variant: "outline", size: "sm" })}
+				>
+					บันทึกลิงก์
+				</Link>
+			</div>
 			<FeedFilters
 				filter={filter}
 				setFilter={setFilter}

@@ -1,7 +1,7 @@
 import { Bookmark, Check } from "lucide-react";
 import { Button } from "#/components/ui/button";
 import { cn } from "#/lib/utils";
-import type { Entry, Source } from "./data";
+import type { Entry, Source } from "./types";
 export function FeedItem({
 	entry,
 	source,

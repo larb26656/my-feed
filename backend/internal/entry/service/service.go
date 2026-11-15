@@ -220,6 +220,10 @@ func (s *Service) ListEntries(ctx context.Context, in ListEntriesInput) (*ListEn
 	return result, nil
 }
 
+func (s *Service) CountSavedEntries(ctx context.Context) (int, error) {
+	return s.repo.CountSavedEntries(ctx)
+}
+
 type entryCursorPayload struct {
 	SortAt    time.Time  `json:"sortAt"`
 	ID        uuid.UUID  `json:"id"`

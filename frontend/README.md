@@ -9,6 +9,13 @@ pnpm install
 pnpm dev
 ```
 
+## API configuration
+
+The frontend sends requests to `/api/v1` by default. Set `VITE_API_BASE_URL` to a
+different API base URL for production builds. During development, Vite proxies
+`/api` to `http://localhost:8080`; set `VITE_API_PROXY_TARGET` to change that
+backend target.
+
 # Building For Production
 
 To build this application for production:

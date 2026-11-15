@@ -1,5 +1,5 @@
 import { Button } from "#/components/ui/button";
-import { type FeedFilter, filters } from "./data";
+import { type FeedFilter, filters } from "./types";
 
 export function FeedFilters({
 	filter,
