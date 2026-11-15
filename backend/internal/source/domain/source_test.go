@@ -115,3 +115,48 @@ func TestReactivateManualSourceRejected(t *testing.T) {
 	require.Equal(t, apperr.CodeFailedPrecondition, ae.Code)
 	require.True(t, s.Active)
 }
+
+func TestUpdateDetailsRSSSource(t *testing.T) {
+	s, err := domain.NewRSSSource("HN", "https://hn.example/rss")
+	require.NoError(t, err)
+	before := s.UpdatedAt
+	typ := s.Type
+
+	time.Sleep(2 * time.Millisecond)
+	require.NoError(t, s.UpdateDetails("  HN Front  ", "  https://hn.example/front  "))
+	require.Equal(t, "HN Front", s.Name)
+	require.Equal(t, "https://hn.example/front", s.RSSURL)
+	require.Equal(t, typ, s.Type)
+	require.True(t, s.UpdatedAt.After(before))
+}
+
+func TestUpdateDetailsRejectsBlankNameOrURL(t *testing.T) {
+	s, err := domain.NewRSSSource("HN", "https://hn.example/rss")
+	require.NoError(t, err)
+
+	err = s.UpdateDetails("   ", "https://hn.example/front")
+	require.Error(t, err)
+	var ae *apperr.Error
+	require.ErrorAs(t, err, &ae)
+	require.Equal(t, apperr.CodeValidation, ae.Code)
+	require.Equal(t, "HN", s.Name)
+
+	err = s.UpdateDetails("HN Front", "   ")
+	require.Error(t, err)
+	require.ErrorAs(t, err, &ae)
+	require.Equal(t, apperr.CodeValidation, ae.Code)
+	require.Equal(t, "https://hn.example/rss", s.RSSURL)
+}
+
+func TestUpdateDetailsManualSourceRejected(t *testing.T) {
+	s, err := domain.NewManualSource("Saved links")
+	require.NoError(t, err)
+
+	err = s.UpdateDetails("Bookmarks", "https://example.com")
+	require.Error(t, err)
+	var ae *apperr.Error
+	require.ErrorAs(t, err, &ae)
+	require.Equal(t, apperr.CodeFailedPrecondition, ae.Code)
+	require.Equal(t, "Saved links", s.Name)
+	require.Empty(t, s.RSSURL)
+}

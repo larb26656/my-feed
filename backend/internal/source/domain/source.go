@@ -95,3 +95,23 @@ func (s *Source) Reactivate() error {
 	s.UpdatedAt = time.Now().UTC()
 	return nil
 }
+
+// UpdateDetails changes the display name and RSS feed URL of a fetchable Source.
+// Manual Sources cannot be edited. Type is never changed.
+func (s *Source) UpdateDetails(name, feedURL string) error {
+	if s.Type == TypeManual {
+		return apperr.FailedPrecondition("manual sources cannot be edited")
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return apperr.Validation("name is required")
+	}
+	feedURL = strings.TrimSpace(feedURL)
+	if feedURL == "" {
+		return apperr.Validation("rss url is required")
+	}
+	s.Name = name
+	s.RSSURL = feedURL
+	s.UpdatedAt = time.Now().UTC()
+	return nil
+}

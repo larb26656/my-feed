@@ -69,11 +69,23 @@ func (f *fakeRepo) ListSources(_ context.Context, filter repository.ListSourcesF
 }
 
 func (f *fakeRepo) UpdateSource(_ context.Context, s *domain.Source) error {
-	if _, ok := f.sources[s.ID]; !ok {
+	existing, ok := f.sources[s.ID]
+	if !ok {
 		return apperr.NotFound("source not found")
+	}
+	if s.RSSURL != "" {
+		if owner, taken := f.byURL[s.RSSURL]; taken && owner != s.ID {
+			return apperr.Conflict("rss url already in use")
+		}
+	}
+	if existing.RSSURL != "" && existing.RSSURL != s.RSSURL {
+		delete(f.byURL, existing.RSSURL)
 	}
 	cp := *s
 	f.sources[s.ID] = &cp
+	if s.RSSURL != "" {
+		f.byURL[s.RSSURL] = s.ID
+	}
 	return nil
 }
 
@@ -347,4 +359,102 @@ func TestEnsureSavedLinksDoesNotAllowReaderManualCreate(t *testing.T) {
 	listed, err := svc.ListSources(context.Background(), service.ListSourcesInput{})
 	require.NoError(t, err)
 	require.Len(t, listed, 1)
+}
+
+func TestUpdateSourceChangesNameAndURL(t *testing.T) {
+	svc := service.New(newFakeRepo())
+	created, err := svc.CreateSource(context.Background(), service.CreateSourceInput{
+		Name:   "HN RSS",
+		Type:   "rss",
+		RSSURL: "https://hn.example/rss",
+	})
+	require.NoError(t, err)
+
+	updated, err := svc.UpdateSource(context.Background(), created.ID, service.UpdateSourceInput{
+		Name:   "HN Front",
+		RSSURL: "https://hn.example/front",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "HN Front", updated.Name)
+	require.Equal(t, "https://hn.example/front", updated.RSSURL)
+	require.Equal(t, domain.TypeRSS, updated.Type)
+
+	got, err := svc.GetSource(context.Background(), created.ID)
+	require.NoError(t, err)
+	require.Equal(t, "HN Front", got.Name)
+	require.Equal(t, "https://hn.example/front", got.RSSURL)
+}
+
+func TestUpdateSourceRejectsDuplicateURL(t *testing.T) {
+	svc := service.New(newFakeRepo())
+	_, err := svc.CreateSource(context.Background(), service.CreateSourceInput{
+		Name:   "HN RSS",
+		Type:   "rss",
+		RSSURL: "https://hn.example/rss",
+	})
+	require.NoError(t, err)
+	other, err := svc.CreateSource(context.Background(), service.CreateSourceInput{
+		Name:   "Lobsters",
+		Type:   "rss",
+		RSSURL: "https://lobsters.example/rss",
+	})
+	require.NoError(t, err)
+
+	_, err = svc.UpdateSource(context.Background(), other.ID, service.UpdateSourceInput{
+		Name:   "Lobsters",
+		RSSURL: "https://hn.example/rss",
+	})
+	require.Error(t, err)
+	var ae *apperr.Error
+	require.ErrorAs(t, err, &ae)
+	require.Equal(t, apperr.CodeConflict, ae.Code)
+
+	got, err := svc.GetSource(context.Background(), other.ID)
+	require.NoError(t, err)
+	require.Equal(t, "https://lobsters.example/rss", got.RSSURL)
+}
+
+func TestUpdateSourceAllowsKeepingSameURL(t *testing.T) {
+	svc := service.New(newFakeRepo())
+	created, err := svc.CreateSource(context.Background(), service.CreateSourceInput{
+		Name:   "HN RSS",
+		Type:   "rss",
+		RSSURL: "https://hn.example/rss",
+	})
+	require.NoError(t, err)
+
+	updated, err := svc.UpdateSource(context.Background(), created.ID, service.UpdateSourceInput{
+		Name:   "HN renamed",
+		RSSURL: "https://hn.example/rss",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "HN renamed", updated.Name)
+	require.Equal(t, "https://hn.example/rss", updated.RSSURL)
+}
+
+func TestUpdateSourceRejectsManual(t *testing.T) {
+	svc := service.New(newFakeRepo())
+	manual, err := svc.EnsureSavedLinks(context.Background())
+	require.NoError(t, err)
+
+	_, err = svc.UpdateSource(context.Background(), manual.ID, service.UpdateSourceInput{
+		Name:   "Bookmarks",
+		RSSURL: "https://example.com/rss",
+	})
+	require.Error(t, err)
+	var ae *apperr.Error
+	require.ErrorAs(t, err, &ae)
+	require.Equal(t, apperr.CodeFailedPrecondition, ae.Code)
+}
+
+func TestUpdateSourceMissingNotFound(t *testing.T) {
+	svc := service.New(newFakeRepo())
+	_, err := svc.UpdateSource(context.Background(), uuid.New(), service.UpdateSourceInput{
+		Name:   "HN",
+		RSSURL: "https://hn.example/rss",
+	})
+	require.Error(t, err)
+	var ae *apperr.Error
+	require.ErrorAs(t, err, &ae)
+	require.Equal(t, apperr.CodeNotFound, ae.Code)
 }

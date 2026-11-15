@@ -26,6 +26,7 @@ func (h *Handler) Routes() chi.Router {
 	r.Post("/", h.createSource)
 	r.Get("/", h.listSources)
 	r.Get("/{id}", h.getSource)
+	r.Patch("/{id}", h.updateSource)
 	r.Post("/{id}/deactivate", h.deactivateSource)
 	r.Post("/{id}/reactivate", h.reactivateSource)
 	return r
@@ -34,6 +35,11 @@ func (h *Handler) Routes() chi.Router {
 type createSourceRequest struct {
 	Name   string `json:"name"`
 	Type   string `json:"type"`
+	RSSURL string `json:"rssUrl"`
+}
+
+type updateSourceRequest struct {
+	Name   string `json:"name"`
 	RSSURL string `json:"rssUrl"`
 }
 
@@ -104,6 +110,28 @@ func (h *Handler) getSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s, err := h.svc.GetSource(r.Context(), id)
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, toSourceResponse(s))
+}
+
+func (h *Handler) updateSource(w http.ResponseWriter, r *http.Request) {
+	id, err := parseID(r, "invalid source id")
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	var req updateSourceRequest
+	if err := httpx.DecodeJSON(r, &req); err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	s, err := h.svc.UpdateSource(r.Context(), id, service.UpdateSourceInput{
+		Name:   req.Name,
+		RSSURL: req.RSSURL,
+	})
 	if err != nil {
 		httpx.WriteError(w, err)
 		return

@@ -87,6 +87,25 @@ func (s *Service) ReactivateSource(ctx context.Context, id uuid.UUID) (*domain.S
 	return src, nil
 }
 
+type UpdateSourceInput struct {
+	Name   string
+	RSSURL string
+}
+
+func (s *Service) UpdateSource(ctx context.Context, id uuid.UUID, in UpdateSourceInput) (*domain.Source, error) {
+	src, err := s.repo.GetSourceByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if err := src.UpdateDetails(in.Name, in.RSSURL); err != nil {
+		return nil, err
+	}
+	if err := s.repo.UpdateSource(ctx, src); err != nil {
+		return nil, err
+	}
+	return src, nil
+}
+
 // EnsureSavedLinks idempotently ensures the system manual Source exists.
 func (s *Service) EnsureSavedLinks(ctx context.Context) (*domain.Source, error) {
 	existing, err := s.repo.GetManualSource(ctx)
