@@ -1,10 +1,9 @@
 import { Link } from "@tanstack/react-router";
-import { Bookmark, Layers3, RefreshCw, Rss } from "lucide-react";
+import { Bookmark, Layers3, Rss } from "lucide-react";
 import { buttonVariants } from "#/components/ui/button";
 import { useFeedState } from "#/features/feed/FeedState";
 
 export function MobileNavigation() {
-	const { savedCount, savedCountError } = useFeedState();
 	const className = buttonVariants({
 		variant: "ghost",
 		className: "h-full flex-col gap-1 text-xs aria-[current=page]:text-primary",
@@ -18,23 +17,9 @@ export function MobileNavigation() {
 				<Layers3 />
 				My Feed
 			</Link>
-			<Link to="/fetch-jobs" className={className}>
-				<RefreshCw />
-				Fetch Jobs
-			</Link>
 			<Link to="/saved" className={className}>
 				<Bookmark />
-				<span>
-					Saved
-					{savedCountError ? (
-						<span role="alert" aria-label="Could not load saved count">
-							{" "}
-							(!)
-						</span>
-					) : savedCount !== undefined ? (
-						` (${savedCount})`
-					) : null}
-				</span>
+				Saved
 			</Link>
 			<Link to="/sources" className={className}>
 				<Rss />

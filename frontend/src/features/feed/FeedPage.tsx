@@ -18,11 +18,10 @@ export function FeedPage({
 }) {
 	const [filter, setFilter] = useState<FeedFilter>("All");
 	const { allSources } = useFeedState();
-	const [savedFilter, setSavedFilter] = useState(savedOnly);
 	const loadMoreRef = useRef<HTMLDivElement>(null);
 	const query = useEntries({
 		sourceId,
-		savedOnly: savedFilter,
+		savedOnly,
 		unread: filter === "Unread",
 	});
 	const mutation = useToggleEntry();
@@ -71,8 +70,6 @@ export function FeedPage({
 			<FeedFilters
 				filter={filter}
 				setFilter={setFilter}
-				savedOnly={savedFilter}
-				setSavedOnly={setSavedFilter}
 			/>
 			{query.isLoading ? (
 				<FeedSkeleton />

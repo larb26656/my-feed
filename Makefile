@@ -32,7 +32,7 @@ backend:
 	cd backend && go run ./cmd/api
 
 frontend:
-	cd frontend && npm run dev
+	cd frontend && pnpm run dev
 
 build:
 	cd backend && go build -o bin/server ./cmd/api
