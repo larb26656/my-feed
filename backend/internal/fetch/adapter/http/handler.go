@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -24,6 +25,7 @@ func NewHandler(svc *service.Service) *Handler {
 func (h *Handler) Routes() chi.Router {
 	r := chi.NewRouter()
 	r.Post("/", h.createManual)
+	r.Get("/", h.listJobs)
 	r.Get("/{id}", h.getJob)
 	return r
 }
@@ -87,4 +89,67 @@ func (h *Handler) getJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, toFetchJobResponse(job))
+}
+
+func (h *Handler) listJobs(w http.ResponseWriter, r *http.Request) {
+	in := service.ListFetchJobsInput{}
+	query := r.URL.Query()
+	if values, ok := query["sourceId"]; ok {
+		if len(values) != 1 {
+			httpx.WriteError(w, apperr.Validation("invalid source id"))
+			return
+		}
+		id, err := uuid.Parse(values[0])
+		if err != nil {
+			httpx.WriteError(w, apperr.Validation("invalid source id"))
+			return
+		}
+		in.Criteria.SourceID = &id
+	}
+	if values, ok := query["status"]; ok {
+		if len(values) != 1 {
+			httpx.WriteError(w, apperr.Validation("invalid status"))
+			return
+		}
+		status := domain.Status(values[0])
+		switch status {
+		case domain.StatusPending, domain.StatusRunning, domain.StatusSucceeded, domain.StatusFailed:
+			in.Criteria.Status = &status
+		default:
+			httpx.WriteError(w, apperr.Validation("invalid status"))
+			return
+		}
+	}
+	if values, ok := query["cursor"]; ok {
+		if len(values) != 1 {
+			httpx.WriteError(w, apperr.Validation("invalid cursor"))
+			return
+		}
+		in.Cursor = &values[0]
+	}
+	if values, ok := query["pageSize"]; ok {
+		if len(values) != 1 {
+			httpx.WriteError(w, apperr.Validation("invalid pageSize"))
+			return
+		}
+		n, err := strconv.Atoi(values[0])
+		if err != nil || n < 1 || n > 100 {
+			httpx.WriteError(w, apperr.Validation("pageSize must be between 1 and 100"))
+			return
+		}
+		in.PageSize = &n
+	}
+	page, err := h.svc.ListFetchJobs(r.Context(), in)
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	resp := httpx.CursorResponse[fetchJobResponse]{
+		Data: make([]fetchJobResponse, 0, len(page.Jobs)),
+		Page: httpx.CursorPage{NextCursor: page.NextCursor, HasNext: page.NextCursor != nil},
+	}
+	for _, job := range page.Jobs {
+		resp.Data = append(resp.Data, toFetchJobResponse(job))
+	}
+	httpx.WriteJSON(w, http.StatusOK, resp)
 }

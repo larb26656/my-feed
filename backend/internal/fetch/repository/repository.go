@@ -14,6 +14,7 @@ import (
 type Repository interface {
 	CreateFetchJob(ctx context.Context, job *domain.FetchJob) error
 	GetFetchJobByID(ctx context.Context, id uuid.UUID) (*domain.FetchJob, error)
+	ListFetchJobs(ctx context.Context, after *FetchJobListCursor, criteria FetchJobListCriteria, limit int) ([]*domain.FetchJob, error)
 	// GetUnfinishedFetchJobBySourceID returns the pending or running Fetch Job for a Source, if any.
 	GetUnfinishedFetchJobBySourceID(ctx context.Context, sourceID uuid.UUID) (*domain.FetchJob, error)
 	// ListClaimableFetchJobs returns pending jobs whose retry backoff has elapsed (or never set).
@@ -23,4 +24,16 @@ type Repository interface {
 	ClaimFetchJob(ctx context.Context, id uuid.UUID, now time.Time) (*domain.FetchJob, error)
 	UpdateFetchJob(ctx context.Context, job *domain.FetchJob) error
 	WithTx(tx database.Transaction) Repository
+}
+
+// FetchJobListCursor is a position in the newest-first Fetch Job history.
+type FetchJobListCursor struct {
+	CreatedAt time.Time
+	ID        uuid.UUID
+}
+
+// FetchJobListCriteria contains the supported Fetch Job history filters.
+type FetchJobListCriteria struct {
+	SourceID *uuid.UUID
+	Status   *domain.Status
 }

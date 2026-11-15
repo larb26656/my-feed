@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"sync"
 	"time"
 
@@ -125,6 +127,76 @@ func (s *Service) ScheduleInterval() time.Duration {
 // GetFetchJob returns a Fetch Job by id for status observation.
 func (s *Service) GetFetchJob(ctx context.Context, id uuid.UUID) (*domain.FetchJob, error) {
 	return s.repo.GetFetchJobByID(ctx, id)
+}
+
+const DefaultFetchJobPageSize = 20
+
+type ListFetchJobsInput struct {
+	Cursor   *string
+	PageSize *int
+	Criteria repository.FetchJobListCriteria
+}
+
+type ListFetchJobsResult struct {
+	Jobs       []*domain.FetchJob
+	NextCursor *string
+}
+
+func (s *Service) ListFetchJobs(ctx context.Context, in ListFetchJobsInput) (*ListFetchJobsResult, error) {
+	pageSize := DefaultFetchJobPageSize
+	if in.PageSize != nil {
+		if *in.PageSize < 1 || *in.PageSize > 100 {
+			return nil, apperr.Validation("pageSize must be between 1 and 100")
+		}
+		pageSize = *in.PageSize
+	}
+	var after *repository.FetchJobListCursor
+	if in.Cursor != nil {
+		decoded, err := decodeFetchJobCursor(*in.Cursor, in.Criteria)
+		if err != nil {
+			return nil, err
+		}
+		after = decoded
+	}
+	rows, err := s.repo.ListFetchJobs(ctx, after, in.Criteria, pageSize+1)
+	if err != nil {
+		return nil, err
+	}
+	result := &ListFetchJobsResult{Jobs: rows}
+	if len(rows) > pageSize {
+		result.Jobs = rows[:pageSize]
+		last := result.Jobs[pageSize-1]
+		token := encodeFetchJobCursor(last.CreatedAt, last.ID, in.Criteria)
+		result.NextCursor = &token
+	}
+	return result, nil
+}
+
+type fetchJobCursorPayload struct {
+	CreatedAt time.Time      `json:"createdAt"`
+	ID        uuid.UUID      `json:"id"`
+	SourceID  *uuid.UUID     `json:"sourceId"`
+	Status    *domain.Status `json:"status"`
+}
+
+func encodeFetchJobCursor(createdAt time.Time, id uuid.UUID, criteria repository.FetchJobListCriteria) string {
+	raw, _ := json.Marshal(fetchJobCursorPayload{CreatedAt: createdAt.UTC(), ID: id, SourceID: criteria.SourceID, Status: criteria.Status})
+	return base64.RawURLEncoding.EncodeToString(raw)
+}
+
+func decodeFetchJobCursor(cursor string, criteria repository.FetchJobListCriteria) (*repository.FetchJobListCursor, error) {
+	raw, err := base64.RawURLEncoding.DecodeString(cursor)
+	if err != nil {
+		return nil, apperr.Validation("invalid cursor")
+	}
+	var payload fetchJobCursorPayload
+	if err := json.Unmarshal(raw, &payload); err != nil || payload.CreatedAt.IsZero() || payload.ID == uuid.Nil {
+		return nil, apperr.Validation("invalid cursor")
+	}
+	if (payload.SourceID == nil) != (criteria.SourceID == nil) || (payload.SourceID != nil && *payload.SourceID != *criteria.SourceID) || (payload.Status == nil) != (criteria.Status == nil) || (payload.Status != nil && *payload.Status != *criteria.Status) {
+		return nil, apperr.Validation("cursor does not match filters")
+	}
+	return &repository.FetchJobListCursor{CreatedAt: payload.CreatedAt.UTC(), ID: payload.ID}, nil
 }
 
 // WithRepository returns a shallow copy that persists through repo (e.g. a transaction).

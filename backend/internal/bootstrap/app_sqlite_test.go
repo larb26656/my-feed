@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -502,6 +503,260 @@ func TestEntryListFiltersAndCursor(t *testing.T) {
 	for _, query := range []string{"sourceId=bad", "cursor=bad", "unread=maybe", "savedOnly=maybe", "cursor=" + url.QueryEscape(*first.Page.NextCursor)} {
 		res := requestJSON(t, app.Router, http.MethodGet, "/api/v1/entries/?"+query, nil)
 		require.Equal(t, http.StatusBadRequest, res.Code, query)
+	}
+}
+
+func TestFetchJobHistoryReturnsCursorEnvelopeAndExistingFields(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	dbPath := filepath.Join(t.TempDir(), "fetch-history.db")
+	require.NoError(t, goose.SetDialect("sqlite3"))
+	db, err := sql.Open("sqlite", sqliteTestDSN(dbPath))
+	require.NoError(t, err)
+	require.NoError(t, goose.Up(db, "../../migrations"))
+	require.NoError(t, db.Close())
+	app, err := NewWithConfig(ctx, Config{DatabasePath: dbPath, HTTPAddr: ":0", Fetch: FetchConfig{RetryBackoff: time.Hour, ScheduleInterval: time.Hour, ExecutorPoll: time.Hour}})
+	require.NoError(t, err)
+	defer app.Close()
+
+	sourceResponse := requestJSON(t, app.Router, http.MethodPost, "/api/v1/sources/", map[string]any{"name": "History", "type": "rss", "rssUrl": "https://example.test/history.xml"})
+	require.Equal(t, http.StatusCreated, sourceResponse.Code, sourceResponse.Body.String())
+	var source struct {
+		ID string `json:"id"`
+	}
+	require.NoError(t, json.Unmarshal(sourceResponse.Body.Bytes(), &source))
+	created := requestJSON(t, app.Router, http.MethodPost, "/api/v1/fetch-jobs/", map[string]any{"sourceId": source.ID})
+	require.Equal(t, http.StatusCreated, created.Code, created.Body.String())
+	var job struct {
+		ID string `json:"id"`
+	}
+	require.NoError(t, json.Unmarshal(created.Body.Bytes(), &job))
+
+	response := requestJSON(t, app.Router, http.MethodGet, "/api/v1/fetch-jobs/", nil)
+	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+	var page struct {
+		Data []struct {
+			ID             string `json:"id"`
+			SourceID       string `json:"sourceId"`
+			Status         string `json:"status"`
+			Attempt        int    `json:"attempt"`
+			MaxAttempts    int    `json:"maxAttempts"`
+			EntriesCreated int    `json:"entriesCreated"`
+			CreatedAt      string `json:"createdAt"`
+			UpdatedAt      string `json:"updatedAt"`
+		} `json:"data"`
+		Page struct {
+			NextCursor *string `json:"nextCursor"`
+			HasNext    bool    `json:"hasNext"`
+		} `json:"page"`
+	}
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &page))
+	require.Len(t, page.Data, 1)
+	require.Equal(t, job.ID, page.Data[0].ID)
+	require.Equal(t, source.ID, page.Data[0].SourceID)
+	require.Equal(t, "pending", page.Data[0].Status)
+	require.Equal(t, 0, page.Data[0].Attempt)
+	require.Equal(t, 3, page.Data[0].MaxAttempts)
+	require.Equal(t, 0, page.Data[0].EntriesCreated)
+	require.NotEmpty(t, page.Data[0].CreatedAt)
+	require.NotEmpty(t, page.Data[0].UpdatedAt)
+	require.False(t, page.Page.HasNext)
+	require.Nil(t, page.Page.NextCursor)
+}
+
+func TestFetchJobHistoryFiltersAndContinuesWithStableOrdering(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	dbPath := filepath.Join(t.TempDir(), "fetch-history-pages.db")
+	require.NoError(t, goose.SetDialect("sqlite3"))
+	db, err := sql.Open("sqlite", sqliteTestDSN(dbPath))
+	require.NoError(t, err)
+	require.NoError(t, goose.Up(db, "../../migrations"))
+	require.NoError(t, db.Close())
+	app, err := NewWithConfig(ctx, Config{DatabasePath: dbPath, HTTPAddr: ":0", Fetch: FetchConfig{RetryBackoff: time.Hour, ScheduleInterval: time.Hour, ExecutorPoll: time.Hour}})
+	require.NoError(t, err)
+	defer app.Close()
+
+	var jobIDs, sourceIDs []string
+	for i := 0; i < 4; i++ {
+		sourceResponse := requestJSON(t, app.Router, http.MethodPost, "/api/v1/sources/", map[string]any{"name": fmt.Sprintf("History %d", i), "type": "rss", "rssUrl": fmt.Sprintf("https://example.test/history-%d.xml", i)})
+		require.Equal(t, http.StatusCreated, sourceResponse.Code, sourceResponse.Body.String())
+		var source struct {
+			ID string `json:"id"`
+		}
+		require.NoError(t, json.Unmarshal(sourceResponse.Body.Bytes(), &source))
+		sourceIDs = append(sourceIDs, source.ID)
+		created := requestJSON(t, app.Router, http.MethodPost, "/api/v1/fetch-jobs/", map[string]any{"sourceId": source.ID})
+		require.Equal(t, http.StatusCreated, created.Code, created.Body.String())
+		var job struct {
+			ID string `json:"id"`
+		}
+		require.NoError(t, json.Unmarshal(created.Body.Bytes(), &job))
+		jobIDs = append(jobIDs, job.ID)
+	}
+	for i, status := range []string{"pending", "running", "succeeded", "failed"} {
+		_, err := app.Pool.DB.Exec(`UPDATE fetch_jobs SET status = ?, created_at = ?, updated_at = ? WHERE id = ?`, status, "2025-01-01T00:00:00Z", "2025-01-02T00:00:00Z", jobIDs[i])
+		require.NoError(t, err)
+	}
+	type listPage struct {
+		Data []struct {
+			ID       string `json:"id"`
+			SourceID string `json:"sourceId"`
+			Status   string `json:"status"`
+		} `json:"data"`
+		Page struct {
+			NextCursor *string `json:"nextCursor"`
+			HasNext    bool    `json:"hasNext"`
+		} `json:"page"`
+	}
+	get := func(query string) (listPage, *httptest.ResponseRecorder) {
+		t.Helper()
+		response := requestJSON(t, app.Router, http.MethodGet, "/api/v1/fetch-jobs/?"+query, nil)
+		var page listPage
+		if response.Code == http.StatusOK {
+			require.NoError(t, json.Unmarshal(response.Body.Bytes(), &page))
+		}
+		return page, response
+	}
+	first, response := get("pageSize=1")
+	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+	require.Len(t, first.Data, 1)
+	require.True(t, first.Page.HasNext)
+	require.NotNil(t, first.Page.NextCursor)
+	second, response := get("pageSize=3&cursor=" + url.QueryEscape(*first.Page.NextCursor))
+	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+	require.Len(t, second.Data, 3)
+	require.False(t, second.Page.HasNext)
+	require.Nil(t, second.Page.NextCursor)
+	ordered := []string{first.Data[0].ID, second.Data[0].ID, second.Data[1].ID, second.Data[2].ID}
+	expectedOrder := append([]string(nil), jobIDs...)
+	sort.Sort(sort.Reverse(sort.StringSlice(expectedOrder)))
+	require.Equal(t, expectedOrder, ordered)
+	filtered, response := get("sourceId=" + sourceIDs[1] + "&status=running")
+	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+	require.Len(t, filtered.Data, 1)
+	require.Equal(t, jobIDs[1], filtered.Data[0].ID)
+	for i, status := range []string{"pending", "running", "succeeded", "failed"} {
+		filtered, response = get("status=" + status)
+		require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+		require.Len(t, filtered.Data, 1, status)
+		require.Equal(t, jobIDs[i], filtered.Data[0].ID, status)
+	}
+	_, response = get("sourceId=" + sourceIDs[0] + "&cursor=" + url.QueryEscape(*first.Page.NextCursor))
+	require.Equal(t, http.StatusBadRequest, response.Code)
+	for _, query := range []string{"sourceId=bad", "status=queued", "pageSize=0", "pageSize=101", "pageSize=nope", "cursor=bad"} {
+		_, response = get(query)
+		require.Equal(t, http.StatusBadRequest, response.Code, query)
+	}
+	_, response = get("sourceId=00000000-0000-0000-0000-000000000000")
+	require.Equal(t, http.StatusOK, response.Code)
+	empty, _ := get("sourceId=00000000-0000-0000-0000-000000000000")
+	require.Empty(t, empty.Data)
+}
+
+func TestFetchJobHistoryOrdersFractionalTimestampsChronologicallyAcrossPages(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	dbPath := filepath.Join(t.TempDir(), "fetch-history-fractions.db")
+	require.NoError(t, goose.SetDialect("sqlite3"))
+	db, err := sql.Open("sqlite", sqliteTestDSN(dbPath))
+	require.NoError(t, err)
+	require.NoError(t, goose.Up(db, "../../migrations"))
+	require.NoError(t, db.Close())
+	app, err := NewWithConfig(ctx, Config{DatabasePath: dbPath, HTTPAddr: ":0", Fetch: FetchConfig{RetryBackoff: time.Hour, ScheduleInterval: time.Hour, ExecutorPoll: time.Hour}})
+	require.NoError(t, err)
+	defer app.Close()
+
+	var ids []string
+	for i := 0; i < 3; i++ {
+		sourceResponse := requestJSON(t, app.Router, http.MethodPost, "/api/v1/sources/", map[string]any{"name": fmt.Sprintf("Fraction %d", i), "type": "rss", "rssUrl": fmt.Sprintf("https://example.test/fraction-%d.xml", i)})
+		var source struct {
+			ID string `json:"id"`
+		}
+		require.NoError(t, json.Unmarshal(sourceResponse.Body.Bytes(), &source))
+		created := requestJSON(t, app.Router, http.MethodPost, "/api/v1/fetch-jobs/", map[string]any{"sourceId": source.ID})
+		var job struct {
+			ID string `json:"id"`
+		}
+		require.NoError(t, json.Unmarshal(created.Body.Bytes(), &job))
+		ids = append(ids, job.ID)
+	}
+	for i, stamp := range []string{"2025-01-01T00:00:00.1Z", "2025-01-01T00:00:00.11Z", "2025-01-01T00:00:00.09Z"} {
+		_, err := app.Pool.DB.Exec(`UPDATE fetch_jobs SET created_at = ? WHERE id = ?`, stamp, ids[i])
+		require.NoError(t, err)
+	}
+	type page struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+		Page struct {
+			NextCursor *string `json:"nextCursor"`
+			HasNext    bool    `json:"hasNext"`
+		} `json:"page"`
+	}
+	get := func(query string) page {
+		t.Helper()
+		res := requestJSON(t, app.Router, http.MethodGet, "/api/v1/fetch-jobs/?"+query, nil)
+		require.Equal(t, http.StatusOK, res.Code, res.Body.String())
+		var result page
+		require.NoError(t, json.Unmarshal(res.Body.Bytes(), &result))
+		return result
+	}
+	first := get("pageSize=1")
+	require.Equal(t, ids[1], first.Data[0].ID)
+	require.True(t, first.Page.HasNext)
+	second := get("pageSize=1&cursor=" + url.QueryEscape(*first.Page.NextCursor))
+	require.Equal(t, ids[0], second.Data[0].ID)
+	require.NotNil(t, second.Page.NextCursor)
+	third := get("pageSize=1&cursor=" + url.QueryEscape(*second.Page.NextCursor))
+	require.Equal(t, ids[2], third.Data[0].ID)
+	require.False(t, third.Page.HasNext)
+}
+
+func TestFetchJobHistoryUsesDefaultAndMaximumPageSizes(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	dbPath := filepath.Join(t.TempDir(), "fetch-history-page-sizes.db")
+	require.NoError(t, goose.SetDialect("sqlite3"))
+	db, err := sql.Open("sqlite", sqliteTestDSN(dbPath))
+	require.NoError(t, err)
+	require.NoError(t, goose.Up(db, "../../migrations"))
+	require.NoError(t, db.Close())
+	app, err := NewWithConfig(ctx, Config{DatabasePath: dbPath, HTTPAddr: ":0", Fetch: FetchConfig{RetryBackoff: time.Hour, ScheduleInterval: time.Hour, ExecutorPoll: time.Hour}})
+	require.NoError(t, err)
+	defer app.Close()
+
+	for i := 0; i < 101; i++ {
+		sourceResponse := requestJSON(t, app.Router, http.MethodPost, "/api/v1/sources/", map[string]any{"name": fmt.Sprintf("Page size %d", i), "type": "rss", "rssUrl": fmt.Sprintf("https://example.test/page-size-%d.xml", i)})
+		require.Equal(t, http.StatusCreated, sourceResponse.Code, sourceResponse.Body.String())
+		var source struct {
+			ID string `json:"id"`
+		}
+		require.NoError(t, json.Unmarshal(sourceResponse.Body.Bytes(), &source))
+		created := requestJSON(t, app.Router, http.MethodPost, "/api/v1/fetch-jobs/", map[string]any{"sourceId": source.ID})
+		require.Equal(t, http.StatusCreated, created.Code, created.Body.String())
+	}
+	for _, tc := range []struct {
+		query   string
+		want    int
+		hasNext bool
+	}{
+		{query: "", want: 20, hasNext: true},
+		{query: "pageSize=100", want: 100, hasNext: true},
+	} {
+		res := requestJSON(t, app.Router, http.MethodGet, "/api/v1/fetch-jobs/?"+tc.query, nil)
+		require.Equal(t, http.StatusOK, res.Code, res.Body.String())
+		var page struct {
+			Data []json.RawMessage `json:"data"`
+			Page struct {
+				NextCursor *string `json:"nextCursor"`
+				HasNext    bool    `json:"hasNext"`
+			} `json:"page"`
+		}
+		require.NoError(t, json.Unmarshal(res.Body.Bytes(), &page))
+		require.Len(t, page.Data, tc.want)
+		require.Equal(t, tc.hasNext, page.Page.HasNext)
+		require.NotNil(t, page.Page.NextCursor)
 	}
 }
 

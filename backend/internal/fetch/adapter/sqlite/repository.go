@@ -52,6 +52,40 @@ func (r *Repository) GetFetchJobByID(ctx context.Context, id uuid.UUID) (*domain
 	return scanFetchJob(r.q.QueryRowContext(ctx, selectFetchJob+` WHERE id = ?`, id.String()))
 }
 
+func (r *Repository) ListFetchJobs(ctx context.Context, after *repository.FetchJobListCursor, criteria repository.FetchJobListCriteria, limit int) ([]*domain.FetchJob, error) {
+	query := selectFetchJob + ` WHERE 1 = 1`
+	args := make([]any, 0, 5)
+	if criteria.SourceID != nil {
+		query += ` AND source_id = ?`
+		args = append(args, criteria.SourceID.String())
+	}
+	if criteria.Status != nil {
+		query += ` AND status = ?`
+		args = append(args, string(*criteria.Status))
+	}
+	if after != nil {
+		query += ` AND (` + normalizedCreatedAt + ` < ? OR (` + normalizedCreatedAt + ` = ? AND id < ?))`
+		position := after.CreatedAt.UTC().Format("2006-01-02T15:04:05.000000000Z")
+		args = append(args, position, position, after.ID.String())
+	}
+	query += ` ORDER BY ` + normalizedCreatedAt + ` DESC, id DESC LIMIT ?`
+	args = append(args, limit)
+	rows, err := r.q.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make([]*domain.FetchJob, 0)
+	for rows.Next() {
+		job, scanErr := scanFetchJob(rows)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		out = append(out, job)
+	}
+	return out, rows.Err()
+}
+
 func (r *Repository) GetUnfinishedFetchJobBySourceID(ctx context.Context, sourceID uuid.UUID) (*domain.FetchJob, error) {
 	return scanFetchJob(r.q.QueryRowContext(ctx, selectFetchJob+` WHERE source_id = ? AND status IN ('pending', 'running') LIMIT 1`, sourceID.String()))
 }
@@ -120,6 +154,15 @@ func (r *Repository) UpdateFetchJob(ctx context.Context, job *domain.FetchJob) e
 
 const selectFetchJob = `SELECT id, source_id, status, attempt, max_attempts, entries_created,
 	next_attempt_at, created_at, updated_at FROM fetch_jobs`
+
+// RFC3339Nano text has variable-width fractional seconds, so its lexical order
+// is not chronological. Persisted timestamps are UTC; normalize their fraction
+// to nine digits before comparing or sorting without changing the schema.
+const normalizedCreatedAt = `CASE WHEN instr(created_at, '.') = 0
+	THEN substr(created_at, 1, 19) || '.000000000Z'
+	ELSE substr(created_at, 1, 19) || '.' || substr(
+		substr(created_at, instr(created_at, '.') + 1, instr(created_at, 'Z') - instr(created_at, '.') - 1) || '000000000', 1, 9
+	) || 'Z' END`
 
 type scannable interface{ Scan(...any) error }
 

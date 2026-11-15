@@ -51,6 +51,22 @@ func (f *fakeRepo) GetFetchJobByID(_ context.Context, id uuid.UUID) (*domain.Fet
 	return cloneJob(job), nil
 }
 
+func (f *fakeRepo) ListFetchJobs(_ context.Context, after *repository.FetchJobListCursor, criteria repository.FetchJobListCriteria, limit int) ([]*domain.FetchJob, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := make([]*domain.FetchJob, 0)
+	for _, job := range f.jobs {
+		if criteria.SourceID != nil && job.SourceID != *criteria.SourceID || criteria.Status != nil && job.Status != *criteria.Status {
+			continue
+		}
+		if after != nil && !(job.CreatedAt.Before(after.CreatedAt) || job.CreatedAt.Equal(after.CreatedAt) && job.ID.String() < after.ID.String()) {
+			continue
+		}
+		out = append(out, cloneJob(job))
+	}
+	return out, nil
+}
+
 func (f *fakeRepo) GetUnfinishedFetchJobBySourceID(_ context.Context, sourceID uuid.UUID) (*domain.FetchJob, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
