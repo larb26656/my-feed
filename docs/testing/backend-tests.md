@@ -12,6 +12,19 @@ focused service stubs for storage failures and another-writer conflict recovery.
 The stubs embed their ports and implement only the relevant methods; unexpected
 calls fail immediately rather than silently simulating a database.
 
+Use AAA comments to make each scenario's phases visible:
+
+- `// Arrange`: create fixtures and inputs, including checks that setup succeeded.
+- `// Act`: perform the business operation being tested.
+- `// Assert`: verify the outcome, response fields, and persisted state.
+
+For a workflow with several steps, repeat Act/Assert at meaningful business
+boundaries, for example `// Act: ingest the same article again.` Add another
+Arrange block when preparing new state. Table-driven cases can share setup outside
+the subtest. Transport helpers may check status during Act; keep the business
+expectations in Assert. A trivial getter asserted inline can use `// Act & Assert`.
+Avoid labeling every statement or stacking Act comments for the same action.
+
 Repository tests retain checks for database constraints and reopening persistent
 files. They share the migration helper rather than maintaining partial schema setup.
 Domain timestamp tests start from a fixed historical `UpdatedAt` instead of sleeping

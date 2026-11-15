@@ -15,14 +15,27 @@ import (
 )
 
 func TestEnsuringSavedLinksRepeatedlyKeepsOneSystemSource(t *testing.T) {
+	// Arrange
 	pool := testkit.NewDatabase(t)
 	svc := service.New(sourcesqlite.NewRepository(pool.DB))
+
+	// Act: ensure the system source for the first time.
 	first, err := svc.EnsureSavedLinks(context.Background())
+
+	// Assert
 	require.NoError(t, err)
+
+	// Act: ensure the same system source again.
 	second, err := svc.EnsureSavedLinks(context.Background())
+
+	// Assert
 	require.NoError(t, err)
 	require.Equal(t, first, second)
+
+	// Act: list the persisted system sources.
 	sources, err := svc.ListSources(context.Background(), service.ListSourcesInput{})
+
+	// Assert
 	require.NoError(t, err)
 	require.Len(t, sources, 1)
 	require.Equal(t, domain.TypeManual, sources[0].Type)
@@ -39,6 +52,7 @@ func (r manualRepo) GetManualSource(context.Context) (*domain.Source, error) { r
 func (r manualRepo) CreateSource(_ context.Context, s *domain.Source) error  { return r.create(s) }
 
 func TestEnsuringSavedLinksUsesTheSourceCreatedByAnotherWriter(t *testing.T) {
+	// Arrange
 	winner, err := domain.NewManualSource(domain.SavedLinksName)
 	require.NoError(t, err)
 	lookups := 0
@@ -52,16 +66,22 @@ func TestEnsuringSavedLinksUsesTheSourceCreatedByAnotherWriter(t *testing.T) {
 		},
 		create: func(*domain.Source) error { return apperr.Conflict("another writer won") },
 	})
+
+	// Act: ensure the system source.
 	got, err := svc.EnsureSavedLinks(context.Background())
+
+	// Assert
 	require.NoError(t, err)
 	require.Equal(t, winner, got)
 	require.Equal(t, 2, lookups)
 }
 
 func TestEnsuringSavedLinksPropagatesStorageFailures(t *testing.T) {
+	// Arrange
 	failure := errors.New("storage unavailable")
 	for _, stage := range []string{"lookup", "create", "lookup after conflict"} {
 		t.Run(stage, func(t *testing.T) {
+			// Arrange: force a failure at this storage stage.
 			lookups := 0
 			svc := service.New(manualRepo{
 				lookup: func() (*domain.Source, error) {
@@ -78,7 +98,11 @@ func TestEnsuringSavedLinksPropagatesStorageFailures(t *testing.T) {
 					return apperr.Conflict("another writer won")
 				},
 			})
+
+			// Act: ensure the system source.
 			got, err := svc.EnsureSavedLinks(context.Background())
+
+			// Assert
 			require.ErrorIs(t, err, failure)
 			require.Nil(t, got)
 		})

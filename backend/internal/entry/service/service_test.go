@@ -43,6 +43,7 @@ func (s rssLookup) Get(context.Context, uuid.UUID) (*service.SourceRef, error) {
 }
 
 func TestIngestionRecoversWhenAnotherWriterCreatesTheSameArticleFirst(t *testing.T) {
+	// Arrange
 	sourceID := uuid.New()
 	winner, err := domain.NewEntry(sourceID, domain.EntryMetadata{Title: "First writer", Link: "https://example.test/a"})
 	require.NoError(t, err)
@@ -61,7 +62,11 @@ func TestIngestionRecoversWhenAnotherWriterCreatesTheSameArticleFirst(t *testing
 		create: func(*domain.Entry) (*domain.Entry, error) { return nil, apperr.Conflict("another writer won") },
 		update: func(e *domain.Entry) (*domain.Entry, error) { require.Equal(t, winner.ID, e.ID); return e, nil },
 	}
+
+	// Act: ingest through the configured repository failure or conflict.
 	result, err := service.New(repo, rssLookup{id: sourceID}).IngestEntry(context.Background(), service.IngestEntryInput{SourceID: sourceID, Title: "Latest metadata", Link: winner.Link})
+
+	// Assert
 	require.NoError(t, err)
 	require.False(t, result.Created)
 	require.Equal(t, 2, lookups)
@@ -72,9 +77,11 @@ func TestIngestionRecoversWhenAnotherWriterCreatesTheSameArticleFirst(t *testing
 }
 
 func TestIngestionPropagatesStorageFailuresInsteadOfReportingSuccess(t *testing.T) {
+	// Arrange
 	storageFailure := errors.New("storage unavailable")
 	for _, stage := range []string{"lookup", "create", "refresh", "lookup after conflict", "refresh after conflict"} {
 		t.Run(stage, func(t *testing.T) {
+			// Arrange: force a failure at this storage stage.
 			sourceID := uuid.New()
 			existing, err := domain.NewEntry(sourceID, domain.EntryMetadata{Title: "Existing", Link: "https://example.test/a"})
 			require.NoError(t, err)
@@ -98,7 +105,11 @@ func TestIngestionPropagatesStorageFailuresInsteadOfReportingSuccess(t *testing.
 				},
 				update: func(*domain.Entry) (*domain.Entry, error) { return nil, storageFailure },
 			}
+
+			// Act: ingest through the configured repository failure or conflict.
 			result, err := service.New(repo, rssLookup{id: sourceID}).IngestEntry(context.Background(), service.IngestEntryInput{SourceID: sourceID, Title: "Incoming", Link: existing.Link})
+
+			// Assert
 			require.ErrorIs(t, err, storageFailure)
 			require.Nil(t, result)
 		})
