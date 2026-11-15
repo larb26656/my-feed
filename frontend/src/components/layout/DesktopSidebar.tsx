@@ -4,6 +4,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { SourceAvatar } from "#/components/SourceAvatar";
 import { buttonVariants } from "#/components/ui/button";
 import { useFeedState } from "#/features/feed/FeedState";
+import { ThemeToggle } from "./ThemeToggle";
 
 type NavItemProps = Omit<
 	ComponentProps<typeof Link>,
@@ -113,10 +114,13 @@ export function DesktopSidebar() {
 					Manage Sources
 				</NavItem>
 			</div>
-			<NavItem to="/settings" active={path === "/settings"} className="mt-auto">
-				<Settings data-icon="inline-start" />
-				Settings
-			</NavItem>
+			<div className="mt-auto flex flex-col gap-1 pt-4">
+				<ThemeToggle />
+				<NavItem to="/settings" active={path === "/settings"}>
+					<Settings data-icon="inline-start" />
+					Settings
+				</NavItem>
+			</div>
 		</aside>
 	);
 }

@@ -3,6 +3,9 @@ import { RouterProvider } from "@tanstack/react-router";
 import ReactDOM from "react-dom/client";
 import { Toaster } from "./components/ui/toaster";
 import { getRouter } from "./router";
+import { initializeTheme } from "./stores/theme";
+
+initializeTheme();
 
 const router = getRouter();
 const queryClient = new QueryClient({
