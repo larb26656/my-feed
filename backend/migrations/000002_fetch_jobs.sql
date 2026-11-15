@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE IF NOT EXISTS fetch_jobs (
     id              UUID PRIMARY KEY,
     source_id       UUID NOT NULL REFERENCES sources (id),
@@ -23,3 +24,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS fetch_jobs_one_unfinished_per_source
 CREATE INDEX IF NOT EXISTS fetch_jobs_claimable_pending
     ON fetch_jobs (next_attempt_at)
     WHERE status = 'pending';
+
+-- +goose Down
+DROP INDEX IF EXISTS fetch_jobs_claimable_pending;
+DROP INDEX IF EXISTS fetch_jobs_one_unfinished_per_source;
+DROP TABLE IF EXISTS fetch_jobs;

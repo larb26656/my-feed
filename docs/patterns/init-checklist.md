@@ -16,8 +16,8 @@ cmd/api/main.go
 internal/bootstrap/app.go
 internal/platform/{apperr,database,http}/
 internal/{module}/{domain,repository,service,adapter/http,adapter/postgres}/
-migrations/
-scripts/migrate.sh
+migrations/               # Goose: NNNNNN_name.sql (-- +goose Up/Down)
+scripts/migrate.sh        # Goose CLI wrapper (go run pressly/goose)
 api/openapi.yaml          # optional แต่แนะนำ
 tests/integration/        # เมื่อมี flow ข้าม aggregate + DB
 docker-compose.yml
@@ -29,7 +29,7 @@ docs/patterns/            # คัดลอกชุดนี้มาทั้�
 - [ ] `go mod init …`
 - [ ] คัดลอกหรือเขียนใหม่ `platform` ให้ครบ 3 แพ็กเกจ
 - [ ] `cmd/api` + `bootstrap` ว่างๆ ที่ขึ้น `:8080` + `/healthz` ได้
-- [ ] Docker Postgres + `DATABASE_URL` + migrate script
+- [ ] Docker Postgres + `DATABASE_URL` + Goose migrate script
 
 ## 2) Module แรก
 
@@ -64,7 +64,7 @@ docs/patterns/            # คัดลอกชุดนี้มาทั้�
 
 - `internal/platform/**`
 - โครง `bootstrap` / `cmd/api`
-- `docker-compose.yml`, `scripts/migrate.sh`, `Makefile`
+- `docker-compose.yml`, Goose `scripts/migrate.sh`, `Makefile`
 - ชุด `docs/patterns/**`
 
 ไม่เหมาะ copy ตรงๆ โดยไม่คิด:

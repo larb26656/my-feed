@@ -16,10 +16,11 @@ quick-feed/
 Stack: Go + chi + pgx (no ORM). First bounded context: **feed** (Source + Entry; module folder name only).
 
 ```bash
-make up         # Postgres on :54330
-make migrate    # apply migrations
-make backend    # API on :8080
-make test-unit  # domain/unit tests, no Docker
+make up              # Postgres on :54330
+make migrate         # Goose up (apply pending migrations)
+make migrate-status  # Goose status
+make backend         # API on :8080
+make test-unit       # domain/unit tests, no Docker
 ```
 
 - Health: `GET http://localhost:8080/healthz`

@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE IF NOT EXISTS sources (
     id          UUID PRIMARY KEY,
     name        TEXT NOT NULL,
@@ -38,3 +39,7 @@ CREATE TABLE IF NOT EXISTS entries (
     CONSTRAINT entries_title_non_empty CHECK (char_length(trim(title)) > 0),
     CONSTRAINT entries_link_non_empty CHECK (char_length(trim(link)) > 0)
 );
+
+-- +goose Down
+DROP TABLE IF EXISTS entries;
+DROP TABLE IF EXISTS sources;

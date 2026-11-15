@@ -3,8 +3,12 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DATABASE_URL="${DATABASE_URL:-postgres://quickfeed:quickfeed@localhost:54330/quick_feed?sslmode=disable}"
+GOOSE_VERSION="${GOOSE_VERSION:-v3.27.3}"
+CMD="${1:-up}"
+shift || true
 
-for f in "$ROOT"/migrations/*.up.sql; do
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f"
-done
-echo "migrations applied"
+exec go run "github.com/pressly/goose/v3/cmd/goose@${GOOSE_VERSION}" \
+  -dir "$ROOT/migrations" \
+  postgres "$DATABASE_URL" \
+  "$CMD" \
+  "$@"

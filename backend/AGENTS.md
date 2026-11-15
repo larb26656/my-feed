@@ -3,7 +3,9 @@
 From repo root via `Makefile` (`make help` for the full list):
 
 - `make up` — Postgres (:54330)
-- `make migrate` — apply `migrations/`
+- `make migrate` — Goose `up` on `migrations/`
+- `make migrate-status` — Goose status
+- `make migrate-down` — Goose `down` (one step)
 - `make backend` — API (:8080)
 - `make test-unit` — unit tests, no Docker
 - `make test` — all Go tests
@@ -13,7 +15,7 @@ Default `DATABASE_URL` and `HTTP_ADDR`: `backend/.env.example`.
 
 ## Stack
 
-Go + chi + pgx + PostgreSQL. No ORM, no message broker. HTTP via chi; SQL via pgx (pool/tx); schema via `migrations/` SQL files. Business errors: `platform/apperr`. Overview: `docs/patterns/README.md`.
+Go + chi + pgx + PostgreSQL. No ORM, no message broker. HTTP via chi; SQL via pgx (pool/tx); schema via Goose + `migrations/` SQL files. Business errors: `platform/apperr`. Overview: `docs/patterns/README.md`.
 
 ## Architecture
 

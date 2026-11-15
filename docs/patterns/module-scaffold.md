@@ -61,8 +61,9 @@ internal/{usecase}/
 
 ## Migration
 
-ทุก aggregate ที่ persist ต้องมีตารางใน `migrations/` พร้อม:
+ทุก aggregate ที่ persist ต้องมีตารางใน `migrations/` (Goose: `NNNNNN_name.sql` พร้อม `-- +goose Up` / `-- +goose Down`) พร้อม:
 
 - PK / UNIQUE ที่สะท้อน uniqueness ในโดเมน
 - CHECK ที่สะท้อน invariant สำคัญ (เช่น `stock >= 0`)
 - ไม่พึ่ง ORM tag — schema คือ source of truth ฝั่ง DB
+- ใช้ `make migrate` / `make migrate-status` (ไม่รัน SQL ตรงด้วย `psql`)
