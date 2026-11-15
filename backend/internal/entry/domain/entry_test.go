@@ -5,214 +5,204 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/require"
-
 	"github.com/larb26656/my-feed/backend/internal/entry/domain"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
+	"github.com/stretchr/testify/require"
 )
 
-func TestNewEntryTrimsMetadataAndStartsUnreadAndUnsaved(t *testing.T) {
+func newEntry(t *testing.T) *domain.Entry {
+	t.Helper()
+	entry, err := domain.NewEntry(uuid.New(), domain.EntryMetadata{Title: "Original", Link: "https://example.test/a", Description: "Old summary"})
+	require.NoError(t, err)
+	return entry
+}
+
+func TestNewEntryTrimsMetadata(t *testing.T) {
 	// Arrange
 	sourceID := uuid.New()
-	thumb := "https://example.com/t.png"
+	thumbnail := "https://example.test/photo.png"
 	published := time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)
+	metadata := domain.EntryMetadata{Title: " News ", Link: " https://example.test/a ", Description: " Summary ", Thumbnail: &thumbnail, PublishedAt: &published}
 
-	// Act: create an entry from padded metadata.
-	e, err := domain.NewEntry(sourceID, domain.EntryMetadata{
-		Title:       "  Show HN  ",
-		Link:        "  https://example.com/a  ",
-		Description: "  desc  ",
-		Thumbnail:   &thumb,
-		PublishedAt: &published,
-	})
+	// Act
+	entry, err := domain.NewEntry(sourceID, metadata)
 
 	// Assert
 	require.NoError(t, err)
-	require.NotEqual(t, uuid.Nil, e.ID)
-	require.Equal(t, sourceID, e.SourceID)
-	require.Equal(t, "Show HN", e.Title)
-	require.Equal(t, "https://example.com/a", e.Link)
-	require.Equal(t, "desc", e.Description)
-	require.NotNil(t, e.Thumbnail)
-	require.Equal(t, thumb, *e.Thumbnail)
-	require.NotNil(t, e.PublishedAt)
-	require.True(t, published.Equal(e.PublishedAt.UTC()))
-	require.False(t, e.CreatedAt.IsZero())
-	require.Equal(t, e.CreatedAt, e.UpdatedAt)
-	require.Nil(t, e.ReadAt)
-	require.Nil(t, e.SavedAt)
+	require.Equal(t, "News", entry.Title)
+	require.Equal(t, "https://example.test/a", entry.Link)
+	require.Equal(t, "Summary", entry.Description)
+	require.Equal(t, &thumbnail, entry.Thumbnail)
+	require.Equal(t, &published, entry.PublishedAt)
 }
 
-func TestNewEntryRequiresTitleLinkAndSource(t *testing.T) {
+func TestNewEntryHasAnIdentityAndStartsUnreadAndUnsaved(t *testing.T) {
 	// Arrange
 	sourceID := uuid.New()
 
-	// Act: create an entry without a required field.
-	_, err := domain.NewEntry(sourceID, domain.EntryMetadata{Title: "  ", Link: "https://example.com/a"})
+	// Act
+	entry, err := domain.NewEntry(sourceID, domain.EntryMetadata{Title: "News", Link: "https://example.test/a"})
 
 	// Assert
-	require.Error(t, err)
-	var ae *apperr.Error
-	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeValidation, ae.Code)
-
-	// Act: create an entry without another required field.
-	_, err = domain.NewEntry(sourceID, domain.EntryMetadata{Title: "Show HN", Link: ""})
-
-	// Assert
-	require.Error(t, err)
-	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeValidation, ae.Code)
-
-	// Act: create an entry without another required field.
-	_, err = domain.NewEntry(uuid.Nil, domain.EntryMetadata{Title: "Show HN", Link: "https://example.com/a"})
-
-	// Assert
-	require.Error(t, err)
-	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeValidation, ae.Code)
+	require.NoError(t, err)
+	require.NotEqual(t, uuid.Nil, entry.ID)
+	require.Equal(t, sourceID, entry.SourceID)
+	require.False(t, entry.CreatedAt.IsZero())
+	require.Equal(t, entry.CreatedAt, entry.UpdatedAt)
+	require.Nil(t, entry.ReadAt)
+	require.Nil(t, entry.SavedAt)
 }
 
-func TestEntrySortAtPrefersPublishedAt(t *testing.T) {
+func TestNewEntryRejectsMissingRequiredFields(t *testing.T) {
+	for _, scenario := range []struct {
+		name, title, link string
+		sourceID          uuid.UUID
+	}{
+		{"blank title", " ", "https://example.test/a", uuid.New()},
+		{"blank link", "News", "", uuid.New()},
+		{"missing source", "News", "https://example.test/a", uuid.Nil},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			// Arrange
+			metadata := domain.EntryMetadata{Title: scenario.title, Link: scenario.link}
+
+			// Act
+			_, err := domain.NewEntry(scenario.sourceID, metadata)
+
+			// Assert
+			var failure *apperr.Error
+			require.ErrorAs(t, err, &failure)
+			require.Equal(t, apperr.CodeValidation, failure.Code)
+		})
+	}
+}
+
+func TestEntrySortAtPrefersThePublicationDate(t *testing.T) {
 	// Arrange
 	published := time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
+	entry := &domain.Entry{PublishedAt: &published, CreatedAt: published.Add(-time.Hour)}
+
+	// Act
+	sortAt := entry.SortAt()
+
+	// Assert
+	require.Equal(t, published, sortAt)
+}
+
+func TestEntrySortAtFallsBackToTheCreationDate(t *testing.T) {
+	// Arrange
 	created := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-	e := &domain.Entry{PublishedAt: &published, CreatedAt: created}
+	entry := &domain.Entry{CreatedAt: created}
 
-	// Act & Assert: prefer the publication date when available.
-	require.True(t, published.Equal(e.SortAt()))
+	// Act
+	sortAt := entry.SortAt()
 
-	// Arrange: remove the publication date.
-	e.PublishedAt = nil
-
-	// Act & Assert: fall back to the creation date.
-	require.True(t, created.Equal(e.SortAt()))
+	// Assert
+	require.Equal(t, created, sortAt)
 }
 
-func TestMarkReadAndClearReadUpdateUpdatedAt(t *testing.T) {
+func TestMarkReadRecordsTheReadTimeAndUpdatesTheEntryTimestamp(t *testing.T) {
 	// Arrange
-	e, err := domain.NewEntry(uuid.New(), domain.EntryMetadata{
-		Title: "Show HN",
-		Link:  "https://example.com/a",
-	})
-	require.NoError(t, err)
-	e.UpdatedAt = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
-	originalUpdated := e.UpdatedAt
+	entry := newEntry(t)
+	previous := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	entry.UpdatedAt = previous
+	readAt := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	at := time.Now().UTC()
-
-	// Act: mark the entry read.
-	e.MarkRead(at)
+	// Act
+	entry.MarkRead(readAt)
 
 	// Assert
-	require.NotNil(t, e.ReadAt)
-	require.True(t, at.Equal(e.ReadAt.UTC()))
-	require.True(t, e.UpdatedAt.After(originalUpdated))
-
-	// Arrange: reset the historical timestamp before clearing the choice.
-	e.UpdatedAt = originalUpdated
-	afterMark := e.UpdatedAt
-
-	// Act: clear the read choice.
-	e.ClearRead()
-
-	// Assert
-	require.Nil(t, e.ReadAt)
-	require.True(t, e.UpdatedAt.After(afterMark))
+	require.Equal(t, &readAt, entry.ReadAt)
+	require.True(t, entry.UpdatedAt.After(previous))
 }
 
-func TestMarkSavedAndClearSavedUpdateUpdatedAt(t *testing.T) {
+func TestClearReadRemovesTheReadTimeAndUpdatesTheEntryTimestamp(t *testing.T) {
 	// Arrange
-	e, err := domain.NewEntry(uuid.New(), domain.EntryMetadata{
-		Title: "Show HN",
-		Link:  "https://example.com/a",
-	})
-	require.NoError(t, err)
-	e.UpdatedAt = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
-	originalUpdated := e.UpdatedAt
+	entry := newEntry(t)
+	previous := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	entry.ReadAt = &previous
+	entry.UpdatedAt = previous
 
-	at := time.Now().UTC()
-
-	// Act: mark the entry saved.
-	e.MarkSaved(at)
+	// Act
+	entry.ClearRead()
 
 	// Assert
-	require.NotNil(t, e.SavedAt)
-	require.True(t, at.Equal(e.SavedAt.UTC()))
-	require.True(t, e.UpdatedAt.After(originalUpdated))
-
-	// Arrange: reset the historical timestamp before clearing the choice.
-	e.UpdatedAt = originalUpdated
-	afterMark := e.UpdatedAt
-
-	// Act: clear the saved choice.
-	e.ClearSaved()
-
-	// Assert
-	require.Nil(t, e.SavedAt)
-	require.True(t, e.UpdatedAt.After(afterMark))
+	require.Nil(t, entry.ReadAt)
+	require.True(t, entry.UpdatedAt.After(previous))
 }
 
-func TestRefreshMetadataUpdatesFieldsAndUpdatedAt(t *testing.T) {
+func TestMarkSavedRecordsTheSavedTimeAndUpdatesTheEntryTimestamp(t *testing.T) {
 	// Arrange
-	e, err := domain.NewEntry(uuid.New(), domain.EntryMetadata{
-		Title:       "Original",
-		Link:        "https://example.com/a",
-		Description: "old",
-	})
-	require.NoError(t, err)
-	createdAt := e.CreatedAt
-	e.UpdatedAt = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
-	originalUpdated := e.UpdatedAt
-	originalLink := e.Link
+	entry := newEntry(t)
+	previous := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	entry.UpdatedAt = previous
+	savedAt := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	thumb := "https://example.com/new.png"
-	published := time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC)
-
-	// Act: refresh entry metadata.
-	err = e.RefreshMetadata(domain.EntryMetadata{
-		Title:       "  Updated  ",
-		Link:        "  https://example.com/a  ",
-		Description: "  refreshed  ",
-		Thumbnail:   &thumb,
-		PublishedAt: &published,
-	})
+	// Act
+	entry.MarkSaved(savedAt)
 
 	// Assert
-	require.NoError(t, err)
-	require.Equal(t, "Updated", e.Title)
-	require.Equal(t, originalLink, e.Link)
-	require.Equal(t, "refreshed", e.Description)
-	require.NotNil(t, e.Thumbnail)
-	require.Equal(t, thumb, *e.Thumbnail)
-	require.NotNil(t, e.PublishedAt)
-	require.True(t, published.Equal(e.PublishedAt.UTC()))
-	require.Equal(t, createdAt, e.CreatedAt)
-	require.True(t, e.UpdatedAt.After(originalUpdated))
+	require.Equal(t, &savedAt, entry.SavedAt)
+	require.True(t, entry.UpdatedAt.After(previous))
 }
 
-func TestRefreshMetadataRejectsBlankTitleOrLink(t *testing.T) {
+func TestClearSavedRemovesTheSavedTimeAndUpdatesTheEntryTimestamp(t *testing.T) {
 	// Arrange
-	e, err := domain.NewEntry(uuid.New(), domain.EntryMetadata{
-		Title: "Original",
-		Link:  "https://example.com/a",
-	})
+	entry := newEntry(t)
+	previous := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	entry.SavedAt = &previous
+	entry.UpdatedAt = previous
+
+	// Act
+	entry.ClearSaved()
+
+	// Assert
+	require.Nil(t, entry.SavedAt)
+	require.True(t, entry.UpdatedAt.After(previous))
+}
+
+func TestRefreshMetadataUpdatesMutableFieldsWithoutChangingIdentity(t *testing.T) {
+	// Arrange
+	entry := newEntry(t)
+	createdAt, originalLink, originalID := entry.CreatedAt, entry.Link, entry.ID
+	previous := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	entry.UpdatedAt = previous
+	thumbnail := "https://example.test/new.png"
+	published := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	metadata := domain.EntryMetadata{Title: " Updated ", Link: " https://example.test/a ", Description: " Refreshed ", Thumbnail: &thumbnail, PublishedAt: &published}
+
+	// Act
+	err := entry.RefreshMetadata(metadata)
+
+	// Assert
 	require.NoError(t, err)
+	require.Equal(t, "Updated", entry.Title)
+	require.Equal(t, "Refreshed", entry.Description)
+	require.Equal(t, &thumbnail, entry.Thumbnail)
+	require.Equal(t, &published, entry.PublishedAt)
+	require.Equal(t, originalID, entry.ID)
+	require.Equal(t, originalLink, entry.Link)
+	require.Equal(t, createdAt, entry.CreatedAt)
+	require.True(t, entry.UpdatedAt.After(previous))
+}
 
-	// Act: refresh entry metadata.
-	err = e.RefreshMetadata(domain.EntryMetadata{Title: "  ", Link: "https://example.com/a"})
+func TestRefreshMetadataRejectsBlankRequiredFields(t *testing.T) {
+	for _, scenario := range []struct{ name, title, link string }{
+		{"blank title", " ", "https://example.test/a"}, {"blank link", "Updated", ""},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			// Arrange
+			entry := newEntry(t)
+			original := *entry
 
-	// Assert
-	require.Error(t, err)
-	var ae *apperr.Error
-	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeValidation, ae.Code)
+			// Act
+			err := entry.RefreshMetadata(domain.EntryMetadata{Title: scenario.title, Link: scenario.link})
 
-	// Act: refresh entry metadata.
-	err = e.RefreshMetadata(domain.EntryMetadata{Title: "Updated", Link: ""})
-
-	// Assert
-	require.Error(t, err)
-	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeValidation, ae.Code)
+			// Assert
+			var failure *apperr.Error
+			require.ErrorAs(t, err, &failure)
+			require.Equal(t, apperr.CodeValidation, failure.Code)
+			require.Equal(t, original, *entry, "invalid metadata must not partially update the entry")
+		})
+	}
 }

@@ -18,25 +18,17 @@ func TestEnsuringSavedLinksRepeatedlyKeepsOneSystemSource(t *testing.T) {
 	// Arrange
 	pool := testkit.NewDatabase(t)
 	svc := service.New(sourcesqlite.NewRepository(pool.DB))
-
-	// Act: ensure the system source for the first time.
 	first, err := svc.EnsureSavedLinks(context.Background())
-
-	// Assert
 	require.NoError(t, err)
 
-	// Act: ensure the same system source again.
+	// Act: ensure the same source again and inspect the stored result.
 	second, err := svc.EnsureSavedLinks(context.Background())
-
-	// Assert
 	require.NoError(t, err)
-	require.Equal(t, first, second)
-
-	// Act: list the persisted system sources.
 	sources, err := svc.ListSources(context.Background(), service.ListSourcesInput{})
 
 	// Assert
 	require.NoError(t, err)
+	require.Equal(t, first, second)
 	require.Len(t, sources, 1)
 	require.Equal(t, domain.TypeManual, sources[0].Type)
 	require.Equal(t, "Saved links", sources[0].Name)

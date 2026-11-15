@@ -18,12 +18,23 @@ Use AAA comments to make each scenario's phases visible:
 - `// Act`: perform the business operation being tested.
 - `// Assert`: verify the outcome, response fields, and persisted state.
 
-For a workflow with several steps, repeat Act/Assert at meaningful business
-boundaries, for example `// Act: ingest the same article again.` Add another
-Arrange block when preparing new state. Table-driven cases can share setup outside
-the subtest. Transport helpers may check status during Act; keep the business
-expectations in Assert. A trivial getter asserted inline can use `// Act & Assert`.
-Avoid labeling every statement or stacking Act comments for the same action.
+Each test or named subtest specifies **one primary behavior** and runs independently.
+For example, a sorting case checks order; pagination, filtering, validation, and
+read/saved transitions have separate cases. Multiple assertions can describe the
+same outcome. Do not combine unrelated checks just to reuse setup: a little explicit
+duplication or a small fixture helper is preferable to a long scenario.
+
+Aim for one AAA sequence per case. Repeated Act/Assert blocks often mean the test
+should be split. Several steps belong together only when needed to prove one
+behavior, such as ingesting an existing article without losing its read/saved
+choices. Put prerequisite actions in Arrange; fetching persisted state to verify
+the outcome is still part of that same case.
+
+Use table-driven subtests for variations of one rule, with fresh mutable fixtures
+for each case. Only immutable inputs and expectations should be shared outside the
+subtest. Transport helpers may check status during Act; keep business expectations
+in Assert. A trivial getter asserted inline can use `// Act & Assert`. Avoid labeling
+every statement or stacking Act comments for the same action.
 
 Repository tests retain checks for database constraints and reopening persistent
 files. They share the migration helper rather than maintaining partial schema setup.
@@ -38,13 +49,15 @@ Validated with Go 1.25.7:
 cd backend
 go test ./...
 go test -race ./...
+go test ./internal/entry/... ./internal/source/... -shuffle=on -count=1
 go test ./internal/entry/... ./internal/source/... \
   -coverpkg=./internal/entry/...,./internal/source/... -coverprofile=/tmp/modules.cover
 go tool cover -func=/tmp/modules.cover
 ```
 
 Both full ordinary and race suites passed on the final implementation. No races
-were reported. Coverage compares unchanged main (`cda595b`) with this refactor,
+were reported. Entry/Source tests also passed with shuffled execution order after
+splitting independent behaviors into separate cases. Coverage compares unchanged main (`cda595b`) with this refactor,
 using the same module-only command on both checkouts. Instrumenting both modules
 counts HTTP integration execution in the service and repository packages too.
 Testkit code is excluded from the coverage denominator.

@@ -2,6 +2,7 @@ package http_test
 
 import (
 	"fmt"
+	"net/http"
 	"testing"
 
 	"github.com/google/uuid"
@@ -17,74 +18,142 @@ type source struct {
 	Active                               bool
 }
 
-func TestReaderCanSubscribeEditPauseAndResumeAnRSSSource(t *testing.T) {
+func createRSSSource(t *testing.T, router http.Handler, name, feedURL string) source {
+	t.Helper()
+	return testkit.Decode[source](t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]string{"name": name, "type": "rss", "rssUrl": feedURL}, 201))
+}
+
+func TestSubscribingToRSSReturnsNormalizedSourceDetails(t *testing.T) {
 	// Arrange
 	router := api.New(t)
+	input := map[string]string{"name": " Daily news ", "type": "rss", "rssUrl": " https://example.test/rss "}
 
-	// Act: subscribe to the RSS source.
-	created := testkit.Decode[source](t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]string{"name": " Daily news ", "type": "rss", "rssUrl": " https://example.test/rss "}, 201))
+	// Act
+	created := testkit.Decode[source](t, testkit.Request(t, router, "POST", "/api/v1/sources/", input, 201))
 
 	// Assert
+	require.NotEmpty(t, created.ID)
 	require.Equal(t, "Daily news", created.Name)
 	require.Equal(t, "rss", created.Type)
+	require.NotNil(t, created.RSSURL)
 	require.Equal(t, "https://example.test/rss", *created.RSSURL)
 	require.True(t, created.Active)
-	path := "/api/v1/sources/" + created.ID
+}
 
-	// Act: edit the subscription.
+func TestEditingASubscriptionPersistsItsNewNameAndFeedURL(t *testing.T) {
+	// Arrange
+	router := api.New(t)
+	original := createRSSSource(t, router, "Daily news", "https://example.test/rss")
+	path := "/api/v1/sources/" + original.ID
+
+	// Act
 	updated := testkit.Decode[source](t, testkit.Request(t, router, "PATCH", path, map[string]string{"name": "Weekly news", "rssUrl": "https://example.test/weekly"}, 200))
+	got := testkit.Decode[source](t, testkit.Request(t, router, "GET", path, nil, 200))
 
 	// Assert
-	require.Equal(t, created.ID, updated.ID)
-	require.Equal(t, created.CreatedAt, updated.CreatedAt)
-	require.Equal(t, "Weekly news", updated.Name)
-	require.Equal(t, "https://example.test/weekly", *updated.RSSURL)
-	require.Equal(t, "rss", updated.Type)
-	for i := 0; i < 2; i++ {
-		// Act: pause the subscription again.
-		paused := testkit.Decode[source](t, testkit.Request(t, router, "POST", path+"/deactivate", nil, 200))
+	require.Equal(t, original.ID, got.ID)
+	require.Equal(t, original.CreatedAt, got.CreatedAt)
+	require.Equal(t, "Weekly news", got.Name)
+	require.NotNil(t, got.RSSURL)
+	require.Equal(t, "https://example.test/weekly", *got.RSSURL)
+	require.Equal(t, "rss", got.Type)
+	require.Equal(t, updated, got)
+}
 
-		// Assert
-		require.False(t, paused.Active, "pausing is idempotent")
-	}
+func TestPausingAnRSSSourceIsIdempotent(t *testing.T) {
+	// Arrange
+	router := api.New(t)
+	subscription := createRSSSource(t, router, "News", "https://example.test/rss")
+	path := "/api/v1/sources/" + subscription.ID + "/deactivate"
+	first := testkit.Decode[source](t, testkit.Request(t, router, "POST", path, nil, 200))
+	require.False(t, first.Active)
 
-	// Act: list active sources.
+	// Act
+	repeated := testkit.Decode[source](t, testkit.Request(t, router, "POST", path, nil, 200))
+
+	// Assert
+	require.Equal(t, first, repeated)
+}
+
+func TestDefaultSourceListOmitsPausedSubscriptions(t *testing.T) {
+	// Arrange
+	router := api.New(t)
+	subscription := createRSSSource(t, router, "News", "https://example.test/rss")
+	testkit.Request(t, router, "POST", "/api/v1/sources/"+subscription.ID+"/deactivate", nil, 200)
+
+	// Act
 	active := testkit.Decode[[]source](t, testkit.Request(t, router, "GET", "/api/v1/sources/", nil, 200))
 
 	// Assert
 	require.Len(t, active, 1)
 	require.Equal(t, "manual", active[0].Type)
+}
 
-	// Act: include paused sources in the list.
+func TestSourceListCanIncludePausedSubscriptions(t *testing.T) {
+	// Arrange
+	router := api.New(t)
+	subscription := createRSSSource(t, router, "News", "https://example.test/rss")
+	testkit.Request(t, router, "POST", "/api/v1/sources/"+subscription.ID+"/deactivate", nil, 200)
+
+	// Act
 	all := testkit.Decode[[]source](t, testkit.Request(t, router, "GET", "/api/v1/sources/?includeDeactivated=true", nil, 200))
 
 	// Assert
 	require.Len(t, all, 2)
+	for _, item := range all {
+		if item.ID == subscription.ID {
+			require.False(t, item.Active)
+			return
+		}
+	}
+	t.Fatal("paused subscription must be included")
+}
 
-	// Act: fetch the stored subscription.
+func TestPausedSourcesRemainAccessibleByID(t *testing.T) {
+	// Arrange
+	router := api.New(t)
+	subscription := createRSSSource(t, router, "News", "https://example.test/rss")
+	path := "/api/v1/sources/" + subscription.ID
+	paused := testkit.Decode[source](t, testkit.Request(t, router, "POST", path+"/deactivate", nil, 200))
+
+	// Act
 	got := testkit.Decode[source](t, testkit.Request(t, router, "GET", path, nil, 200))
 
 	// Assert
-	require.False(t, got.Active, "paused sources remain directly accessible")
-	require.Equal(t, updated.Name, got.Name)
-	for i := 0; i < 2; i++ {
-		// Act: resume the subscription again.
-		resumed := testkit.Decode[source](t, testkit.Request(t, router, "POST", path+"/reactivate", nil, 200))
-
-		// Assert
-		require.True(t, resumed.Active, "resuming is idempotent")
-	}
-
-	// Act: list active sources after resuming.
-	active = testkit.Decode[[]source](t, testkit.Request(t, router, "GET", "/api/v1/sources/", nil, 200))
-
-	// Assert
-	require.Len(t, active, 2)
+	require.Equal(t, paused, got)
+	require.False(t, got.Active)
 }
 
-func TestSourceValidationReturnsActionableErrorsWithoutCreatingSubscriptions(t *testing.T) {
+func TestResumingAPausedSourceReturnsItToTheActiveList(t *testing.T) {
 	// Arrange
 	router := api.New(t)
+	subscription := createRSSSource(t, router, "News", "https://example.test/rss")
+	path := "/api/v1/sources/" + subscription.ID
+	testkit.Request(t, router, "POST", path+"/deactivate", nil, 200)
+
+	// Act
+	resumed := testkit.Decode[source](t, testkit.Request(t, router, "POST", path+"/reactivate", nil, 200))
+	active := testkit.Decode[[]source](t, testkit.Request(t, router, "GET", "/api/v1/sources/", nil, 200))
+
+	// Assert
+	require.True(t, resumed.Active)
+	require.Len(t, active, 2)
+	require.Contains(t, active, resumed)
+}
+
+func TestResumingAnAlreadyActiveSourceIsIdempotent(t *testing.T) {
+	// Arrange
+	router := api.New(t)
+	subscription := createRSSSource(t, router, "News", "https://example.test/rss")
+
+	// Act
+	repeated := testkit.Decode[source](t, testkit.Request(t, router, "POST", "/api/v1/sources/"+subscription.ID+"/reactivate", nil, 200))
+
+	// Assert
+	require.Equal(t, subscription, repeated)
+}
+
+func TestInvalidSubscriptionsReturnValidationErrorsWithoutCreatingSources(t *testing.T) {
 	for _, scenario := range []struct{ name, body, message string }{
 		{"blank name", `{"name":" ","type":"rss","rssUrl":"https://example.test/rss"}`, "name is required"},
 		{"blank feed URL", `{"name":"News","type":"rss","rssUrl":" "}`, "rss url is required"},
@@ -94,94 +163,137 @@ func TestSourceValidationReturnsActionableErrorsWithoutCreatingSubscriptions(t *
 		{"unknown field", `{"extra":true}`, "invalid json body"},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
-			// Act: submit the request that should be rejected.
+			// Arrange
+			router := api.New(t)
+
+			// Act
 			failure := testkit.Decode[httpx.ErrorBody](t, testkit.Request(t, router, "POST", "/api/v1/sources/", scenario.body, 400))
+			sources := testkit.Decode[[]source](t, testkit.Request(t, router, "GET", "/api/v1/sources/", nil, 200))
 
 			// Assert
 			require.Equal(t, "validation", failure.Code)
 			require.Equal(t, scenario.message, failure.Error)
+			require.Len(t, sources, 1, "invalid subscriptions must not create a source")
+			require.Equal(t, "manual", sources[0].Type)
 		})
 	}
-
-	// Act: list the system sources.
-	sources := testkit.Decode[[]source](t, testkit.Request(t, router, "GET", "/api/v1/sources/", nil, 200))
-
-	// Assert
-	require.Len(t, sources, 1, "only the system Saved links source should exist")
 }
 
-func TestDuplicateFeedURLsAreRejectedAndFailedEditsLeaveTheSubscriptionUnchanged(t *testing.T) {
+func TestSubscribingToAnExistingFeedURLReturnsConflict(t *testing.T) {
 	// Arrange
 	router := api.New(t)
-	first := map[string]string{"name": "Daily", "type": "rss", "rssUrl": "https://example.test/daily"}
-	testkit.Request(t, router, "POST", "/api/v1/sources/", first, 201)
+	subscription := createRSSSource(t, router, "Daily", "https://example.test/daily")
 
-	// Act: subscribe to an already registered feed URL.
-	conflict := testkit.Decode[httpx.ErrorBody](t, testkit.Request(t, router, "POST", "/api/v1/sources/", first, 409))
+	// Act
+	failure := testkit.Decode[httpx.ErrorBody](t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]string{"name": "Another name", "type": "rss", "rssUrl": *subscription.RSSURL}, 409))
 
 	// Assert
-	require.Equal(t, "conflict", conflict.Code)
+	require.Equal(t, "conflict", failure.Code)
+}
 
-	// Arrange: a second subscription with a different feed URL.
-	second := testkit.Decode[source](t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]string{"name": "Weekly", "type": "rss", "rssUrl": "https://example.test/weekly"}, 201))
+func TestAnEditConflictingWithAnotherFeedLeavesTheSubscriptionUnchanged(t *testing.T) {
+	// Arrange
+	router := api.New(t)
+	first := createRSSSource(t, router, "Daily", "https://example.test/daily")
+	second := createRSSSource(t, router, "Weekly", "https://example.test/weekly")
 	path := "/api/v1/sources/" + second.ID
 
-	// Act: edit the second subscription to use the first feed URL.
-	conflict = testkit.Decode[httpx.ErrorBody](t, testkit.Request(t, router, "PATCH", path, map[string]string{"name": "Changed", "rssUrl": first["rssUrl"]}, 409))
-
-	// Assert
-	require.Equal(t, "conflict", conflict.Code)
-
-	// Act: fetch the stored subscription.
+	// Act
+	failure := testkit.Decode[httpx.ErrorBody](t, testkit.Request(t, router, "PATCH", path, map[string]string{"name": "Changed", "rssUrl": *first.RSSURL}, 409))
 	got := testkit.Decode[source](t, testkit.Request(t, router, "GET", path, nil, 200))
 
 	// Assert
-	require.Equal(t, second, got, "a conflicting edit must not persist any fields")
+	require.Equal(t, "conflict", failure.Code)
+	require.Equal(t, second, got)
+}
 
-	// Act: keep the existing URL while renaming the subscription (status checked by Request).
-	testkit.Request(t, router, "PATCH", path, map[string]string{"name": "Renamed", "rssUrl": *second.RSSURL}, 200)
-	for _, body := range []map[string]string{{"name": " ", "rssUrl": *second.RSSURL}, {"name": "Weekly", "rssUrl": " "}} {
-		// Act: submit the request that should be rejected.
-		failure := testkit.Decode[httpx.ErrorBody](t, testkit.Request(t, router, "PATCH", path, body, 400))
+func TestRenamingASubscriptionAllowsKeepingItsFeedURL(t *testing.T) {
+	// Arrange
+	router := api.New(t)
+	subscription := createRSSSource(t, router, "News", "https://example.test/rss")
 
-		// Assert
-		require.Equal(t, "validation", failure.Code)
+	// Act
+	renamed := testkit.Decode[source](t, testkit.Request(t, router, "PATCH", "/api/v1/sources/"+subscription.ID, map[string]string{"name": "Renamed", "rssUrl": *subscription.RSSURL}, 200))
+
+	// Assert
+	require.Equal(t, "Renamed", renamed.Name)
+	require.Equal(t, subscription.RSSURL, renamed.RSSURL)
+	require.Equal(t, subscription.ID, renamed.ID)
+}
+
+func TestInvalidEditsLeaveTheSubscriptionUnchanged(t *testing.T) {
+	for _, scenario := range []struct{ name, body string }{
+		{"blank name", `{"name":" ","rssUrl":"https://example.test/new"}`},
+		{"blank feed URL", `{"name":"Changed","rssUrl":" "}`},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			// Arrange
+			router := api.New(t)
+			subscription := createRSSSource(t, router, "News", "https://example.test/rss")
+			path := "/api/v1/sources/" + subscription.ID
+
+			// Act
+			failure := testkit.Decode[httpx.ErrorBody](t, testkit.Request(t, router, "PATCH", path, scenario.body, 400))
+			got := testkit.Decode[source](t, testkit.Request(t, router, "GET", path, nil, 200))
+
+			// Assert
+			require.Equal(t, "validation", failure.Code)
+			require.Equal(t, subscription, got)
+		})
 	}
 }
 
-func TestSavedLinksIsProtectedAndUnknownSourcesReturnNotFound(t *testing.T) {
+func TestTheSystemSavedLinksSourceIsVisibleOnStartup(t *testing.T) {
 	// Arrange
 	router := api.New(t)
 
-	// Act: list the system sources.
+	// Act
 	sources := testkit.Decode[[]source](t, testkit.Request(t, router, "GET", "/api/v1/sources/", nil, 200))
 
 	// Assert
 	require.Len(t, sources, 1)
 	require.Equal(t, "Saved links", sources[0].Name)
+	require.Equal(t, "manual", sources[0].Type)
 	require.Nil(t, sources[0].RSSURL)
-	manualPath := "/api/v1/sources/" + sources[0].ID
-	for _, action := range []struct{ method, suffix string }{{"PATCH", ""}, {"POST", "/deactivate"}, {"POST", "/reactivate"}} {
-		t.Run(action.method+action.suffix, func(t *testing.T) {
-			// Act: submit the request that should be rejected.
-			failure := testkit.Decode[httpx.ErrorBody](t, testkit.Request(t, router, action.method, manualPath+action.suffix, map[string]string{"name": "Changed", "rssUrl": "https://example.test/rss"}, 422))
+}
+
+func TestReaderCannotEditOrToggleTheManualSource(t *testing.T) {
+	for _, action := range []struct{ name, method, suffix string }{{"edit", "PATCH", ""}, {"pause", "POST", "/deactivate"}, {"resume", "POST", "/reactivate"}} {
+		t.Run(action.name, func(t *testing.T) {
+			// Arrange
+			router := api.New(t)
+			sources := testkit.Decode[[]source](t, testkit.Request(t, router, "GET", "/api/v1/sources/", nil, 200))
+			require.Len(t, sources, 1)
+			path := "/api/v1/sources/" + sources[0].ID
+
+			// Act
+			failure := testkit.Decode[httpx.ErrorBody](t, testkit.Request(t, router, action.method, path+action.suffix, map[string]string{"name": "Changed", "rssUrl": "https://example.test/rss"}, 422))
+			got := testkit.Decode[source](t, testkit.Request(t, router, "GET", path, nil, 200))
 
 			// Assert
 			require.Equal(t, "failed_precondition", failure.Code)
+			require.Equal(t, sources[0], got)
 		})
 	}
-	for _, id := range []string{"bad", uuid.NewString()} {
-		status, code := 404, "not_found"
-		if id == "bad" {
-			status, code = 400, "validation"
-		}
+}
+
+func TestUnknownSourceRequestsReturnUsefulErrors(t *testing.T) {
+	for _, scenario := range []struct {
+		name, id, code string
+		status         int
+	}{
+		{"invalid ID", "bad", "validation", 400}, {"missing source", uuid.NewString(), "not_found", 404},
+	} {
 		for _, action := range []struct{ method, suffix string }{{"GET", ""}, {"PATCH", ""}, {"POST", "/deactivate"}, {"POST", "/reactivate"}} {
-			t.Run(fmt.Sprintf("%s %s%s", action.method, id, action.suffix), func(t *testing.T) {
-				// Act: submit the request that should be rejected.
-				failure := testkit.Decode[httpx.ErrorBody](t, testkit.Request(t, router, action.method, "/api/v1/sources/"+id+action.suffix, map[string]string{"name": "News", "rssUrl": "https://example.test/rss"}, status))
+			t.Run(fmt.Sprintf("%s/%s%s", scenario.name, action.method, action.suffix), func(t *testing.T) {
+				// Arrange
+				router := api.New(t)
+
+				// Act
+				failure := testkit.Decode[httpx.ErrorBody](t, testkit.Request(t, router, action.method, "/api/v1/sources/"+scenario.id+action.suffix, map[string]string{"name": "News", "rssUrl": "https://example.test/rss"}, scenario.status))
 
 				// Assert
-				require.Equal(t, code, failure.Code)
+				require.Equal(t, scenario.code, failure.Code)
 			})
 		}
 	}

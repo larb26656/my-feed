@@ -7,101 +7,139 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/larb26656/my-feed/backend/internal/testkit"
-	"github.com/stretchr/testify/require"
-	_ "modernc.org/sqlite"
-
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	"github.com/larb26656/my-feed/backend/internal/source/domain"
 	"github.com/larb26656/my-feed/backend/internal/source/repository"
+	"github.com/larb26656/my-feed/backend/internal/testkit"
+	"github.com/stretchr/testify/require"
+	_ "modernc.org/sqlite"
 )
 
-func TestSourceRepositoryPersistsSourcesAndEnforcesConstraints(t *testing.T) {
+func TestSQLiteRetrievesTheManualSource(t *testing.T) {
 	// Arrange
-	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "feed.db")
-	db, err := sql.Open("sqlite", "file:"+path+"?_pragma=foreign_keys(1)")
-	require.NoError(t, err)
-	require.NoError(t, db.Ping())
-	testkit.Migrate(t, db)
-	repo := NewRepository(db)
-
+	pool := testkit.NewDatabase(t)
+	repo := NewRepository(pool.DB)
 	manual, err := domain.NewManualSource(domain.SavedLinksName)
 	require.NoError(t, err)
-	require.NoError(t, repo.CreateSource(ctx, manual))
+	require.NoError(t, repo.CreateSource(context.Background(), manual))
 
-	// Act: retrieve the persisted manual source.
-	got, err := repo.GetManualSource(ctx)
+	// Act
+	got, err := repo.GetManualSource(context.Background())
 
 	// Assert
 	require.NoError(t, err)
 	require.Equal(t, manual.ID, got.ID)
 	require.Equal(t, manual.CreatedAt.UnixNano(), got.CreatedAt.UnixNano())
+}
 
-	// Arrange: another candidate for the manual singleton.
-	duplicateManual, err := domain.NewManualSource(domain.SavedLinksName)
+func TestSQLiteAllowsOnlyOneManualSource(t *testing.T) {
+	// Arrange
+	pool := testkit.NewDatabase(t)
+	repo := NewRepository(pool.DB)
+	first, err := domain.NewManualSource(domain.SavedLinksName)
+	require.NoError(t, err)
+	require.NoError(t, repo.CreateSource(context.Background(), first))
+	duplicate, err := domain.NewManualSource(domain.SavedLinksName)
 	require.NoError(t, err)
 
-	// Act: create another manual source.
-	err = repo.CreateSource(ctx, duplicateManual)
+	// Act
+	err = repo.CreateSource(context.Background(), duplicate)
 
 	// Assert
-	require.Error(t, err)
-	var appErr *apperr.Error
-	require.ErrorAs(t, err, &appErr)
-	require.Equal(t, apperr.CodeConflict, appErr.Code)
+	var failure *apperr.Error
+	require.ErrorAs(t, err, &failure)
+	require.Equal(t, apperr.CodeConflict, failure.Code)
+}
 
-	// Arrange: two RSS sources sharing one feed URL.
-	source, err := domain.NewRSSSource("Example", "https://example.test/feed")
+func TestSQLiteRejectsDuplicateFeedURLs(t *testing.T) {
+	// Arrange
+	pool := testkit.NewDatabase(t)
+	repo := NewRepository(pool.DB)
+	first, err := domain.NewRSSSource("News", "https://example.test/rss")
 	require.NoError(t, err)
-	require.NoError(t, repo.CreateSource(ctx, source))
-	duplicate, err := domain.NewRSSSource("Duplicate", source.RSSURL)
+	require.NoError(t, repo.CreateSource(context.Background(), first))
+	duplicate, err := domain.NewRSSSource("Another name", first.RSSURL)
 	require.NoError(t, err)
 
-	// Act: create another source with the same feed URL.
-	err = repo.CreateSource(ctx, duplicate)
+	// Act
+	err = repo.CreateSource(context.Background(), duplicate)
 
 	// Assert
-	require.ErrorAs(t, err, &appErr)
-	require.Equal(t, apperr.CodeConflict, appErr.Code)
+	var failure *apperr.Error
+	require.ErrorAs(t, err, &failure)
+	require.Equal(t, apperr.CodeConflict, failure.Code)
+}
 
-	// Act: pause the source and list active sources.
+func TestSQLiteSourceListsRespectTheIncludeDeactivatedFilter(t *testing.T) {
+	for _, scenario := range []struct {
+		name          string
+		includePaused bool
+		count         int
+	}{
+		{"active sources only", false, 1}, {"including paused sources", true, 2},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			// Arrange
+			pool := testkit.NewDatabase(t)
+			repo := NewRepository(pool.DB)
+			manual, err := domain.NewManualSource(domain.SavedLinksName)
+			require.NoError(t, err)
+			require.NoError(t, repo.CreateSource(context.Background(), manual))
+			paused, err := domain.NewRSSSource("News", "https://example.test/rss")
+			require.NoError(t, err)
+			require.NoError(t, paused.Deactivate())
+			require.NoError(t, repo.CreateSource(context.Background(), paused))
+
+			// Act
+			sources, err := repo.ListSources(context.Background(), repository.ListSourcesFilter{IncludeDeactivated: scenario.includePaused})
+
+			// Assert
+			require.NoError(t, err)
+			require.Len(t, sources, scenario.count)
+			if !scenario.includePaused {
+				require.Equal(t, manual.ID, sources[0].ID)
+			}
+		})
+	}
+}
+
+func TestSQLiteSourceStateSurvivesClosingAndReopeningTheDatabase(t *testing.T) {
+	// Arrange
+	path := filepath.Join(t.TempDir(), "sources.db")
+	db, err := sql.Open("sqlite", "file:"+path+"?_pragma=foreign_keys(1)")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	testkit.Migrate(t, db)
+	repo := NewRepository(db)
+	source, err := domain.NewRSSSource("News", "https://example.test/rss")
+	require.NoError(t, err)
+	require.NoError(t, repo.CreateSource(context.Background(), source))
 	require.NoError(t, source.Deactivate())
-
-	// Assert
-	require.NoError(t, repo.UpdateSource(ctx, source))
-	active, err := repo.ListSources(ctx, repository.ListSourcesFilter{})
-	require.NoError(t, err)
-	require.Len(t, active, 1)
-
-	// Act: include paused sources.
-	all, err := repo.ListSources(ctx, repository.ListSourcesFilter{IncludeDeactivated: true})
-
-	// Assert
-	require.NoError(t, err)
-	require.Len(t, all, 2)
-
-	// Arrange: reopen the same persisted database.
+	require.NoError(t, repo.UpdateSource(context.Background(), source))
 	require.NoError(t, db.Close())
+
+	// Act
 	db, err = sql.Open("sqlite", "file:"+path+"?_pragma=foreign_keys(1)")
 	require.NoError(t, err)
-	defer db.Close()
-	repo = NewRepository(db)
-
-	// Act: retrieve the paused source after reopening.
-	got, err = repo.GetSourceByID(ctx, source.ID)
+	got, err := NewRepository(db).GetSourceByID(context.Background(), source.ID)
 
 	// Assert
 	require.NoError(t, err)
+	require.Equal(t, source.ID, got.ID)
 	require.False(t, got.Active)
 	require.Equal(t, source.UpdatedAt.UnixNano(), got.UpdatedAt.UnixNano())
+}
 
-	badID := uuid.New()
+func TestSQLiteReturnsNotFoundForAMissingSource(t *testing.T) {
+	// Arrange
+	pool := testkit.NewDatabase(t)
+	repo := NewRepository(pool.DB)
 
-	// Act: look up a missing source.
-	_, err = repo.GetSourceByID(ctx, badID)
+	// Act
+	_, err := repo.GetSourceByID(context.Background(), uuid.New())
 
 	// Assert
-	require.ErrorAs(t, err, &appErr)
-	require.Equal(t, apperr.CodeNotFound, appErr.Code)
+	var failure *apperr.Error
+	require.ErrorAs(t, err, &failure)
+	require.Equal(t, apperr.CodeNotFound, failure.Code)
 }
