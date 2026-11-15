@@ -8,7 +8,7 @@ export const Route = createFileRoute("/_app")({ component: AppLayout });
 function AppLayout() {
 	return (
 		<FeedProvider>
-			<div className="min-h-screen bg-background text-foreground md:grid md:grid-cols-[220px_minmax(0,1fr)]">
+			<div className="min-h-screen bg-background text-foreground md:grid md:grid-cols-[260px_minmax(0,1fr)]">
 				<DesktopSidebar />
 				<main className="min-w-0 pb-20 md:pb-0">
 					<PageHeader />

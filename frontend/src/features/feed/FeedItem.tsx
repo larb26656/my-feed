@@ -1,5 +1,11 @@
-import { Bookmark, Check } from "lucide-react";
-import { Button } from "#/components/ui/button";
+import { useState } from "react";
+import {
+	Bookmark,
+	BookOpenCheck,
+	Check,
+	CircleCheck,
+	Copy,
+} from "lucide-react";
 import { cn } from "#/lib/utils";
 import type { Entry, Source } from "./types";
 export function FeedItem({
@@ -13,74 +19,119 @@ export function FeedItem({
 	disabled: boolean;
 	onToggle: (entry: Entry, action: "read" | "save") => void;
 }) {
+	const [copied, setCopied] = useState(false);
+	const read = !!entry.readAt;
+	const saved = !!entry.savedAt;
+	const date = entry.publishedAt ?? entry.createdAt;
+	const description =
+		entry.description?.trim() === entry.title.trim() ? "" : entry.description;
+	const copyLink = () => {
+		void navigator.clipboard.writeText(entry.link).then(() => {
+			setCopied(true);
+			window.setTimeout(() => setCopied(false), 2000);
+		});
+	};
+
 	return (
-		<article className="relative flex gap-3 border-b py-6 md:gap-6">
+		<article className="relative flex gap-3 py-5">
+			<div
+				className="absolute bottom-0 left-5 top-14 w-px bg-border/60"
+				aria-hidden="true"
+			/>
+			<div className="relative z-10 flex size-10 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sm font-bold text-sky-800 ring-4 ring-background">
+				{(source?.name ?? "S").slice(0, 1).toUpperCase()}
+			</div>
 			<div className="min-w-0 flex-1">
-				<div className="flex items-center gap-2 text-xs text-muted-foreground">
-					<strong className="text-foreground">
+				<div className="flex items-center justify-between gap-3">
+					<strong className="truncate text-sm">
 						{source?.name ?? "Source"}
 					</strong>
-					<span>·</span>
-					<time dateTime={entry.publishedAt ?? entry.createdAt}>
-						{new Date(
-							entry.publishedAt ?? entry.createdAt,
-						).toLocaleDateString()}
+					<time
+						dateTime={date}
+						className="shrink-0 text-xs text-muted-foreground"
+					>
+						{new Date(date).toLocaleDateString()}
 					</time>
 				</div>
 				<h3
 					className={cn(
-						"mt-3 text-base font-bold leading-snug md:text-lg",
-						entry.readAt && "text-muted-foreground",
+						"mt-1 text-sm leading-relaxed",
+						read && "text-muted-foreground",
 					)}
 				>
-					<a href={entry.link} target="_blank" rel="noreferrer">
+					<a
+						href={entry.link}
+						target="_blank"
+						rel="noreferrer"
+						className="hover:underline"
+					>
 						{entry.title}
 					</a>
 				</h3>
-				{entry.description && (
-					<p className="mt-2 max-w-xl text-xs leading-relaxed text-muted-foreground">
-						{entry.description}
+				{description && (
+					<p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-foreground/90">
+						{description}
 					</p>
 				)}
-				<Button
-					variant="ghost"
-					size="xs"
-					className="mt-4"
-					disabled={disabled}
-					onClick={() => onToggle(entry, "read")}
-				>
-					{entry.readAt ? (
-						<>
-							<Check data-icon="inline-start" />
-							อ่านแล้ว
-						</>
-					) : (
-						"ทำเครื่องหมายว่าอ่านแล้ว"
-					)}
-				</Button>
+				{entry.thumbnail && (
+					<a
+						href={entry.link}
+						target="_blank"
+						rel="noreferrer"
+						className="mt-2 block overflow-hidden rounded-xl"
+					>
+						<img
+							src={entry.thumbnail}
+							alt=""
+							className="max-h-72 w-full object-cover"
+						/>
+					</a>
+				)}
+				<div className="mt-2 grid grid-cols-3 text-muted-foreground">
+					<button
+						disabled={disabled}
+						onClick={() => onToggle(entry, "read")}
+						aria-label={
+							read
+								? `ทำเครื่องหมาย ${entry.title} ว่ายังไม่อ่าน`
+								: `ทำเครื่องหมาย ${entry.title} ว่าอ่านแล้ว`
+						}
+						aria-pressed={read}
+						title={read ? "อ่านแล้ว" : "ทำเครื่องหมายว่าอ่านแล้ว"}
+						className="inline-flex h-8 items-center justify-center rounded-md hover:bg-muted disabled:opacity-50"
+					>
+						{read ? <CircleCheck size={19} /> : <BookOpenCheck size={19} />}
+					</button>
+					<button
+						onClick={copyLink}
+						aria-label={copied ? "คัดลอกลิงก์แล้ว" : "คัดลอกลิงก์"}
+						title={copied ? "คัดลอกลิงก์แล้ว" : "คัดลอกลิงก์"}
+						className="inline-flex h-8 items-center justify-center rounded-md hover:bg-muted"
+					>
+						{copied ? (
+							<Check size={18} strokeWidth={1.9} />
+						) : (
+							<Copy size={18} strokeWidth={1.7} />
+						)}
+					</button>
+					<button
+						disabled={disabled}
+						onClick={() => onToggle(entry, "save")}
+						aria-label={
+							saved ? `นำ ${entry.title} ออกจาก Saved` : `บันทึก ${entry.title}`
+						}
+						aria-pressed={saved}
+						title={saved ? "นำออกจากบันทึกไว้" : "บันทึกไว้"}
+						className="inline-flex h-8 items-center justify-center rounded-md hover:bg-muted disabled:opacity-50"
+					>
+						<Bookmark
+							size={18}
+							strokeWidth={1.7}
+							fill={saved ? "currentColor" : "none"}
+						/>
+					</button>
+				</div>
 			</div>
-			{entry.thumbnail && (
-				<img
-					src={entry.thumbnail}
-					alt=""
-					className="h-20 w-20 shrink-0 rounded-xl object-cover md:h-24 md:w-28"
-				/>
-			)}
-			<Button
-				variant="outline"
-				size="icon-sm"
-				className="absolute right-0 top-4 rounded-full"
-				aria-label={
-					entry.savedAt
-						? `นำ ${entry.title} ออกจาก Saved`
-						: `บันทึก ${entry.title}`
-				}
-				aria-pressed={!!entry.savedAt}
-				disabled={disabled}
-				onClick={() => onToggle(entry, "save")}
-			>
-				<Bookmark fill={entry.savedAt ? "currentColor" : "none"} />
-			</Button>
 		</article>
 	);
 }

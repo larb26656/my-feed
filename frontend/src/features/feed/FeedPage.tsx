@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ErrorState } from "#/components/ErrorState";
 import { Button, buttonVariants } from "#/components/ui/button";
 import { useEntries, useToggleEntry } from "#/hooks/queries";
@@ -19,6 +19,7 @@ export function FeedPage({
 	const [filter, setFilter] = useState<FeedFilter>("ทั้งหมด");
 	const { allSources } = useFeedState();
 	const [savedFilter, setSavedFilter] = useState(savedOnly);
+	const loadMoreRef = useRef<HTMLDivElement>(null);
 	const query = useEntries({
 		sourceId,
 		savedOnly: savedFilter,
@@ -26,6 +27,21 @@ export function FeedPage({
 	});
 	const mutation = useToggleEntry();
 	const visible = query.data?.pages.flatMap((page) => page.data) ?? [];
+	useEffect(() => {
+		const target = loadMoreRef.current;
+		if (!target || !query.hasNextPage || query.isFetchingNextPage || query.isFetchNextPageError) {
+			return;
+		}
+
+		const observer = new IntersectionObserver(
+			([entry]) => {
+				if (entry.isIntersecting) void query.fetchNextPage();
+			},
+			{ rootMargin: "200px" },
+		);
+		observer.observe(target);
+		return () => observer.disconnect();
+	}, [query.fetchNextPage, query.hasNextPage, query.isFetchingNextPage, query.isFetchNextPageError]);
 	return (
 		<section>
 			{sourceId && (
@@ -78,15 +94,15 @@ export function FeedPage({
 			)}
 			{mutation.isError && <p role="alert">ไม่สามารถอัปเดตรายการได้</p>}
 			{query.hasNextPage && (
-				<Button
-					onClick={() => void query.fetchNextPage()}
-					disabled={query.isFetchingNextPage}
-				>
-					{query.isFetchingNextPage ? "กำลังโหลด..." : "โหลดเพิ่มเติม"}
-				</Button>
-			)}
-			{query.isFetchNextPageError && (
-				<p role="alert">ไม่สามารถโหลดรายการเพิ่มเติมได้</p>
+				<div ref={loadMoreRef} className="flex min-h-12 items-center justify-center">
+					{query.isFetchingNextPage && <p role="status">กำลังโหลด...</p>}
+					{query.isFetchNextPageError && (
+						<div className="flex items-center gap-3">
+							<p role="alert">ไม่สามารถโหลดรายการเพิ่มเติมได้</p>
+							<Button onClick={() => void query.fetchNextPage()}>ลองอีกครั้ง</Button>
+						</div>
+					)}
+				</div>
 			)}
 		</section>
 	);
