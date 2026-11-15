@@ -1,62 +1,108 @@
 # My feed
 
-Monorepo for My feed.
+<p align="center">
+  <img src="frontend/public/my-feed-mascot.png" alt="My feed mascot reading an RSS newspaper" width="180" />
+</p>
 
-```
-my-feed/
-├── frontend/          # React (placeholder — scaffold later)
-├── backend/           # Go modular monolith (hexagonal)
-└── docs/
-    ├── patterns/      # architecture & scaffold
-    └── adr/           # architecture decisions
-```
+A self-hosted reader that brings RSS Sources and links you collect into one place. Read Entries, track what is unread, and bookmark favorites in Saved.
 
-## Backend
+![My feed showing the main stream and Source navigation](docs/images/my-feed.png)
 
-My feed uses a local SQLite database and runs one backend instance. Docker Compose mounts `backend/data` on the host so the database survives container replacement. Keep this directory on a local filesystem; shared network filesystems and multiple backend instances are not supported.
+*Captured from the running app at `http://localhost:3000/`. Source content varies over time.*
+
+## Features
+
+- **One reading stream** — browse Entries newest first, filter unread Entries, or open a single Source.
+- **Read and Saved state** — mark Entries as read and bookmark them in Saved.
+- **Save Link** — record a URL in the built-in Saved links Source.
+- **Source management** — add RSS Sources, edit their configuration, deactivate them, and reactivate them later. Existing Entries remain available.
+- **Fetch Jobs** — fetch automatically on a fixed interval or trigger a Source manually; inspect active work and job history.
+- **Local persistence** — keep Entries, Sources, and Fetch Jobs in a SQLite database.
+
+## Quick start
+
+Run commands from the repository root. You need Node.js compatible with Vite 8 (20.19+ or 22.12+), pnpm, and Docker Compose for the backend option below. Local backend development requires Go 1.25.7 or newer and Make.
+
+Start the backend with Docker Compose:
 
 ```bash
-make up              # build and run API on :8080; initializes SQLite with Goose
-make down            # stop API
-make migrate         # apply pending migrations to the local SQLite database
-make migrate-status  # show Goose migration status
-make migrate-down    # roll back one migration
-make backend         # run Go API on :8080
-make test-unit       # unit and adapter tests, no Docker
-make test            # all Go tests
-```
-
-For local development, `make migrate` and `make backend` use `backend/data/my-feed.db` by default. Set `DATABASE_PATH` to choose another persistent location. The Compose deployment uses `backend/data/my-feed.db` on the host, mounted as `/data/my-feed.db` in the container.
-
-### Back up and restore
-
-Install the `sqlite3` command-line tool on the host. The examples below use the Compose database path; for a local development database, substitute the value of `DATABASE_PATH` (by default, `backend/data/my-feed.db`). Keep backups outside `backend/data`, which is the directory mounted into the container.
-
-Create a backup directory and run SQLite's online backup command while the API is running:
-
-```sh
-mkdir -p backups
-sqlite3 backend/data/my-feed.db ".backup 'backups/my-feed-backup.db'"
-```
-
-`.backup` uses SQLite's online backup API to produce a consistent snapshot while the database is open, including committed data that may still be in its write-ahead log (WAL). Do not make a live backup by copying only the `.db` file. The backup file is a standalone database; it does not need WAL or shared-memory sidecar files.
-
-With the `sqlite3` CLI installed, `cd backend && go test ./internal/bootstrap -run TestSQLiteOnlineBackupRestoresAPIState -count=1` exercises this backup command against an open application database, restores the snapshot, and checks the restored API data and SQLite integrity.
-
-To restore that snapshot, first stop the API so no process has the database open. Replace the database file and clear any stale sidecars while the app is stopped, then start the API:
-
-```sh
-make down
-rm -f backend/data/my-feed.db-wal backend/data/my-feed.db-shm
-cp backups/my-feed-backup.db backend/data/my-feed.db
 make up
 ```
 
-For local development, stop the `make backend` process with Ctrl-C and use the configured `DATABASE_PATH` in place of `backend/data/my-feed.db`. Keep the database and its sidecars together in the persistent data directory during normal operation. Never remove or replace `-wal` or `-shm` files while the API is running; after it has stopped, removing stale sidecars prevents them from being applied to the restored database.
+This builds the API, applies Goose migrations, and exposes it on port 8080. SQLite data persists in `backend/data/my-feed.db` on the host.
 
-- Health: `GET http://localhost:8080/healthz`
-- Sources: `POST/GET /api/v1/sources`
+Install and start the frontend in another terminal:
 
-## Frontend
+```bash
+cd frontend
+pnpm install
+pnpm dev
+```
 
-Folder reserved for a React app. Not scaffolded yet. `make frontend` expects `npm run dev` there.
+Open **http://localhost:3000/**. The Vite dev server proxies `/api` to `http://localhost:8080`. Check backend health at `http://localhost:8080/healthz`.
+
+To begin, open **Manage Sources** and add an RSS Source. View **Fetch Jobs** to inspect fetching, or use **Save Link** to record a URL yourself. A fresh database does not include the example Sources shown in the screenshot.
+
+### Run the backend without Docker
+
+```bash
+make migrate
+make backend
+```
+
+Both commands default to `backend/data/my-feed.db`. Stop the API with Ctrl-C. Stop the Compose backend with `make down` before running a local backend on the same port.
+
+## Configuration
+
+The backend reads environment variables; defaults are listed in [backend/.env.example](backend/.env.example). Export overrides in your shell for local development. For Docker, configure the service environment in [backend/docker-compose.yml](backend/docker-compose.yml).
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `DATABASE_PATH` | `data/my-feed.db` | SQLite path relative to the backend working directory; Compose uses `/data/my-feed.db` |
+| `HTTP_ADDR` | `:8080` | API listen address |
+| `FETCH_SCHEDULE_INTERVAL` | `15m` | Interval between automatic fetching rounds |
+| `FETCH_RETRY_BACKOFF` | `1m` | Delay between Fetch Job retries |
+| `FETCH_EXECUTOR_POLL` | `2s` | Interval for checking pending Fetch Jobs |
+| `VITE_API_PROXY_TARGET` | `http://localhost:8080` | Backend target for the Vite development proxy |
+| `VITE_API_BASE_URL` | `/api/v1` | Frontend API base URL; set before building when deploying elsewhere |
+
+## Development
+
+| Task | Command |
+| --- | --- |
+| Start frontend after installing dependencies | `make frontend` |
+| Build backend binary | `make build` |
+| Run backend unit and adapter tests | `make test-unit` |
+| Run all backend tests | `make test` |
+| Apply migrations | `make migrate` |
+| Inspect migration status | `make migrate-status` |
+| Roll back one migration | `make migrate-down` |
+| Build frontend | `cd frontend && pnpm build` |
+| Run frontend tests | `cd frontend && pnpm test` |
+| Check frontend lint and formatting | `cd frontend && pnpm check` |
+
+`make build` writes `backend/bin/server`. The frontend build writes `frontend/dist`; serve it with SPA route fallback and route API requests to the backend. Docker Compose currently runs the API only.
+
+## Architecture
+
+```text
+my-feed/
+├── frontend/          # React + TypeScript, Vite, TanStack Router/Query, Tailwind CSS
+├── backend/           # Go modular monolith with hexagonal ports and adapters
+│   ├── cmd/api/       # HTTP API and in-process Fetch Job scheduler/executor
+│   ├── internal/      # Source, Entry, Fetch Job modules and platform code
+│   ├── migrations/    # Goose SQL migrations
+│   └── data/          # Persistent local SQLite database
+├── bruno/my-feed/     # API request collection
+└── docs/              # Architecture decisions, patterns, and agent guidance
+```
+
+The backend uses Chi, SQLite, and Goose. Fetch scheduling and execution run inside the API process; no separate worker or message broker is required. Each deployment supports **one backend instance** with its database on a **local filesystem**.
+
+API resources live under `/api/v1/sources`, `/api/v1/entries`, and `/api/v1/fetch-jobs`. See the [Bruno collection](bruno/my-feed/README.md) for request examples.
+
+## Project documentation
+
+- [Domain glossary](GLOSSARY.md) — Entry, Source, Saved, and Fetch Job terminology.
+- [Architecture decisions](docs/adr/) — module boundaries, fetching, and SQLite deployment.
+- [Backend patterns](docs/patterns/README.md) — implementation conventions.
