@@ -7,9 +7,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	"github.com/larb26656/quick-feed/backend/internal/fetch/adapter/obtain"
-	"github.com/larb26656/quick-feed/backend/internal/fetch/service"
-	"github.com/larb26656/quick-feed/backend/internal/platform/apperr"
+	"github.com/larb26656/my-feed/backend/internal/fetch/adapter/obtain"
+	"github.com/larb26656/my-feed/backend/internal/fetch/service"
+	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 )
 
 type stubObtain struct {

@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/larb26656/quick-feed/backend/internal/bootstrap"
+	"github.com/larb26656/my-feed/backend/internal/bootstrap"
 )
 
 func main() {

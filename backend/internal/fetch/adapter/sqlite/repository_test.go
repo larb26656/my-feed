@@ -18,8 +18,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	"github.com/larb26656/quick-feed/backend/internal/fetch/domain"
-	"github.com/larb26656/quick-feed/backend/internal/platform/apperr"
+	"github.com/larb26656/my-feed/backend/internal/fetch/domain"
+	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 )
 
 func openTestRepository(t *testing.T) (*sql.DB, *Repository) {

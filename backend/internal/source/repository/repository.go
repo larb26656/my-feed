@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/larb26656/quick-feed/backend/internal/platform/database"
-	"github.com/larb26656/quick-feed/backend/internal/source/domain"
+	"github.com/larb26656/my-feed/backend/internal/platform/database"
+	"github.com/larb26656/my-feed/backend/internal/source/domain"
 )
 
 type ListSourcesFilter struct {

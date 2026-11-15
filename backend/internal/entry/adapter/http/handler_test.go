@@ -12,9 +12,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	entryhttp "github.com/larb26656/quick-feed/backend/internal/entry/adapter/http"
-	"github.com/larb26656/quick-feed/backend/internal/entry/domain"
-	"github.com/larb26656/quick-feed/backend/internal/entry/service"
+	entryhttp "github.com/larb26656/my-feed/backend/internal/entry/adapter/http"
+	"github.com/larb26656/my-feed/backend/internal/entry/domain"
+	"github.com/larb26656/my-feed/backend/internal/entry/service"
 )
 
 type stubEntryAPI struct {

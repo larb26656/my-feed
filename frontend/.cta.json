@@ -1,6 +1,6 @@
 {
   "bundler": "vite",
-  "projectName": "quick-feed-webapp",
+  "projectName": "my-feed-webapp",
   "mode": "file-router",
   "typescript": true,
   "packageManager": "pnpm",

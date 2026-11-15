@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/larb26656/quick-feed/backend/internal/fetch/service"
-	"github.com/larb26656/quick-feed/backend/internal/platform/apperr"
+	"github.com/larb26656/my-feed/backend/internal/fetch/service"
+	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 )
 
 // Registry dispatches obtain adapters by Source Type. It implements service.Obtain.

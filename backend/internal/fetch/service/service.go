@@ -7,9 +7,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/larb26656/quick-feed/backend/internal/fetch/domain"
-	"github.com/larb26656/quick-feed/backend/internal/fetch/repository"
-	"github.com/larb26656/quick-feed/backend/internal/platform/apperr"
+	"github.com/larb26656/my-feed/backend/internal/fetch/domain"
+	"github.com/larb26656/my-feed/backend/internal/fetch/repository"
+	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 )
 
 // DefaultRetryBackoff is the fixed delay between attempts on the same Fetch Job.

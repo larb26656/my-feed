@@ -8,10 +8,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
-	"github.com/larb26656/quick-feed/backend/internal/platform/apperr"
-	httpx "github.com/larb26656/quick-feed/backend/internal/platform/http"
-	"github.com/larb26656/quick-feed/backend/internal/source/domain"
-	"github.com/larb26656/quick-feed/backend/internal/source/service"
+	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
+	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
+	"github.com/larb26656/my-feed/backend/internal/source/domain"
+	"github.com/larb26656/my-feed/backend/internal/source/service"
 )
 
 // SourceAPI is the application surface the HTTP adapter needs.

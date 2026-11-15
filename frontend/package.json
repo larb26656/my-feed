@@ -1,5 +1,5 @@
 {
-  "name": "quick-feed-webapp",
+  "name": "my-feed-webapp",
   "private": true,
   "type": "module",
   "imports": {

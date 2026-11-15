@@ -15,9 +15,9 @@ export function DesktopSidebar() {
 				className="flex items-center gap-2 text-left text-xl font-bold tracking-tight"
 			>
 				<span className="grid size-9 place-items-center">
-					<img src="/quick-feed-mascot.png" alt="" className="size-9 object-contain" />
+					<img src="/my-feed-mascot.png" alt="" className="size-9 object-contain" />
 				</span>
-				quick.feed
+				My feed
 			</Link>
 			<p className="mt-14 px-3 text-[10px] font-bold tracking-widest text-muted-foreground">
 				YOUR SPACE

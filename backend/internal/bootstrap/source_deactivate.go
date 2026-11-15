@@ -4,12 +4,12 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	fetchrepo "github.com/larb26656/quick-feed/backend/internal/fetch/repository"
-	fetchsvc "github.com/larb26656/quick-feed/backend/internal/fetch/service"
-	"github.com/larb26656/quick-feed/backend/internal/platform/database"
-	sourcedomain "github.com/larb26656/quick-feed/backend/internal/source/domain"
-	sourcerepo "github.com/larb26656/quick-feed/backend/internal/source/repository"
-	sourcesvc "github.com/larb26656/quick-feed/backend/internal/source/service"
+	fetchrepo "github.com/larb26656/my-feed/backend/internal/fetch/repository"
+	fetchsvc "github.com/larb26656/my-feed/backend/internal/fetch/service"
+	"github.com/larb26656/my-feed/backend/internal/platform/database"
+	sourcedomain "github.com/larb26656/my-feed/backend/internal/source/domain"
+	sourcerepo "github.com/larb26656/my-feed/backend/internal/source/repository"
+	sourcesvc "github.com/larb26656/my-feed/backend/internal/source/service"
 )
 
 // sourceAPIWithFetch wraps Source service so deactivate fails pending Fetch Jobs

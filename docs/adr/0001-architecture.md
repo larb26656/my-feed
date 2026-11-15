@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-Quick Feed backend needs clear module boundaries without splitting into microservices yet.
+My feed backend needs clear module boundaries without splitting into microservices yet.
 
 ## Decision
 

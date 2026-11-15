@@ -1,5 +1,5 @@
 ---
-name: Quick Feed
+name: My feed
 description: A personal reading space with a calm editorial feel and a bright blue accent.
 colors:
   primary: "#2563eb"
@@ -64,7 +64,7 @@ components:
 
 ## Overview
 
-Quick Feed is a personal reading space: calm, friendly, and lightly editorial. The content leads. Generous white space, compact metadata, fine dividers, and small playful details make a collection of articles feel welcoming without competing with the reading list.
+My feed is a personal reading space: calm, friendly, and lightly editorial. The content leads. Generous white space, compact metadata, fine dividers, and small playful details make a collection of articles feel welcoming without competing with the reading list.
 
 This document describes the current light appearance of the feed mockup. The stylesheet contains dark-theme values, but a complete dark experience has not yet been established. The implementation in `frontend/src/styles.css` and the existing components remain the source of truth for exact values.
 

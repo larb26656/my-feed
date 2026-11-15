@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-Quick Feed is a personal, single-user application. Running PostgreSQL as a separate service adds operational work to a self-hosted installation. Each deployment runs one backend instance, including the in-process Fetch Job executor (ADR 0002).
+My feed is a personal, single-user application. Running PostgreSQL as a separate service adds operational work to a self-hosted installation. Each deployment runs one backend instance, including the in-process Fetch Job executor (ADR 0002).
 
 ## Decision
 

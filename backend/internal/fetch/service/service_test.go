@@ -8,13 +8,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/larb26656/quick-feed/backend/internal/platform/database"
+	"github.com/larb26656/my-feed/backend/internal/platform/database"
 	"github.com/stretchr/testify/require"
 
-	"github.com/larb26656/quick-feed/backend/internal/fetch/domain"
-	"github.com/larb26656/quick-feed/backend/internal/fetch/repository"
-	"github.com/larb26656/quick-feed/backend/internal/fetch/service"
-	"github.com/larb26656/quick-feed/backend/internal/platform/apperr"
+	"github.com/larb26656/my-feed/backend/internal/fetch/domain"
+	"github.com/larb26656/my-feed/backend/internal/fetch/repository"
+	"github.com/larb26656/my-feed/backend/internal/fetch/service"
+	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 )
 
 type fakeRepo struct {

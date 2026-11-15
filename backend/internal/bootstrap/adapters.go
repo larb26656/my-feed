@@ -6,10 +6,10 @@ import (
 
 	"github.com/google/uuid"
 
-	entrysvc "github.com/larb26656/quick-feed/backend/internal/entry/service"
-	fetchsvc "github.com/larb26656/quick-feed/backend/internal/fetch/service"
-	sourcedomain "github.com/larb26656/quick-feed/backend/internal/source/domain"
-	sourcerepo "github.com/larb26656/quick-feed/backend/internal/source/repository"
+	entrysvc "github.com/larb26656/my-feed/backend/internal/entry/service"
+	fetchsvc "github.com/larb26656/my-feed/backend/internal/fetch/service"
+	sourcedomain "github.com/larb26656/my-feed/backend/internal/source/domain"
+	sourcerepo "github.com/larb26656/my-feed/backend/internal/source/repository"
 )
 
 type realClock struct{}

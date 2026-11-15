@@ -24,7 +24,7 @@ import (
 func TestSQLiteApplicationSupportsAPIWritesFetchJobsAndReopen(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	dbPath := filepath.Join(t.TempDir(), "odd # name? with spaces", "quick-feed.db")
+	dbPath := filepath.Join(t.TempDir(), "odd # name? with spaces", "my-feed.db")
 	require.NoError(t, os.MkdirAll(filepath.Dir(dbPath), 0o755))
 
 	require.NoError(t, goose.SetDialect("sqlite3"))
@@ -129,7 +129,7 @@ func TestSQLiteApplicationRunsFetchExecutorAlongsideAPIWrites(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	dbPath := filepath.Join(t.TempDir(), "quick-feed.db")
+	dbPath := filepath.Join(t.TempDir(), "my-feed.db")
 	require.NoError(t, goose.SetDialect("sqlite3"))
 	migrationDB, err := sql.Open("sqlite", sqliteTestDSN(dbPath))
 	require.NoError(t, err)
@@ -215,8 +215,8 @@ func TestSQLiteOnlineBackupRestoresAPIState(t *testing.T) {
 		t.Skip("sqlite3 CLI is required to exercise the documented .backup command")
 	}
 	ctx := context.Background()
-	dbPath := filepath.Join(t.TempDir(), "quick-feed.db")
-	backupPath := filepath.Join(t.TempDir(), "quick-feed-backup.db")
+	dbPath := filepath.Join(t.TempDir(), "my-feed.db")
+	backupPath := filepath.Join(t.TempDir(), "my-feed-backup.db")
 	require.NoError(t, goose.SetDialect("sqlite3"))
 	migrationDB, err := sql.Open("sqlite", sqliteTestDSN(dbPath))
 	require.NoError(t, err)

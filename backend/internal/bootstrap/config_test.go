@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/larb26656/quick-feed/backend/internal/fetch/adapter/runtime"
-	fetchsvc "github.com/larb26656/quick-feed/backend/internal/fetch/service"
+	"github.com/larb26656/my-feed/backend/internal/fetch/adapter/runtime"
+	fetchsvc "github.com/larb26656/my-feed/backend/internal/fetch/service"
 	"github.com/stretchr/testify/require"
 )
 

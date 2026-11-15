@@ -12,11 +12,11 @@ import (
 	"github.com/stretchr/testify/require"
 	_ "modernc.org/sqlite"
 
-	entrydomain "github.com/larb26656/quick-feed/backend/internal/entry/domain"
-	"github.com/larb26656/quick-feed/backend/internal/entry/repository"
-	"github.com/larb26656/quick-feed/backend/internal/platform/apperr"
-	sourcerepo "github.com/larb26656/quick-feed/backend/internal/source/adapter/sqlite"
-	sourcedomain "github.com/larb26656/quick-feed/backend/internal/source/domain"
+	entrydomain "github.com/larb26656/my-feed/backend/internal/entry/domain"
+	"github.com/larb26656/my-feed/backend/internal/entry/repository"
+	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
+	sourcerepo "github.com/larb26656/my-feed/backend/internal/source/adapter/sqlite"
+	sourcedomain "github.com/larb26656/my-feed/backend/internal/source/domain"
 )
 
 func TestEntryRepositoryPersistsMetadataAndPaginatesInStableOrder(t *testing.T) {

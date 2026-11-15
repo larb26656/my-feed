@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/larb26656/quick-feed/backend/internal/platform/database"
+	"github.com/larb26656/my-feed/backend/internal/platform/database"
 
-	"github.com/larb26656/quick-feed/backend/internal/fetch/domain"
+	"github.com/larb26656/my-feed/backend/internal/fetch/domain"
 )
 
 // Repository is the Fetch Job persistence port.

@@ -2,7 +2,7 @@ services:
   api:
     build: .
     environment:
-      DATABASE_PATH: /data/quick-feed.db
+      DATABASE_PATH: /data/my-feed.db
       HTTP_ADDR: :8080
     ports:
       - "8080:8080"

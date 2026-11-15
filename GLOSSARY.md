@@ -1,4 +1,4 @@
-# Quick Feed
+# My feed
 
 A personal, single-user reader that aggregates content from multiple external origins into one place.
 

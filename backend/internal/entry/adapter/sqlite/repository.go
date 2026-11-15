@@ -8,10 +8,10 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/larb26656/quick-feed/backend/internal/entry/domain"
-	"github.com/larb26656/quick-feed/backend/internal/entry/repository"
-	"github.com/larb26656/quick-feed/backend/internal/platform/apperr"
-	"github.com/larb26656/quick-feed/backend/internal/platform/database"
+	"github.com/larb26656/my-feed/backend/internal/entry/domain"
+	"github.com/larb26656/my-feed/backend/internal/entry/repository"
+	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
+	"github.com/larb26656/my-feed/backend/internal/platform/database"
 )
 
 type querier interface {

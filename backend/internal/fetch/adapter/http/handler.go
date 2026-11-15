@@ -7,10 +7,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
-	"github.com/larb26656/quick-feed/backend/internal/fetch/domain"
-	"github.com/larb26656/quick-feed/backend/internal/fetch/service"
-	"github.com/larb26656/quick-feed/backend/internal/platform/apperr"
-	httpx "github.com/larb26656/quick-feed/backend/internal/platform/http"
+	"github.com/larb26656/my-feed/backend/internal/fetch/domain"
+	"github.com/larb26656/my-feed/backend/internal/fetch/service"
+	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
+	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
 )
 
 type Handler struct {

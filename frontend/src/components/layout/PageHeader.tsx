@@ -7,9 +7,9 @@ export function PageHeader() {
 		<header className="flex h-16 items-center justify-between border-b bg-card px-5 md:hidden">
 			<Link to="/" className="flex items-center gap-2 font-bold">
 				<span className="grid size-8 place-items-center">
-					<img src="/quick-feed-mascot.png" alt="" className="size-8 object-contain" />
+					<img src="/my-feed-mascot.png" alt="" className="size-8 object-contain" />
 				</span>
-				quick.feed
+				My feed
 			</Link>
 			<Link
 				to="/settings"

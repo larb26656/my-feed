@@ -1,4 +1,4 @@
-module github.com/larb26656/quick-feed/backend
+module github.com/larb26656/my-feed/backend
 
 go 1.25.7
 

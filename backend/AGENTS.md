@@ -2,7 +2,7 @@
 
 From repo root via `Makefile` (`make help` for the full list):
 
-- `make up` — build and run the API with a persistent SQLite file at `backend/data/quick-feed.db`
+- `make up` — build and run the API with a persistent SQLite file at `backend/data/my-feed.db`
 - `make down` — stop the API container; data remains on the host
 - `make migrate` — Goose `up` on SQLite `migrations/`
 - `make migrate-status` — Goose status

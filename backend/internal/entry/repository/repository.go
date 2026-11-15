@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/larb26656/quick-feed/backend/internal/entry/domain"
-	"github.com/larb26656/quick-feed/backend/internal/platform/database"
+	"github.com/larb26656/my-feed/backend/internal/entry/domain"
+	"github.com/larb26656/my-feed/backend/internal/platform/database"
 )
 
 // EntryListCursor is the decoded position in the newest-first Entry stream.

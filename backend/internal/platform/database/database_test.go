@@ -11,7 +11,7 @@ import (
 
 func TestNewPoolPersistsDataAndEnablesForeignKeys(t *testing.T) {
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "nested", "quick-feed.db")
+	path := filepath.Join(t.TempDir(), "nested", "my-feed.db")
 
 	db, err := NewPool(ctx, path)
 	require.NoError(t, err)
@@ -35,7 +35,7 @@ func TestNewPoolPersistsDataAndEnablesForeignKeys(t *testing.T) {
 
 func TestWithinTransactionCommitsAndRollsBack(t *testing.T) {
 	ctx := context.Background()
-	db, err := NewPool(ctx, filepath.Join(t.TempDir(), "quick-feed.db"))
+	db, err := NewPool(ctx, filepath.Join(t.TempDir(), "my-feed.db"))
 	require.NoError(t, err)
 	defer db.Close()
 	_, err = db.ExecContext(ctx, `CREATE TABLE values_table (value INTEGER)`)

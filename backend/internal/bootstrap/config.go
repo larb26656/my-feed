@@ -4,12 +4,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/larb26656/quick-feed/backend/internal/fetch/adapter/runtime"
-	fetchsvc "github.com/larb26656/quick-feed/backend/internal/fetch/service"
+	"github.com/larb26656/my-feed/backend/internal/fetch/adapter/runtime"
+	fetchsvc "github.com/larb26656/my-feed/backend/internal/fetch/service"
 )
 
 const (
-	defaultDatabasePath = "data/quick-feed.db"
+	defaultDatabasePath = "data/my-feed.db"
 	defaultHTTPAddr     = ":8080"
 )
 

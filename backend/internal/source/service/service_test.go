@@ -5,13 +5,13 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/larb26656/quick-feed/backend/internal/platform/database"
+	"github.com/larb26656/my-feed/backend/internal/platform/database"
 	"github.com/stretchr/testify/require"
 
-	"github.com/larb26656/quick-feed/backend/internal/platform/apperr"
-	"github.com/larb26656/quick-feed/backend/internal/source/domain"
-	"github.com/larb26656/quick-feed/backend/internal/source/repository"
-	"github.com/larb26656/quick-feed/backend/internal/source/service"
+	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
+	"github.com/larb26656/my-feed/backend/internal/source/domain"
+	"github.com/larb26656/my-feed/backend/internal/source/repository"
+	"github.com/larb26656/my-feed/backend/internal/source/service"
 )
 
 type fakeRepo struct {

@@ -13,6 +13,6 @@ COPY --from=build /out/server /usr/local/bin/server
 COPY --from=build /out/goose /usr/local/bin/goose
 COPY migrations /app/migrations
 RUN mkdir -p /data
-ENV DATABASE_PATH=/data/quick-feed.db HTTP_ADDR=:8080
+ENV DATABASE_PATH=/data/my-feed.db HTTP_ADDR=:8080
 EXPOSE 8080
 ENTRYPOINT ["/bin/sh", "-c", "/usr/local/bin/goose -dir /app/migrations sqlite3 \"$DATABASE_PATH\" up && exec /usr/local/bin/server"]

@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/larb26656/quick-feed/backend/internal/fetch/service"
+	"github.com/larb26656/my-feed/backend/internal/fetch/service"
 )
 
 // DefaultExecutorPoll is how often the in-process executor looks for claimable jobs.

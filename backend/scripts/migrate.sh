@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DATABASE_PATH="${DATABASE_PATH:-data/quick-feed.db}"
+DATABASE_PATH="${DATABASE_PATH:-data/my-feed.db}"
 GOOSE_VERSION="${GOOSE_VERSION:-v3.27.3}"
 CMD="${1:-up}"
 shift || true

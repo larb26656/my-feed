@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/larb26656/quick-feed/backend/internal/platform/database"
+	"github.com/larb26656/my-feed/backend/internal/platform/database"
 	"github.com/stretchr/testify/require"
 
-	"github.com/larb26656/quick-feed/backend/internal/entry/domain"
-	"github.com/larb26656/quick-feed/backend/internal/entry/repository"
-	"github.com/larb26656/quick-feed/backend/internal/entry/service"
-	"github.com/larb26656/quick-feed/backend/internal/platform/apperr"
+	"github.com/larb26656/my-feed/backend/internal/entry/domain"
+	"github.com/larb26656/my-feed/backend/internal/entry/repository"
+	"github.com/larb26656/my-feed/backend/internal/entry/service"
+	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 )
 
 type fakeRepo struct {
@@ -412,7 +412,7 @@ func TestIngestEntryMakesItRetrievable(t *testing.T) {
 	published := time.Date(2024, 6, 1, 12, 0, 0, 0, time.UTC)
 	recordedResult, err := svc.IngestEntry(context.Background(), service.IngestEntryInput{
 		SourceID:    sourceID,
-		Title:       "Show HN: Quick Feed",
+		Title:       "Show HN: My feed",
 		Link:        "https://example.com/a",
 		Description: "A personal reader",
 		Thumbnail:   &thumb,
@@ -422,7 +422,7 @@ func TestIngestEntryMakesItRetrievable(t *testing.T) {
 	recorded := recordedResult.Entry
 	require.NotEqual(t, uuid.Nil, recorded.ID)
 	require.Equal(t, sourceID, recorded.SourceID)
-	require.Equal(t, "Show HN: Quick Feed", recorded.Title)
+	require.Equal(t, "Show HN: My feed", recorded.Title)
 	require.Equal(t, "https://example.com/a", recorded.Link)
 	require.Equal(t, "A personal reader", recorded.Description)
 	require.NotNil(t, recorded.Thumbnail)
@@ -433,7 +433,7 @@ func TestIngestEntryMakesItRetrievable(t *testing.T) {
 	got, err := svc.GetEntry(context.Background(), recorded.ID)
 	require.NoError(t, err)
 	require.Equal(t, recorded.ID, got.ID)
-	require.Equal(t, "Show HN: Quick Feed", got.Title)
+	require.Equal(t, "Show HN: My feed", got.Title)
 	require.Equal(t, "https://example.com/a", got.Link)
 }
 

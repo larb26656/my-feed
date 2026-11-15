@@ -9,13 +9,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	fetchdomain "github.com/larb26656/quick-feed/backend/internal/fetch/domain"
-	fetchrepo "github.com/larb26656/quick-feed/backend/internal/fetch/repository"
-	fetchsvc "github.com/larb26656/quick-feed/backend/internal/fetch/service"
-	"github.com/larb26656/quick-feed/backend/internal/platform/database"
-	sourcedomain "github.com/larb26656/quick-feed/backend/internal/source/domain"
-	sourcerepo "github.com/larb26656/quick-feed/backend/internal/source/repository"
-	sourcesvc "github.com/larb26656/quick-feed/backend/internal/source/service"
+	fetchdomain "github.com/larb26656/my-feed/backend/internal/fetch/domain"
+	fetchrepo "github.com/larb26656/my-feed/backend/internal/fetch/repository"
+	fetchsvc "github.com/larb26656/my-feed/backend/internal/fetch/service"
+	"github.com/larb26656/my-feed/backend/internal/platform/database"
+	sourcedomain "github.com/larb26656/my-feed/backend/internal/source/domain"
+	sourcerepo "github.com/larb26656/my-feed/backend/internal/source/repository"
+	sourcesvc "github.com/larb26656/my-feed/backend/internal/source/service"
 )
 
 type transactionTestTransactor struct {

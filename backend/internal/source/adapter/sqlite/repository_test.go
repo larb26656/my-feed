@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 	_ "modernc.org/sqlite"
 
-	"github.com/larb26656/quick-feed/backend/internal/platform/apperr"
-	"github.com/larb26656/quick-feed/backend/internal/source/domain"
-	"github.com/larb26656/quick-feed/backend/internal/source/repository"
+	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
+	"github.com/larb26656/my-feed/backend/internal/source/domain"
+	"github.com/larb26656/my-feed/backend/internal/source/repository"
 )
 
 func TestSourceRepositoryPersistsSourcesAndEnforcesConstraints(t *testing.T) {

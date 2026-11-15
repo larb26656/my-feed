@@ -1,4 +1,4 @@
-# Quick Feed API
+# My feed API
 
 Open this folder as a collection in Bruno and select the `Local` environment. The API defaults to `http://localhost:8080`.
 
