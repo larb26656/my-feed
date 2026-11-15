@@ -36,3 +36,15 @@ func DecodeJSON(r *http.Request, dst any) error {
 	}
 	return nil
 }
+
+// CursorResponse is the common envelope for cursor-paginated lists.
+type CursorResponse[T any] struct {
+	Data []T        `json:"data"`
+	Page CursorPage `json:"page"`
+}
+
+// CursorPage describes continuation of a cursor-paginated list.
+type CursorPage struct {
+	NextCursor *string `json:"nextCursor"`
+	HasNext    bool    `json:"hasNext"`
+}

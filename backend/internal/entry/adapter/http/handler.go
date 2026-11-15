@@ -79,11 +79,6 @@ type entryResponse struct {
 	SavedAt     *string `json:"savedAt,omitempty"`
 }
 
-type listEntriesResponse struct {
-	Entries    []entryResponse `json:"entries"`
-	NextCursor *string         `json:"nextCursor,omitempty"`
-}
-
 func toEntryResponse(e *domain.Entry) entryResponse {
 	return entryResponse{
 		ID:          e.ID.String(),
@@ -199,8 +194,29 @@ func (h *Handler) getEntry(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) listEntries(w http.ResponseWriter, r *http.Request) {
 	in := service.ListEntriesInput{}
-	if raw := r.URL.Query().Get("cursor"); raw != "" {
-		in.Cursor = &raw
+	query := r.URL.Query()
+	if values, ok := query["sourceId"]; ok {
+		id, err := uuid.Parse(values[0])
+		if err != nil {
+			httpx.WriteError(w, apperr.Validation("invalid source id"))
+			return
+		}
+		in.Criteria.SourceID = &id
+	}
+	for _, criterion := range []struct {
+		name   string
+		target *bool
+	}{{"unread", &in.Criteria.Unread}, {"savedOnly", &in.Criteria.SavedOnly}} {
+		if values, ok := query[criterion.name]; ok {
+			if values[0] != "true" && values[0] != "false" {
+				httpx.WriteError(w, apperr.Validation("invalid "+criterion.name))
+				return
+			}
+			*criterion.target = values[0] == "true"
+		}
+	}
+	if values, ok := query["cursor"]; ok {
+		in.Cursor = &values[0]
 	}
 	if raw := r.URL.Query().Get("pageSize"); raw != "" {
 		n, err := strconv.Atoi(raw)
@@ -215,12 +231,12 @@ func (h *Handler) listEntries(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, err)
 		return
 	}
-	resp := listEntriesResponse{
-		Entries:    make([]entryResponse, 0, len(page.Entries)),
-		NextCursor: page.NextCursor,
+	resp := httpx.CursorResponse[entryResponse]{
+		Data: make([]entryResponse, 0, len(page.Entries)),
+		Page: httpx.CursorPage{NextCursor: page.NextCursor, HasNext: page.NextCursor != nil},
 	}
 	for _, e := range page.Entries {
-		resp.Entries = append(resp.Entries, toEntryResponse(e))
+		resp.Data = append(resp.Data, toEntryResponse(e))
 	}
 	httpx.WriteJSON(w, http.StatusOK, resp)
 }

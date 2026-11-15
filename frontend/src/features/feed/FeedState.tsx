@@ -1,26 +1,38 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
-import { entries } from "./data";
-
-const sources = entries.filter(
-	(entry, index) =>
-		entries.findIndex((item) => item.sourceId === entry.sourceId) === index,
-);
+import { useQuery } from "@tanstack/react-query";
+import { createContext, type ReactNode, useContext } from "react";
+import { api, type EntryPage, type Source } from "./data";
 
 function useFeedStateValue() {
-	const [saved, setSaved] = useState<number[]>([2]);
-	const [read, setRead] = useState<number[]>([]);
-	const toggle = (set: typeof setSaved, id: number) =>
-		set((current) =>
-			current.includes(id)
-				? current.filter((item) => item !== id)
-				: [...current, id],
-		);
+	const query = useQuery({
+		queryKey: ["sources"],
+		queryFn: () => api<Source[]>("/sources/?includeDeactivated=true"),
+	});
+	const savedQuery = useQuery({
+		queryKey: ["saved-count"],
+		queryFn: async ({ signal }) => {
+			let count = 0;
+			let cursor: string | null = null;
+			do {
+				const params = new URLSearchParams({
+					savedOnly: "true",
+					pageSize: "100",
+				});
+				if (cursor) params.set("cursor", cursor);
+				const page = await api<EntryPage>(`/entries/?${params}`, { signal });
+				count += page.data.length;
+				if (page.page.hasNext && !page.page.nextCursor)
+					throw new Error("Missing next cursor");
+				cursor = page.page.hasNext ? page.page.nextCursor : null;
+			} while (cursor);
+			return count;
+		},
+	});
 	return {
-		sources,
-		saved,
-		read,
-		toggleSaved: (id: number) => toggle(setSaved, id),
-		toggleRead: (id: number) => toggle(setRead, id),
+		savedCount: savedQuery.data,
+		sources: (query.data ?? []).filter((source) => source.active),
+		allSources: query.data ?? [],
+		sourcesLoading: query.isLoading,
+		sourcesError: query.isError,
 	};
 }
 const FeedContext = createContext<ReturnType<typeof useFeedStateValue> | null>(

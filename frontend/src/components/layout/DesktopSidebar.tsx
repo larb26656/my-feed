@@ -2,11 +2,9 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { Bookmark, Layers3, Rss, Settings } from "lucide-react";
 import { buttonVariants } from "#/components/ui/button";
 import { useFeedState } from "#/features/feed/FeedState";
-import { sourceColors } from "#/features/feed/SourceAvatar";
-import { cn } from "#/lib/utils";
 
 export function DesktopSidebar() {
-	const { sources, saved } = useFeedState();
+	const { sources, savedCount } = useFeedState();
 	const path = useRouterState({ select: (state) => state.location.pathname });
 	const navClass = (active: boolean, className: string) =>
 		buttonVariants({ variant: active ? "secondary" : "ghost", className });
@@ -39,7 +37,9 @@ export function DesktopSidebar() {
 				>
 					<Bookmark data-icon="inline-start" />
 					บันทึกไว้
-					<span className="ml-auto text-muted-foreground">{saved.length}</span>
+					{savedCount !== undefined && (
+						<span className="ml-auto">{savedCount}</span>
+					)}
 				</Link>
 			</nav>
 			<p className="mt-10 flex justify-between px-3 text-[10px] font-bold tracking-widest text-muted-foreground">
@@ -48,21 +48,15 @@ export function DesktopSidebar() {
 			<div className="mt-3 flex min-h-0 flex-col overflow-y-auto">
 				{sources.map((source) => (
 					<Link
-						key={source.sourceId}
+						key={source.id}
 						to="/sources/$sourceId"
-						params={{ sourceId: source.sourceId }}
+						params={{ sourceId: source.id }}
 						className={navClass(
-							path === `/sources/${source.sourceId}`,
+							path === `/sources/${source.id}`,
 							"h-auto min-h-10 justify-start px-3 text-left text-xs",
 						)}
 					>
-						<span
-							className={cn(
-								"size-2 shrink-0 rounded-full",
-								sourceColors[source.color],
-							)}
-						/>
-						<span className="truncate">{source.source}</span>
+						<span className="truncate">{source.name}</span>
 					</Link>
 				))}
 				<Link

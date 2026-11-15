@@ -314,3 +314,193 @@ func requestJSON(t *testing.T, router http.Handler, method, path string, body an
 func sqliteTestDSN(path string) string {
 	return (&url.URL{Scheme: "file", Path: path, RawQuery: "_pragma=foreign_keys(1)"}).String()
 }
+
+func TestEntryListCursorEnvelopeAndOrdering(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	dbPath := filepath.Join(t.TempDir(), "entries.db")
+	require.NoError(t, goose.SetDialect("sqlite3"))
+	db, err := sql.Open("sqlite", sqliteTestDSN(dbPath))
+	require.NoError(t, err)
+	require.NoError(t, goose.Up(db, "../../migrations"))
+	require.NoError(t, db.Close())
+	app, err := NewWithConfig(ctx, Config{DatabasePath: dbPath, HTTPAddr: ":0", Fetch: FetchConfig{RetryBackoff: time.Hour, ScheduleInterval: time.Hour, ExecutorPoll: time.Hour}})
+	require.NoError(t, err)
+	defer app.Close()
+	for _, item := range []struct{ title, published string }{{"older", "2020-01-01T00:00:00Z"}, {"tie one", "2021-01-01T00:00:00Z"}, {"tie two", "2021-01-01T00:00:00Z"}, {"undated", ""}} {
+		body := map[string]any{"title": item.title, "link": "https://example.test/" + url.PathEscape(item.title)}
+		if item.published != "" {
+			body["publishedAt"] = item.published
+		}
+		response := requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/save-link", body)
+		require.Equal(t, http.StatusCreated, response.Code, response.Body.String())
+	}
+	type page struct {
+		Data []struct {
+			ID    string `json:"id"`
+			Title string `json:"title"`
+		} `json:"data"`
+		Page struct {
+			NextCursor *string `json:"nextCursor"`
+			HasNext    bool    `json:"hasNext"`
+		} `json:"page"`
+	}
+	firstResponse := requestJSON(t, app.Router, http.MethodGet, "/api/v1/entries/?pageSize=2", nil)
+	require.Equal(t, http.StatusOK, firstResponse.Code)
+	var first page
+	require.NoError(t, json.Unmarshal(firstResponse.Body.Bytes(), &first))
+	require.Len(t, first.Data, 2)
+	require.Equal(t, "undated", first.Data[0].Title)
+	require.True(t, first.Page.HasNext)
+	require.NotNil(t, first.Page.NextCursor)
+	require.NotContains(t, firstResponse.Body.String(), "totalCount")
+	secondResponse := requestJSON(t, app.Router, http.MethodGet, "/api/v1/entries/?pageSize=2&cursor="+url.QueryEscape(*first.Page.NextCursor), nil)
+	var second page
+	require.NoError(t, json.Unmarshal(secondResponse.Body.Bytes(), &second))
+	require.Len(t, second.Data, 2)
+	require.Greater(t, first.Data[1].ID, second.Data[0].ID)
+	require.Equal(t, "older", second.Data[1].Title)
+	require.False(t, second.Page.HasNext)
+	require.Nil(t, second.Page.NextCursor)
+	require.Contains(t, secondResponse.Body.String(), `"nextCursor":null`)
+}
+
+func TestEntryReadAndSavedMutationsPersistInFilteredLists(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	dbPath := filepath.Join(t.TempDir(), "state.db")
+	require.NoError(t, goose.SetDialect("sqlite3"))
+	db, err := sql.Open("sqlite", sqliteTestDSN(dbPath))
+	require.NoError(t, err)
+	require.NoError(t, goose.Up(db, "../../migrations"))
+	require.NoError(t, db.Close())
+	cfg := Config{DatabasePath: dbPath, HTTPAddr: ":0", Fetch: FetchConfig{RetryBackoff: time.Hour, ScheduleInterval: time.Hour, ExecutorPoll: time.Hour}}
+	app, err := NewWithConfig(ctx, cfg)
+	require.NoError(t, err)
+	defer func() { app.Close() }()
+	created := requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/save-link", map[string]any{"title": "State test", "link": "https://example.test/state"})
+	require.Equal(t, http.StatusCreated, created.Code)
+	var entry struct {
+		ID string `json:"id"`
+	}
+	require.NoError(t, json.Unmarshal(created.Body.Bytes(), &entry))
+	list := func(criteria string) []string {
+		t.Helper()
+		response := requestJSON(t, app.Router, http.MethodGet, "/api/v1/entries/?"+criteria, nil)
+		require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+		var page struct {
+			Data []struct {
+				ID string `json:"id"`
+			} `json:"data"`
+		}
+		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &page))
+		ids := make([]string, 0, len(page.Data))
+		for _, item := range page.Data {
+			ids = append(ids, item.ID)
+		}
+		return ids
+	}
+	mutate := func(action string) {
+		t.Helper()
+		response := requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/"+entry.ID+"/"+action, nil)
+		require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+	}
+	require.Contains(t, list("unread=true"), entry.ID)
+	require.NotContains(t, list("savedOnly=true"), entry.ID)
+	mutate("save")
+	require.Contains(t, list("unread=true&savedOnly=true"), entry.ID)
+	mutate("read")
+	require.NotContains(t, list("unread=true"), entry.ID)
+	require.Contains(t, list("savedOnly=true"), entry.ID)
+	app.Close()
+	app, err = NewWithConfig(ctx, cfg)
+	require.NoError(t, err)
+	require.NotContains(t, list("unread=true"), entry.ID)
+	require.Contains(t, list("savedOnly=true"), entry.ID)
+	mutate("clear-read")
+	require.Contains(t, list("unread=true&savedOnly=true"), entry.ID)
+	mutate("clear-save")
+	require.Contains(t, list("unread=true"), entry.ID)
+	require.NotContains(t, list("savedOnly=true"), entry.ID)
+}
+
+func TestEntryListFiltersAndCursor(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	dbPath := filepath.Join(t.TempDir(), "filters.db")
+	require.NoError(t, goose.SetDialect("sqlite3"))
+	db, err := sql.Open("sqlite", sqliteTestDSN(dbPath))
+	require.NoError(t, err)
+	require.NoError(t, goose.Up(db, "../../migrations"))
+	require.NoError(t, db.Close())
+	app, err := NewWithConfig(ctx, Config{DatabasePath: dbPath, HTTPAddr: ":0", Fetch: FetchConfig{RetryBackoff: time.Hour, ScheduleInterval: time.Hour, ExecutorPoll: time.Hour}})
+	require.NoError(t, err)
+	defer app.Close()
+	var ids []string
+	for _, title := range []string{"unread", "read"} {
+		response := requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/save-link", map[string]any{"title": title, "link": "https://example.test/" + title})
+		require.Equal(t, http.StatusCreated, response.Code)
+		var entry struct {
+			ID string `json:"id"`
+		}
+		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &entry))
+		ids = append(ids, entry.ID)
+	}
+	require.Equal(t, http.StatusOK, requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/"+ids[1]+"/read", nil).Code)
+	response := requestJSON(t, app.Router, http.MethodGet, "/api/v1/entries/?unread=true", nil)
+	require.Equal(t, http.StatusOK, response.Code)
+	var page struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &page))
+	require.Len(t, page.Data, 1)
+	require.Equal(t, ids[0], page.Data[0].ID)
+	require.Equal(t, http.StatusOK, requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/"+ids[0]+"/save", nil).Code)
+	sourceResponse := requestJSON(t, app.Router, http.MethodPost, "/api/v1/sources/", map[string]any{"name": "RSS", "type": "rss", "rssUrl": "https://example.test/feed"})
+	require.Equal(t, http.StatusCreated, sourceResponse.Code)
+	var source struct {
+		ID string `json:"id"`
+	}
+	require.NoError(t, json.Unmarshal(sourceResponse.Body.Bytes(), &source))
+	for _, title := range []string{"one", "two"} {
+		res := requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/", map[string]any{"sourceId": source.ID, "title": title, "link": "https://example.test/" + title})
+		require.Equal(t, http.StatusCreated, res.Code)
+		var e struct {
+			ID string `json:"id"`
+		}
+		require.NoError(t, json.Unmarshal(res.Body.Bytes(), &e))
+		require.Equal(t, http.StatusOK, requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/"+e.ID+"/save", nil).Code)
+	}
+	type listPage struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+		Page struct {
+			NextCursor *string `json:"nextCursor"`
+		} `json:"page"`
+	}
+	get := func(query string) listPage {
+		res := requestJSON(t, app.Router, http.MethodGet, "/api/v1/entries/?"+query, nil)
+		require.Equal(t, http.StatusOK, res.Code, res.Body.String())
+		var p listPage
+		require.NoError(t, json.Unmarshal(res.Body.Bytes(), &p))
+		return p
+	}
+	require.Len(t, get("savedOnly=true").Data, 3)
+	require.Len(t, get("sourceId="+source.ID).Data, 2)
+	require.Len(t, get("sourceId="+source.ID+"&unread=true&savedOnly=true").Data, 2)
+	require.Empty(t, get("sourceId=00000000-0000-0000-0000-000000000000").Data)
+	first := get("sourceId=" + source.ID + "&savedOnly=true&pageSize=1")
+	require.Len(t, first.Data, 1)
+	require.NotNil(t, first.Page.NextCursor)
+	second := get("sourceId=" + source.ID + "&savedOnly=true&pageSize=1&cursor=" + url.QueryEscape(*first.Page.NextCursor))
+	require.Len(t, second.Data, 1)
+	require.NotEqual(t, first.Data[0].ID, second.Data[0].ID)
+	require.Nil(t, second.Page.NextCursor)
+	for _, query := range []string{"sourceId=bad", "cursor=bad", "unread=maybe", "savedOnly=maybe", "cursor=" + url.QueryEscape(*first.Page.NextCursor)} {
+		res := requestJSON(t, app.Router, http.MethodGet, "/api/v1/entries/?"+query, nil)
+		require.Equal(t, http.StatusBadRequest, res.Code, query)
+	}
+}

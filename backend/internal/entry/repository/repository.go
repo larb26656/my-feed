@@ -15,11 +15,17 @@ type EntryListCursor struct {
 	ID     uuid.UUID
 }
 
+type EntryListCriteria struct {
+	SourceID  *uuid.UUID
+	Unread    bool
+	SavedOnly bool
+}
+
 type Repository interface {
 	CreateEntry(ctx context.Context, e *domain.Entry) (*domain.Entry, error)
 	GetEntryByID(ctx context.Context, id uuid.UUID) (*domain.Entry, error)
 	GetEntryBySourceAndLink(ctx context.Context, sourceID uuid.UUID, link string) (*domain.Entry, error)
-	ListEntries(ctx context.Context, after *EntryListCursor, limit int) ([]*domain.Entry, error)
+	ListEntries(ctx context.Context, after *EntryListCursor, criteria EntryListCriteria, limit int) ([]*domain.Entry, error)
 	UpdateEntry(ctx context.Context, e *domain.Entry) (*domain.Entry, error)
 	WithTx(tx database.Transaction) Repository
 }

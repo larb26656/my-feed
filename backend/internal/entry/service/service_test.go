@@ -167,7 +167,7 @@ func uuidLess(a, b uuid.UUID) bool {
 	return bytes.Compare(a[:], b[:]) < 0
 }
 
-func (f *fakeRepo) ListEntries(_ context.Context, after *repository.EntryListCursor, limit int) ([]*domain.Entry, error) {
+func (f *fakeRepo) ListEntries(_ context.Context, after *repository.EntryListCursor, _ repository.EntryListCriteria, limit int) ([]*domain.Entry, error) {
 	type ranked struct {
 		entry  *domain.Entry
 		sortAt time.Time

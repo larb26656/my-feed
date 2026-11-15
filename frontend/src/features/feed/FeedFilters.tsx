@@ -4,9 +4,13 @@ import { type FeedFilter, filters } from "./data";
 export function FeedFilters({
 	filter,
 	setFilter,
+	savedOnly,
+	setSavedOnly,
 }: {
 	filter: FeedFilter;
 	setFilter: (filter: FeedFilter) => void;
+	savedOnly: boolean;
+	setSavedOnly: (saved: boolean) => void;
 }) {
 	return (
 		<div className="flex items-center justify-between border-b pb-1">
@@ -22,6 +26,14 @@ export function FeedFilters({
 						{item}
 					</Button>
 				))}
+				<Button
+					variant={savedOnly ? "secondary" : "ghost"}
+					size="sm"
+					aria-pressed={savedOnly}
+					onClick={() => setSavedOnly(!savedOnly)}
+				>
+					บันทึกไว้
+				</Button>
 			</div>
 			<span className="text-xs text-muted-foreground">ล่าสุดก่อน ↓</span>
 		</div>

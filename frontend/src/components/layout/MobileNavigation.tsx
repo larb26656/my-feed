@@ -1,8 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import { Bookmark, Layers3, Rss } from "lucide-react";
 import { buttonVariants } from "#/components/ui/button";
+import { useFeedState } from "#/features/feed/FeedState";
 
 export function MobileNavigation() {
+	const { savedCount } = useFeedState();
 	const className = buttonVariants({
 		variant: "ghost",
 		className: "h-full flex-col gap-1 text-xs aria-[current=page]:text-primary",
@@ -18,7 +20,7 @@ export function MobileNavigation() {
 			</Link>
 			<Link to="/saved" className={className}>
 				<Bookmark />
-				บันทึกไว้
+				<span>บันทึกไว้{savedCount !== undefined && ` (${savedCount})`}</span>
 			</Link>
 			<Link to="/sources" className={className}>
 				<Rss />

@@ -1,19 +1,16 @@
 import { Bookmark } from "lucide-react";
-import type { Entry } from "./data";
+import type { Entry, Source } from "./data";
 import { FeedItem } from "./FeedItem";
-
 export function FeedList({
 	visible,
-	read,
-	saved,
-	onToggleRead,
-	onToggleSaved,
+	sources,
+	disabled,
+	onToggle,
 }: {
 	visible: Entry[];
-	read: number[];
-	saved: number[];
-	onToggleRead: (id: number) => void;
-	onToggleSaved: (id: number) => void;
+	sources: Source[];
+	disabled: boolean;
+	onToggle: (entry: Entry, action: "read" | "save") => void;
 }) {
 	return (
 		<div>
@@ -21,17 +18,15 @@ export function FeedList({
 				<div className="flex flex-col items-center gap-2 py-14 text-center text-muted-foreground">
 					<Bookmark />
 					<strong className="text-foreground">ยังไม่มีรายการในส่วนนี้</strong>
-					<p className="text-xs">ลองเลือกตัวกรองอื่น หรือบันทึกเรื่องที่ชอบไว้ก่อน</p>
 				</div>
 			) : (
 				visible.map((entry) => (
 					<FeedItem
 						key={entry.id}
 						entry={entry}
-						isRead={read.includes(entry.id)}
-						isSaved={saved.includes(entry.id)}
-						onToggleRead={onToggleRead}
-						onToggleSaved={onToggleSaved}
+						source={sources.find((source) => source.id === entry.sourceId)}
+						disabled={disabled}
+						onToggle={onToggle}
 					/>
 				))
 			)}

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -181,6 +182,7 @@ const DefaultEntryPageSize = 20
 type ListEntriesInput struct {
 	Cursor   *string
 	PageSize *int
+	Criteria repository.EntryListCriteria
 }
 
 type ListEntriesResult struct {
@@ -196,14 +198,14 @@ func (s *Service) ListEntries(ctx context.Context, in ListEntriesInput) (*ListEn
 
 	var after *repository.EntryListCursor
 	if in.Cursor != nil {
-		decoded, err := decodeEntryCursor(*in.Cursor)
+		decoded, err := decodeEntryCursor(*in.Cursor, in.Criteria)
 		if err != nil {
 			return nil, err
 		}
 		after = decoded
 	}
 
-	rows, err := s.repo.ListEntries(ctx, after, pageSize+1)
+	rows, err := s.repo.ListEntries(ctx, after, in.Criteria, pageSize+1)
 	if err != nil {
 		return nil, err
 	}
@@ -212,38 +214,38 @@ func (s *Service) ListEntries(ctx context.Context, in ListEntriesInput) (*ListEn
 	if len(rows) > pageSize {
 		result.Entries = rows[:pageSize]
 		last := result.Entries[pageSize-1]
-		cursor := encodeEntryCursor(last.SortAt(), last.ID)
+		cursor := encodeEntryCursor(last.SortAt(), last.ID, in.Criteria)
 		result.NextCursor = &cursor
 	}
 	return result, nil
 }
 
-func encodeEntryCursor(sortAt time.Time, id uuid.UUID) string {
-	raw := sortAt.UTC().Format(time.RFC3339Nano) + "|" + id.String()
-	return base64.RawURLEncoding.EncodeToString([]byte(raw))
+type entryCursorPayload struct {
+	SortAt    time.Time  `json:"sortAt"`
+	ID        uuid.UUID  `json:"id"`
+	SourceID  *uuid.UUID `json:"sourceId"`
+	Unread    bool       `json:"unread"`
+	SavedOnly bool       `json:"savedOnly"`
 }
 
-func decodeEntryCursor(cursor string) (*repository.EntryListCursor, error) {
-	if strings.TrimSpace(cursor) == "" {
-		return nil, apperr.Validation("invalid cursor")
-	}
+func encodeEntryCursor(sortAt time.Time, id uuid.UUID, criteria repository.EntryListCriteria) string {
+	raw, _ := json.Marshal(entryCursorPayload{SortAt: sortAt.UTC(), ID: id, SourceID: criteria.SourceID, Unread: criteria.Unread, SavedOnly: criteria.SavedOnly})
+	return base64.RawURLEncoding.EncodeToString(raw)
+}
+
+func decodeEntryCursor(cursor string, criteria repository.EntryListCriteria) (*repository.EntryListCursor, error) {
 	raw, err := base64.RawURLEncoding.DecodeString(cursor)
 	if err != nil {
 		return nil, apperr.Validation("invalid cursor")
 	}
-	parts := strings.SplitN(string(raw), "|", 2)
-	if len(parts) != 2 {
+	var payload entryCursorPayload
+	if err := json.Unmarshal(raw, &payload); err != nil || payload.SortAt.IsZero() || payload.ID == uuid.Nil {
 		return nil, apperr.Validation("invalid cursor")
 	}
-	sortAt, err := time.Parse(time.RFC3339Nano, parts[0])
-	if err != nil {
-		return nil, apperr.Validation("invalid cursor")
+	if (payload.SourceID == nil) != (criteria.SourceID == nil) || (payload.SourceID != nil && *payload.SourceID != *criteria.SourceID) || payload.Unread != criteria.Unread || payload.SavedOnly != criteria.SavedOnly {
+		return nil, apperr.Validation("cursor does not match criteria")
 	}
-	id, err := uuid.Parse(parts[1])
-	if err != nil {
-		return nil, apperr.Validation("invalid cursor")
-	}
-	return &repository.EntryListCursor{SortAt: sortAt.UTC(), ID: id}, nil
+	return &repository.EntryListCursor{SortAt: payload.SortAt.UTC(), ID: payload.ID}, nil
 }
 
 func (s *Service) MarkEntryRead(ctx context.Context, id uuid.UUID) (*domain.Entry, error) {

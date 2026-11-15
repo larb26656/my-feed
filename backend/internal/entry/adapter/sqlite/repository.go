@@ -53,11 +53,21 @@ func (r *Repository) GetEntryBySourceAndLink(ctx context.Context, sourceID uuid.
 	return scanEntry(r.q.QueryRowContext(ctx, `SELECT `+entryColumns+` FROM entries WHERE source_id = ? AND link = ?`, sourceID.String(), link))
 }
 
-func (r *Repository) ListEntries(ctx context.Context, after *repository.EntryListCursor, limit int) ([]*domain.Entry, error) {
-	query := `SELECT ` + entryColumns + ` FROM entries`
+func (r *Repository) ListEntries(ctx context.Context, after *repository.EntryListCursor, criteria repository.EntryListCriteria, limit int) ([]*domain.Entry, error) {
+	query := `SELECT ` + entryColumns + ` FROM entries WHERE 1=1`
 	args := []any{}
+	if criteria.SourceID != nil {
+		query += ` AND source_id = ?`
+		args = append(args, criteria.SourceID.String())
+	}
+	if criteria.SavedOnly {
+		query += ` AND saved_at IS NOT NULL`
+	}
+	if criteria.Unread {
+		query += ` AND read_at IS NULL`
+	}
 	if after != nil {
-		query += ` WHERE COALESCE(published_at, created_at) < ? OR (COALESCE(published_at, created_at) = ? AND id < ?)`
+		query += ` AND (COALESCE(published_at, created_at) < ? OR (COALESCE(published_at, created_at) = ? AND id < ?))`
 		sortAt := after.SortAt.UTC().UnixNano()
 		args = append(args, sortAt, sortAt, after.ID.String())
 	}
