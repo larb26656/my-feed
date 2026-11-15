@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Bookmark, Layers3, RefreshCw, Settings } from "lucide-react";
+import { SourceAvatar } from "#/components/SourceAvatar";
 import { buttonVariants } from "#/components/ui/button";
 import { useFeedState } from "#/features/feed/FeedState";
 
@@ -73,6 +74,7 @@ export function DesktopSidebar() {
 							"h-auto min-h-10 justify-start px-3 text-left text-xs",
 						)}
 					>
+						<SourceAvatar name={source.name} image={source.image} size={24} />
 						<span className="truncate">{source.name}</span>
 					</Link>
 				))}

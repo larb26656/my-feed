@@ -14,6 +14,7 @@ export type Entry = {
 export type Source = {
 	id: string;
 	name: string;
+	image?: string | null;
 	type: string;
 	rssUrl?: string | null;
 	active: boolean;

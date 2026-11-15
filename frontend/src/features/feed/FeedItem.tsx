@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
 	Bookmark,
 	BookOpenCheck,
@@ -6,6 +5,8 @@ import {
 	CircleCheck,
 	Copy,
 } from "lucide-react";
+import { useState } from "react";
+import { SourceAvatar } from "#/components/SourceAvatar";
 import { cn } from "#/lib/utils";
 import type { Entry, Source } from "./types";
 export function FeedItem({
@@ -38,55 +39,57 @@ export function FeedItem({
 				className="absolute bottom-0 left-5 top-14 w-px bg-border/60"
 				aria-hidden="true"
 			/>
-			<div className="relative z-10 flex size-10 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sm font-bold text-sky-800 ring-4 ring-background">
-				{(source?.name ?? "S").slice(0, 1).toUpperCase()}
+			<div className="relative z-10 rounded-full ring-4 ring-background">
+				<SourceAvatar name={source?.name ?? "Source"} image={source?.image} />
 			</div>
 			<div className="min-w-0 flex-1">
-				<div className="flex items-center justify-between gap-3">
-					<strong className="truncate text-sm">
-						{source?.name ?? "Source"}
-					</strong>
-					<time
-						dateTime={date}
-						className="shrink-0 text-xs text-muted-foreground"
+				<div className="min-h-36">
+					<div className="flex items-center justify-between gap-3">
+						<strong className="truncate text-sm">
+							{source?.name ?? "Source"}
+						</strong>
+						<time
+							dateTime={date}
+							className="shrink-0 text-xs text-muted-foreground"
+						>
+							{new Date(date).toLocaleDateString()}
+						</time>
+					</div>
+					<h3
+						className={cn(
+							"mt-1 text-sm leading-relaxed",
+							read && "text-muted-foreground",
+						)}
 					>
-						{new Date(date).toLocaleDateString()}
-					</time>
-				</div>
-				<h3
-					className={cn(
-						"mt-1 text-sm leading-relaxed",
-						read && "text-muted-foreground",
+						<a
+							href={entry.link}
+							target="_blank"
+							rel="noreferrer"
+							className="hover:underline"
+						>
+							{entry.title}
+						</a>
+					</h3>
+					{description && (
+						<p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-foreground/90">
+							{description}
+						</p>
 					)}
-				>
-					<a
-						href={entry.link}
-						target="_blank"
-						rel="noreferrer"
-						className="hover:underline"
-					>
-						{entry.title}
-					</a>
-				</h3>
-				{description && (
-					<p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-foreground/90">
-						{description}
-					</p>
-				)}
-				{entry.thumbnail && (
-					<a
-						href={entry.link}
-						target="_blank"
-						rel="noreferrer"
-						className="mt-2 block overflow-hidden rounded-xl"
-					>
-						<img
-							src={entry.thumbnail}
-							alt=""
-							className="max-h-72 w-full object-cover"
-						/>
-					</a>
-				)}
+					{entry.thumbnail && (
+						<a
+							href={entry.link}
+							target="_blank"
+							rel="noreferrer"
+							className="mt-2 block overflow-hidden rounded-xl"
+						>
+							<img
+								src={entry.thumbnail}
+								alt=""
+								className="max-h-72 w-full object-cover"
+							/>
+						</a>
+					)}
+				</div>
 				<div className="mt-2 grid grid-cols-3 text-muted-foreground">
 					<button
 						disabled={disabled}

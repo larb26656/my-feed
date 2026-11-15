@@ -4,7 +4,7 @@ export const Route = createFileRoute("/_app/settings")({ component: Settings });
 function Settings() {
 	return (
 		<section>
-			<h1 className="text-2xl font-bold">Settings</h1>
+			<h1 className="sr-only">Settings</h1>
 			<NoDataState
 				illustration="search"
 				title="No settings yet"

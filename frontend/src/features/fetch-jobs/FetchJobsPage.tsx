@@ -38,10 +38,7 @@ export function FetchJobsPage() {
 	return (
 		<div className="space-y-10">
 			<header>
-				<p className="text-xs font-bold uppercase tracking-widest text-primary">
-					Tools
-				</p>
-				<h1 className="mt-2 text-3xl font-bold tracking-tight">Fetch Jobs</h1>
+				<h1 className="sr-only">Fetch Jobs</h1>
 				<p className="mt-2 text-muted-foreground">
 					Start a source fetch and track the latest job status
 				</p>

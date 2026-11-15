@@ -62,7 +62,7 @@ export function RecordLinkPage() {
 
 	return (
 		<section>
-			<h1 className="text-2xl font-bold">Save Link</h1>
+			<h1 className="sr-only">Save Link</h1>
 			<p className="mt-2 text-sm text-muted-foreground">
 				Add a link as an entry in the “Saved links” source
 			</p>
