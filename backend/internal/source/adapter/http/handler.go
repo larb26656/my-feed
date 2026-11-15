@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -13,11 +14,22 @@ import (
 	"github.com/larb26656/quick-feed/backend/internal/source/service"
 )
 
-type Handler struct {
-	svc *service.Service
+// SourceAPI is the application surface the HTTP adapter needs.
+// Kept as an interface so bootstrap can wrap cross-module hooks (e.g. fetch on deactivate).
+type SourceAPI interface {
+	CreateSource(ctx context.Context, in service.CreateSourceInput) (*domain.Source, error)
+	ListSources(ctx context.Context, in service.ListSourcesInput) ([]*domain.Source, error)
+	GetSource(ctx context.Context, id uuid.UUID) (*domain.Source, error)
+	UpdateSource(ctx context.Context, id uuid.UUID, in service.UpdateSourceInput) (*domain.Source, error)
+	DeactivateSource(ctx context.Context, id uuid.UUID) (*domain.Source, error)
+	ReactivateSource(ctx context.Context, id uuid.UUID) (*domain.Source, error)
 }
 
-func NewHandler(svc *service.Service) *Handler {
+type Handler struct {
+	svc SourceAPI
+}
+
+func NewHandler(svc SourceAPI) *Handler {
 	return &Handler{svc: svc}
 }
 

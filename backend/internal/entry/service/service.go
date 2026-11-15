@@ -60,13 +60,17 @@ func (s *Service) SaveLink(ctx context.Context, in SaveLinkInput) (*domain.Entry
 	if err != nil {
 		return nil, err
 	}
-	return s.upsertEntry(ctx, src.ID, entryMeta{
+	result, err := s.upsertEntry(ctx, src.ID, entryMeta{
 		Title:       in.Title,
 		Link:        in.Link,
 		Description: in.Description,
 		Thumbnail:   in.Thumbnail,
 		PublishedAt: in.PublishedAt,
 	})
+	if err != nil {
+		return nil, err
+	}
+	return result.Entry, nil
 }
 
 // IngestEntryInput is the worker/ingest write path into an RSS Source by id.
@@ -79,9 +83,16 @@ type IngestEntryInput struct {
 	PublishedAt *time.Time
 }
 
+// IngestEntryResult is the outcome of recording an Entry through ingest.
+// Created is true only when a new Entry was written; metadata refresh is false.
+type IngestEntryResult struct {
+	Entry   *domain.Entry
+	Created bool
+}
+
 // IngestEntry records an Entry into an active RSS Source.
 // Rejects manual, missing, and deactivated Sources.
-func (s *Service) IngestEntry(ctx context.Context, in IngestEntryInput) (*domain.Entry, error) {
+func (s *Service) IngestEntry(ctx context.Context, in IngestEntryInput) (*IngestEntryResult, error) {
 	src, err := s.sources.Get(ctx, in.SourceID)
 	if err != nil {
 		return nil, err
@@ -109,7 +120,7 @@ type entryMeta struct {
 	PublishedAt *time.Time
 }
 
-func (s *Service) upsertEntry(ctx context.Context, sourceID uuid.UUID, in entryMeta) (*domain.Entry, error) {
+func (s *Service) upsertEntry(ctx context.Context, sourceID uuid.UUID, in entryMeta) (*IngestEntryResult, error) {
 	meta := domain.EntryMetadata{
 		Title:       in.Title,
 		Link:        in.Link,
@@ -124,7 +135,11 @@ func (s *Service) upsertEntry(ctx context.Context, sourceID uuid.UUID, in entryM
 		if err := existing.RefreshMetadata(meta); err != nil {
 			return nil, err
 		}
-		return s.repo.UpdateEntry(ctx, existing)
+		updated, err := s.repo.UpdateEntry(ctx, existing)
+		if err != nil {
+			return nil, err
+		}
+		return &IngestEntryResult{Entry: updated, Created: false}, nil
 	}
 	if !isNotFound(err) {
 		return nil, err
@@ -136,7 +151,7 @@ func (s *Service) upsertEntry(ctx context.Context, sourceID uuid.UUID, in entryM
 	}
 	created, err := s.repo.CreateEntry(ctx, entry)
 	if err == nil {
-		return created, nil
+		return &IngestEntryResult{Entry: created, Created: true}, nil
 	}
 	if !isConflict(err) {
 		return nil, err
@@ -150,7 +165,11 @@ func (s *Service) upsertEntry(ctx context.Context, sourceID uuid.UUID, in entryM
 	if err := existing.RefreshMetadata(meta); err != nil {
 		return nil, err
 	}
-	return s.repo.UpdateEntry(ctx, existing)
+	updated, err := s.repo.UpdateEntry(ctx, existing)
+	if err != nil {
+		return nil, err
+	}
+	return &IngestEntryResult{Entry: updated, Created: false}, nil
 }
 
 func (s *Service) GetEntry(ctx context.Context, id uuid.UUID) (*domain.Entry, error) {

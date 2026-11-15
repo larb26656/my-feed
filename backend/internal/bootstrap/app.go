@@ -4,20 +4,23 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
-	"github.com/google/uuid"
 
 	entryhttp "github.com/larb26656/quick-feed/backend/internal/entry/adapter/http"
 	entrypg "github.com/larb26656/quick-feed/backend/internal/entry/adapter/postgres"
 	entrysvc "github.com/larb26656/quick-feed/backend/internal/entry/service"
+	fetchhttp "github.com/larb26656/quick-feed/backend/internal/fetch/adapter/http"
+	"github.com/larb26656/quick-feed/backend/internal/fetch/adapter/obtain"
+	obtainrss "github.com/larb26656/quick-feed/backend/internal/fetch/adapter/obtain/rss"
+	fetchpg "github.com/larb26656/quick-feed/backend/internal/fetch/adapter/postgres"
+	"github.com/larb26656/quick-feed/backend/internal/fetch/adapter/runtime"
+	fetchsvc "github.com/larb26656/quick-feed/backend/internal/fetch/service"
 	"github.com/larb26656/quick-feed/backend/internal/platform/database"
 	sourcehttp "github.com/larb26656/quick-feed/backend/internal/source/adapter/http"
 	sourcepg "github.com/larb26656/quick-feed/backend/internal/source/adapter/postgres"
-	sourcedomain "github.com/larb26656/quick-feed/backend/internal/source/domain"
-	sourcerepo "github.com/larb26656/quick-feed/backend/internal/source/repository"
 	sourcesvc "github.com/larb26656/quick-feed/backend/internal/source/service"
 )
 
@@ -26,43 +29,16 @@ type App struct {
 	Router chi.Router
 }
 
-// sourceLookup adapts the Source repository port for Entry without importing
-// source/adapter/postgres into the entry module.
-type sourceLookup struct {
-	repo sourcerepo.Repository
-}
-
-func (s sourceLookup) Get(ctx context.Context, id uuid.UUID) (*entrysvc.SourceRef, error) {
-	src, err := s.repo.GetSourceByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	return toEntrySourceRef(src), nil
-}
-
-func (s sourceLookup) GetManual(ctx context.Context) (*entrysvc.SourceRef, error) {
-	src, err := s.repo.GetManualSource(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return toEntrySourceRef(src), nil
-}
-
-func toEntrySourceRef(src *sourcedomain.Source) *entrysvc.SourceRef {
-	return &entrysvc.SourceRef{
-		ID:     src.ID,
-		Type:   entrysvc.SourceType(src.Type),
-		Active: src.Active,
-	}
-}
-
 func New(ctx context.Context) (*App, error) {
-	dsn := os.Getenv("DATABASE_URL")
-	if dsn == "" {
-		dsn = "postgres://quickfeed:quickfeed@localhost:54330/quick_feed?sslmode=disable"
+	cfg, err := LoadConfig()
+	if err != nil {
+		return nil, err
 	}
+	return NewWithConfig(ctx, cfg)
+}
 
-	pool, err := database.NewPool(ctx, dsn)
+func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
+	pool, err := database.NewPool(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return nil, err
 	}
@@ -77,6 +53,25 @@ func New(ctx context.Context) (*App, error) {
 	entryRepo := entrypg.NewRepository(pool.Pool)
 	entryService := entrysvc.New(entryRepo, sourceLookup{repo: sourceRepo})
 
+	obtainRegistry := obtain.NewRegistry()
+	obtainRegistry.Register(fetchsvc.SourceTypeRSS, obtainrss.New(http.DefaultClient))
+
+	fetchRepo := fetchpg.NewRepository(pool.Pool)
+	fetchService := fetchsvc.New(
+		fetchRepo,
+		fetchSources{repo: sourceRepo},
+		obtainRegistry,
+		entryIngest{svc: entryService},
+		realClock{},
+		cfg.Fetch.RetryBackoff,
+		cfg.Fetch.ScheduleInterval,
+	)
+
+	runtime.NewLoops(
+		fetchService,
+		cfg.Fetch.ExecutorPoll,
+	).Start(ctx)
+
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID, chimw.RealIP, chimw.Recoverer)
 
@@ -85,8 +80,15 @@ func New(ctx context.Context) (*App, error) {
 		_, _ = w.Write([]byte("ok"))
 	})
 
-	r.Mount("/api/v1/sources", sourcehttp.NewHandler(sourceService).Routes())
+	r.Mount("/api/v1/sources", sourcehttp.NewHandler(sourceAPIWithFetch{
+		db:         pool,
+		sourceRepo: sourceRepo,
+		fetchRepo:  fetchRepo,
+		inner:      sourceService,
+		fetch:      fetchService,
+	}).Routes())
 	r.Mount("/api/v1/entries", entryhttp.NewHandler(entryService).Routes())
+	r.Mount("/api/v1/fetch-jobs", fetchhttp.NewHandler(fetchService).Routes())
 
 	return &App{Pool: pool, Router: r}, nil
 }
@@ -98,16 +100,38 @@ func (a *App) Close() {
 }
 
 func Run(ctx context.Context) error {
-	app, err := New(ctx)
+	cfg, err := LoadConfig()
+	if err != nil {
+		return err
+	}
+
+	app, err := NewWithConfig(ctx, cfg)
 	if err != nil {
 		return err
 	}
 	defer app.Close()
 
-	addr := os.Getenv("HTTP_ADDR")
-	if addr == "" {
-		addr = ":8080"
+	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: app.Router}
+	errCh := make(chan error, 1)
+	go func() {
+		fmt.Println("listening on", cfg.HTTPAddr)
+		errCh <- srv.ListenAndServe()
+	}()
+
+	select {
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(shutdownCtx)
+		err := <-errCh
+		if err == nil || err == http.ErrServerClosed {
+			return nil
+		}
+		return err
+	case err := <-errCh:
+		if err == http.ErrServerClosed {
+			return nil
+		}
+		return err
 	}
-	fmt.Println("listening on", addr)
-	return http.ListenAndServe(addr, app.Router)
 }

@@ -15,11 +15,23 @@ import (
 	httpx "github.com/larb26656/quick-feed/backend/internal/platform/http"
 )
 
-type Handler struct {
-	svc *service.Service
+// EntryAPI is the application surface the HTTP adapter needs.
+type EntryAPI interface {
+	SaveLink(ctx context.Context, in service.SaveLinkInput) (*domain.Entry, error)
+	IngestEntry(ctx context.Context, in service.IngestEntryInput) (*service.IngestEntryResult, error)
+	GetEntry(ctx context.Context, id uuid.UUID) (*domain.Entry, error)
+	ListEntries(ctx context.Context, in service.ListEntriesInput) (*service.ListEntriesResult, error)
+	MarkEntryRead(ctx context.Context, id uuid.UUID) (*domain.Entry, error)
+	ClearEntryRead(ctx context.Context, id uuid.UUID) (*domain.Entry, error)
+	MarkEntrySaved(ctx context.Context, id uuid.UUID) (*domain.Entry, error)
+	ClearEntrySaved(ctx context.Context, id uuid.UUID) (*domain.Entry, error)
 }
 
-func NewHandler(svc *service.Service) *Handler {
+type Handler struct {
+	svc EntryAPI
+}
+
+func NewHandler(svc EntryAPI) *Handler {
 	return &Handler{svc: svc}
 }
 
@@ -152,7 +164,7 @@ func (h *Handler) ingestEntry(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, err)
 		return
 	}
-	entry, err := h.svc.IngestEntry(r.Context(), service.IngestEntryInput{
+	result, err := h.svc.IngestEntry(r.Context(), service.IngestEntryInput{
 		SourceID:    sourceID,
 		Title:       req.Title,
 		Link:        req.Link,
@@ -164,7 +176,11 @@ func (h *Handler) ingestEntry(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusCreated, toEntryResponse(entry))
+	status := http.StatusOK
+	if result.Created {
+		status = http.StatusCreated
+	}
+	httpx.WriteJSON(w, status, toEntryResponse(result.Entry))
 }
 
 func (h *Handler) getEntry(w http.ResponseWriter, r *http.Request) {
