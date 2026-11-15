@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/pressly/goose/v3"
+	"github.com/larb26656/my-feed/backend/internal/testkit"
 	"github.com/stretchr/testify/require"
 	_ "modernc.org/sqlite"
 
@@ -22,7 +22,7 @@ func TestSourceRepositoryPersistsSourcesAndEnforcesConstraints(t *testing.T) {
 	db, err := sql.Open("sqlite", "file:"+path+"?_pragma=foreign_keys(1)")
 	require.NoError(t, err)
 	require.NoError(t, db.Ping())
-	applySourcesMigration(t, db)
+	testkit.Migrate(t, db)
 	repo := NewRepository(db)
 
 	manual, err := domain.NewManualSource(domain.SavedLinksName)
@@ -52,10 +52,10 @@ func TestSourceRepositoryPersistsSourcesAndEnforcesConstraints(t *testing.T) {
 
 	require.NoError(t, source.Deactivate())
 	require.NoError(t, repo.UpdateSource(ctx, source))
-	active, err := repo.ListSources(ctx, structFilter(false))
+	active, err := repo.ListSources(ctx, repository.ListSourcesFilter{})
 	require.NoError(t, err)
 	require.Len(t, active, 1)
-	all, err := repo.ListSources(ctx, structFilter(true))
+	all, err := repo.ListSources(ctx, repository.ListSourcesFilter{IncludeDeactivated: true})
 	require.NoError(t, err)
 	require.Len(t, all, 2)
 
@@ -73,15 +73,4 @@ func TestSourceRepositoryPersistsSourcesAndEnforcesConstraints(t *testing.T) {
 	_, err = repo.GetSourceByID(ctx, badID)
 	require.ErrorAs(t, err, &appErr)
 	require.Equal(t, apperr.CodeNotFound, appErr.Code)
-}
-
-func structFilter(includeDeactivated bool) repository.ListSourcesFilter {
-	return repository.ListSourcesFilter{IncludeDeactivated: includeDeactivated}
-}
-
-func applySourcesMigration(t *testing.T, db *sql.DB) {
-	t.Helper()
-	require.NoError(t, goose.SetDialect("sqlite3"))
-	err := goose.UpTo(db, "../../../../migrations", 1)
-	require.NoError(t, err)
 }

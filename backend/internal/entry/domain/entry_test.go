@@ -11,7 +11,7 @@ import (
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 )
 
-func TestNewEntryHappyPath(t *testing.T) {
+func TestNewEntryTrimsMetadataAndStartsUnreadAndUnsaved(t *testing.T) {
 	sourceID := uuid.New()
 	thumb := "https://example.com/t.png"
 	published := time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)
@@ -39,7 +39,7 @@ func TestNewEntryHappyPath(t *testing.T) {
 	require.Nil(t, e.SavedAt)
 }
 
-func TestNewEntryValidation(t *testing.T) {
+func TestNewEntryRequiresTitleLinkAndSource(t *testing.T) {
 	sourceID := uuid.New()
 
 	_, err := domain.NewEntry(sourceID, domain.EntryMetadata{Title: "  ", Link: "https://example.com/a"})
@@ -75,17 +75,17 @@ func TestMarkReadAndClearReadUpdateUpdatedAt(t *testing.T) {
 		Link:  "https://example.com/a",
 	})
 	require.NoError(t, err)
+	e.UpdatedAt = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	originalUpdated := e.UpdatedAt
 
-	time.Sleep(2 * time.Millisecond)
 	at := time.Now().UTC()
 	e.MarkRead(at)
 	require.NotNil(t, e.ReadAt)
 	require.True(t, at.Equal(e.ReadAt.UTC()))
 	require.True(t, e.UpdatedAt.After(originalUpdated))
 
+	e.UpdatedAt = originalUpdated
 	afterMark := e.UpdatedAt
-	time.Sleep(2 * time.Millisecond)
 	e.ClearRead()
 	require.Nil(t, e.ReadAt)
 	require.True(t, e.UpdatedAt.After(afterMark))
@@ -97,17 +97,17 @@ func TestMarkSavedAndClearSavedUpdateUpdatedAt(t *testing.T) {
 		Link:  "https://example.com/a",
 	})
 	require.NoError(t, err)
+	e.UpdatedAt = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	originalUpdated := e.UpdatedAt
 
-	time.Sleep(2 * time.Millisecond)
 	at := time.Now().UTC()
 	e.MarkSaved(at)
 	require.NotNil(t, e.SavedAt)
 	require.True(t, at.Equal(e.SavedAt.UTC()))
 	require.True(t, e.UpdatedAt.After(originalUpdated))
 
+	e.UpdatedAt = originalUpdated
 	afterMark := e.UpdatedAt
-	time.Sleep(2 * time.Millisecond)
 	e.ClearSaved()
 	require.Nil(t, e.SavedAt)
 	require.True(t, e.UpdatedAt.After(afterMark))
@@ -121,10 +121,10 @@ func TestRefreshMetadataUpdatesFieldsAndUpdatedAt(t *testing.T) {
 	})
 	require.NoError(t, err)
 	createdAt := e.CreatedAt
+	e.UpdatedAt = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	originalUpdated := e.UpdatedAt
 	originalLink := e.Link
 
-	time.Sleep(2 * time.Millisecond)
 	thumb := "https://example.com/new.png"
 	published := time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC)
 	err = e.RefreshMetadata(domain.EntryMetadata{

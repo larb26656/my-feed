@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/pressly/goose/v3"
+	"github.com/larb26656/my-feed/backend/internal/testkit"
 	"github.com/stretchr/testify/require"
 	_ "modernc.org/sqlite"
 
@@ -24,7 +24,8 @@ func TestEntryRepositoryPersistsMetadataAndPaginatesInStableOrder(t *testing.T) 
 	path := filepath.Join(t.TempDir(), "entries.db")
 	db, err := sql.Open("sqlite", "file:"+path+"?_pragma=foreign_keys(1)")
 	require.NoError(t, err)
-	applyEntryMigration(t, db)
+	t.Cleanup(func() { _ = db.Close() })
+	testkit.Migrate(t, db)
 	sources := sourcerepo.NewRepository(db)
 	source, err := sourcedomain.NewRSSSource("Example", "https://example.test/feed")
 	require.NoError(t, err)
@@ -87,11 +88,4 @@ func TestEntryRepositoryPersistsMetadataAndPaginatesInStableOrder(t *testing.T) 
 	_, err = NewRepository(db).GetEntryByID(ctx, uuid.New())
 	require.ErrorAs(t, err, &appErr)
 	require.Equal(t, apperr.CodeNotFound, appErr.Code)
-}
-
-func applyEntryMigration(t *testing.T, db *sql.DB) {
-	t.Helper()
-	require.NoError(t, goose.SetDialect("sqlite3"))
-	err := goose.UpTo(db, "../../../../migrations", 1)
-	require.NoError(t, err)
 }
