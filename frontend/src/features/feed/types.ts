@@ -31,14 +31,5 @@ export type EntryFilters = {
 	unread: boolean;
 };
 
-export type FetchJob = {
-	id: string;
-	sourceId: string;
-	status: "pending" | "running" | "succeeded" | "failed";
-	attempt: number;
-	maxAttempts: number;
-	entriesCreated: number;
-};
-
 export const filters = ["All", "Unread"] as const;
 export type FeedFilter = (typeof filters)[number];

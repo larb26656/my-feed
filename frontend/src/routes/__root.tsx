@@ -38,7 +38,7 @@ function NotFound() {
 		<main className="bg-background text-foreground">
 			<EmptyState
 				size="screen"
-				illustration="/empty-states/confused.png"
+				imageSrc="/empty-states/confused.png"
 				imageAlt="Curious mascot"
 				title="Page not found"
 				description="The page you are looking for may have been moved or deleted"

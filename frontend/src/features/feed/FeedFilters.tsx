@@ -1,4 +1,6 @@
-import { Button } from "#/components/ui/button";
+import { Link } from "@tanstack/react-router";
+import { Plus } from "lucide-react";
+import { Button, buttonVariants } from "#/components/ui/button";
 import { type FeedFilter, filters } from "./types";
 
 export function FeedFilters({
@@ -9,13 +11,14 @@ export function FeedFilters({
 	setFilter: (filter: FeedFilter) => void;
 }) {
 	return (
-		<div className="flex items-center justify-between border-b pb-1">
-			<div className="flex gap-1">
+		<div className="flex items-center justify-between px-3 py-2">
+			<div className="flex items-center gap-1">
 				{filters.map((item) => (
 					<Button
 						key={item}
 						variant={filter === item ? "secondary" : "ghost"}
 						size="sm"
+						className={filter === item ? "bg-primary/15 text-primary hover:bg-primary/20" : ""}
 						aria-pressed={filter === item}
 						onClick={() => setFilter(item)}
 					>
@@ -23,7 +26,17 @@ export function FeedFilters({
 					</Button>
 				))}
 			</div>
-			<span className="text-xs text-muted-foreground">Newest first ↓</span>
+			<div className="flex items-center gap-3">
+				<span className="text-xs text-muted-foreground">Newest first ↓</span>
+				<div className="h-6 border-l border-border/70" aria-hidden="true" />
+				<Link
+					to="/record-link"
+					aria-label="Save Link"
+					className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
+				>
+					<Plus />
+				</Link>
+			</div>
 		</div>
 	);
 }

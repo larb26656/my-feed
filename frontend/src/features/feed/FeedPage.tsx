@@ -55,18 +55,10 @@ export function FeedPage({
 					All Sources
 				</Link>
 			)}
-			<div className="mb-6 flex items-center justify-end gap-3">
-				<h1 className="sr-only">
-					{allSources.find((source) => source.id === sourceId)?.name ??
-						(savedOnly ? "Saved" : "My Feed")}
-				</h1>
-				<Link
-					to="/record-link"
-					className={buttonVariants({ variant: "outline", size: "sm" })}
-				>
-					Save Link
-				</Link>
-			</div>
+			<h1 className="sr-only">
+				{allSources.find((source) => source.id === sourceId)?.name ??
+					(savedOnly ? "Saved" : "My Feed")}
+			</h1>
 			<FeedFilters
 				filter={filter}
 				setFilter={setFilter}

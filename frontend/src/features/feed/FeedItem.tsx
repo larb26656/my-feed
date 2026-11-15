@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { SourceAvatar } from "#/components/SourceAvatar";
+import { formatDate } from "#/lib/date";
 import { cn } from "#/lib/utils";
 import { RichDescription } from "./RichDescription";
 import type { Entry, Source } from "./types";
@@ -53,7 +54,7 @@ export function FeedItem({
 							dateTime={date}
 							className="shrink-0 text-xs text-muted-foreground"
 						>
-							{new Date(date).toLocaleDateString()}
+							{formatDate(date)}
 						</time>
 					</div>
 					<h3

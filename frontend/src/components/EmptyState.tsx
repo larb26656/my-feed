@@ -5,6 +5,10 @@ export const EMPTY_STATE_ILLUSTRATIONS = {
 		src: "/empty-states/feed-empty.png",
 		alt: "Mascot holding a box of reading items",
 	},
+	sleeping: {
+		src: "/empty-states/sleeping.png",
+		alt: "Sleeping mascot",
+	},
 	saved: {
 		src: "/empty-states/saved-items.png",
 		alt: "Mascot holding a saved items bookmark",
@@ -19,10 +23,11 @@ export const EMPTY_STATE_ILLUSTRATIONS = {
 	},
 } as const;
 
-type EmptyStatePreset = keyof typeof EMPTY_STATE_ILLUSTRATIONS;
+export type EmptyStatePreset = keyof typeof EMPTY_STATE_ILLUSTRATIONS;
 
 export type EmptyStateProps = {
-	illustration?: EmptyStatePreset | (string & {});
+	illustration?: EmptyStatePreset;
+	imageSrc?: string;
 	imageAlt?: string;
 	title: string;
 	description?: string;
@@ -33,6 +38,7 @@ export type EmptyStateProps = {
 
 export function EmptyState({
 	illustration = "feed",
+	imageSrc: customImageSrc,
 	imageAlt,
 	title,
 	description,
@@ -44,7 +50,7 @@ export function EmptyState({
 		illustration in EMPTY_STATE_ILLUSTRATIONS
 			? EMPTY_STATE_ILLUSTRATIONS[illustration as EmptyStatePreset]
 			: undefined;
-	const imageSrc = preset?.src ?? illustration;
+	const imageSrc = customImageSrc ?? preset?.src;
 	const resolvedImageAlt = imageAlt ?? preset?.alt ?? "";
 	const sizeClasses = {
 		default: "min-h-80 px-5 py-12 [&_img]:w-56",
