@@ -60,8 +60,8 @@ test("combines Source, Saved and unread while retaining names of deactivated Sou
 	);
 	expect(await screen.findAllByText("Deactivated Source")).toHaveLength(2);
 	const user = userEvent.setup();
-	await user.click(screen.getByRole("button", { name: "บันทึกไว้" }));
-	await user.click(screen.getByRole("button", { name: "ยังไม่อ่าน" }));
+	await user.click(screen.getByRole("button", { name: "Saved" }));
+	await user.click(screen.getByRole("button", { name: "Unread" }));
 	await waitFor(() =>
 		expect(
 			calls.some((url) => {
@@ -138,14 +138,14 @@ test("loads the persisted Saved count endpoint and refreshes it after confirmed 
 	await screen.findByText("Navigation: Active / Saved: 0");
 	const user = userEvent.setup();
 	await user.click(
-		await screen.findByRole("button", { name: "ทำเครื่องหมายว่าอ่านแล้ว" }),
+		await screen.findByRole("button", { name: "Mark as read" }),
 	);
-	await screen.findByRole("button", { name: "อ่านแล้ว" });
-	await user.click(screen.getByRole("button", { name: "บันทึก An Entry" }));
+	await screen.findByRole("button", { name: "Read" });
+	await user.click(screen.getByRole("button", { name: "Save An Entry" }));
 	await screen.findByText("Navigation: Active / Saved: 1");
 	await waitFor(() => expect(countRequests).toBe(2));
 	await user.click(
-		screen.getByRole("button", { name: "นำ An Entry ออกจาก Saved" }),
+		screen.getByRole("button", { name: "Remove An Entry from Saved" }),
 	);
 	await screen.findByText("Navigation: Active / Saved: 0");
 	await waitFor(() => expect(countRequests).toBe(3));

@@ -19,11 +19,11 @@ export function FeedList({
 			{visible.length === 0 ? (
 				<NoDataState
 					illustration="feed"
-					title="ยังไม่มีรายการให้อ่าน"
-					description="เพิ่มแหล่งที่มาติดตาม หรือบันทึกลิงก์ที่อยากอ่านไว้ที่นี่"
+					title="Nothing to read yet"
+					description="Add sources to follow or save links you want to read here"
 					action={
 						<Link to="/record-link" className={buttonVariants()}>
-							บันทึกลิงก์
+							Save Link
 						</Link>
 					}
 				/>

@@ -14,8 +14,8 @@ import type { Source } from "#/features/feed/types";
 import { useSaveSource, useSetSourceActive } from "#/hooks/queries";
 
 const sourceSchema = z.object({
-	name: z.string().trim().min(1, "กรุณาระบุชื่อ Source"),
-	rssUrl: z.url("กรุณาระบุ RSS URL ที่ถูกต้อง"),
+	name: z.string().trim().min(1, "Please enter a source name"),
+	rssUrl: z.url("Please enter a valid RSS URL"),
 });
 type SourceForm = z.infer<typeof sourceSchema>;
 
@@ -37,7 +37,7 @@ export function SourcesPage() {
 	const activationMutation = useSetSourceActive();
 	const handleSaveSuccess = () => {
 		toastManager.add({
-			title: editing ? "แก้ไข Source แล้ว" : "เพิ่ม Source แล้ว",
+			title: editing ? "Source updated" : "Source added",
 			type: "success",
 		});
 		setEditing(null);
@@ -46,7 +46,7 @@ export function SourcesPage() {
 	};
 	const handleActivationSuccess = (source: Source) => {
 		toastManager.add({
-			title: source.active ? "เปิดใช้งาน Source แล้ว" : "ปิดใช้งาน Source แล้ว",
+			title: source.active ? "Source activated" : "Source deactivated",
 			type: "success",
 		});
 	};
@@ -67,12 +67,12 @@ export function SourcesPage() {
 		<section>
 			<div className="flex flex-wrap items-start justify-between gap-4">
 				<div>
-					<h1 className="text-2xl font-bold">Sources ของคุณ</h1>
+					<h1 className="text-2xl font-bold">Your Sources</h1>
 					<p className="mt-2 text-sm text-muted-foreground">
-						เลือกแหล่งที่มาเพื่อดูบทความ
+						Choose a source to view its articles
 					</p>
 				</div>
-				<Button onClick={openCreate}>เพิ่ม Source</Button>
+				<Button onClick={openCreate}>Add Source</Button>
 			</div>
 
 			{showForm && (
@@ -87,11 +87,11 @@ export function SourcesPage() {
 					noValidate
 				>
 					<h2 className="font-semibold">
-						{editing ? "แก้ไข Source" : "เพิ่ม RSS Source"}
+						{editing ? "Edit Source" : "Add RSS Source"}
 					</h2>
 					<FormField
 						id="source-name"
-						label="ชื่อ Source"
+						label="Source name"
 						error={form.formState.errors.name?.message}
 						registration={form.register("name")}
 					/>
@@ -104,19 +104,19 @@ export function SourcesPage() {
 					/>
 					{mutation.isError && (
 						<p role="alert" className="text-sm text-destructive">
-							บันทึก Source ไม่สำเร็จ: {mutation.error.message}
+							Could not save source: {mutation.error.message}
 						</p>
 					)}
 					<div className="flex gap-2">
 						<Button type="submit" disabled={mutation.isPending}>
-							{mutation.isPending ? "กำลังบันทึก..." : "บันทึก Source"}
+							{mutation.isPending ? "Saving..." : "Save Source"}
 						</Button>
 						<Button
 							type="button"
 							variant="outline"
 							onClick={() => setShowForm(false)}
 						>
-							ยกเลิก
+							Cancel
 						</Button>
 					</div>
 				</form>
@@ -124,7 +124,7 @@ export function SourcesPage() {
 
 			{sourcesLoading && (
 				<output className="mt-8 border-t" aria-busy="true">
-					<span className="sr-only">กำลังโหลด Sources</span>
+					<span className="sr-only">Loading sources</span>
 					{["first", "second", "third"].map((row) => (
 						<div key={row} className="flex items-center gap-3 border-b py-5">
 							<div className="flex-1 space-y-2">
@@ -141,24 +141,24 @@ export function SourcesPage() {
 				<ErrorState
 					size="compact"
 					error={sourcesErrorValue ?? "Sources unavailable"}
-					message="โหลด Sources ไม่สำเร็จ ลองอีกครั้งได้เลย"
+					message="Could not load sources. Please try again"
 					action={
-						<Button onClick={() => void refetchSources()}>ลองอีกครั้ง</Button>
+						<Button onClick={() => void refetchSources()}>Try again</Button>
 					}
 				/>
 			)}
 			{activationMutation.isError && (
 				<p role="alert" className="mt-4 text-sm text-destructive">
-					เปลี่ยนสถานะ Source ไม่สำเร็จ: {activationMutation.error.message}
+					Could not update source status: {activationMutation.error.message}
 				</p>
 			)}
 			{!sourcesLoading && !sourcesError && allSources.length === 0 && (
 				<NoDataState
 					size="compact"
 					illustration="feed"
-					title="ยังไม่มี Source"
-					description="เพิ่ม RSS Source เพื่อเริ่มติดตามบทความ"
-					action={<Button onClick={openCreate}>เพิ่ม Source</Button>}
+					title="No sources yet"
+					description="Add an RSS source to start following articles"
+					action={<Button onClick={openCreate}>Add Source</Button>}
 				/>
 			)}
 			{!sourcesLoading && !sourcesError && allSources.length > 0 && (
@@ -178,7 +178,7 @@ export function SourcesPage() {
 								</Link>
 								<span className="text-xs text-muted-foreground">
 									{source.type.toUpperCase()} ·{" "}
-									{source.active ? "ใช้งานอยู่" : "ปิดใช้งาน"}
+									{source.active ? "Active" : "Inactive"}
 								</span>
 							</span>
 							{source.type === "rss" && (
@@ -188,7 +188,7 @@ export function SourcesPage() {
 										size="sm"
 										onClick={() => openEdit(source)}
 									>
-										แก้ไข {source.name}
+										Edit {source.name}
 									</Button>
 									<Button
 										variant="outline"
@@ -205,11 +205,11 @@ export function SourcesPage() {
 										{activationMutation.isPending &&
 										activationMutation.variables?.id === source.id
 											? source.active
-												? "กำลังปิดใช้งาน..."
-												: "กำลังเปิดใช้งาน..."
+												? "Deactivating..."
+												: "Activating..."
 											: source.active
-												? `ปิดใช้งาน ${source.name}`
-												: `เปิดใช้งาน ${source.name}`}
+												? `Inactive ${source.name}`
+												: `Activate ${source.name}`}
 									</Button>
 								</div>
 							)}

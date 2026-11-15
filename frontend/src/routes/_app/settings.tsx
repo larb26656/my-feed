@@ -7,8 +7,8 @@ function Settings() {
 			<h1 className="text-2xl font-bold">Settings</h1>
 			<NoDataState
 				illustration="search"
-				title="ยังไม่มีการตั้งค่า"
-				description="การตั้งค่าที่ปรับได้จะปรากฏที่นี่เมื่อพร้อมใช้งาน"
+				title="No settings yet"
+				description="Available settings will appear here when they are ready"
 			/>
 		</section>
 	);

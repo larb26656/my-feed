@@ -39,12 +39,12 @@ test("records a link, refreshes Entries, and announces success", async () => {
 	);
 
 	const user = userEvent.setup();
-	await user.type(screen.getByLabelText("ชื่อ Entry"), "A useful article");
-	await user.type(screen.getByLabelText("ลิงก์"), "https://example.com/article");
-	await user.type(screen.getByLabelText("คำอธิบาย"), "A short summary");
-	await user.click(screen.getByRole("button", { name: "บันทึกลิงก์" }));
+	await user.type(screen.getByLabelText("Entry title"), "A useful article");
+	await user.type(screen.getByLabelText("Link"), "https://example.com/article");
+	await user.type(screen.getByLabelText("Description"), "A short summary");
+	await user.click(screen.getByRole("button", { name: "Save Link" }));
 
-	expect(await screen.findByText("บันทึกลิงก์แล้ว")).toBeTruthy();
+	expect(await screen.findByText("Link saved")).toBeTruthy();
 	expect(fetchMock).toHaveBeenCalledWith(
 		"/api/v1/entries/save-link",
 		expect.objectContaining({
@@ -74,18 +74,18 @@ test("shows field validation and submission failures", async () => {
 	vi.stubGlobal("fetch", fetchMock);
 	renderPage();
 	const user = userEvent.setup();
-	await user.click(screen.getByRole("button", { name: "บันทึกลิงก์" }));
-	expect(await screen.findByText("กรุณาระบุชื่อ Entry")).toBeTruthy();
-	expect(await screen.findByText("กรุณาระบุลิงก์ที่ถูกต้อง")).toBeTruthy();
+	await user.click(screen.getByRole("button", { name: "Save Link" }));
+	expect(await screen.findByText("Please enter an entry title")).toBeTruthy();
+	expect(await screen.findByText("Please enter a valid link")).toBeTruthy();
 	expect(fetchMock).not.toHaveBeenCalled();
-	await user.type(screen.getByLabelText("ชื่อ Entry"), "A useful article");
-	await user.type(screen.getByLabelText("ลิงก์"), "https://example.com/article");
-	await user.click(screen.getByRole("button", { name: "บันทึกลิงก์" }));
+	await user.type(screen.getByLabelText("Entry title"), "A useful article");
+	await user.type(screen.getByLabelText("Link"), "https://example.com/article");
+	await user.click(screen.getByRole("button", { name: "Save Link" }));
 	expect((await screen.findByRole("alert")).textContent).toContain(
-		"บันทึกลิงก์ไม่สำเร็จ: Request failed (422)",
+		"Could not save link: Request failed (422)",
 	);
 	expect(
-		await screen.findByRole("heading", { name: "บันทึกลิงก์ไม่สำเร็จ" }),
+		await screen.findByRole("heading", { name: "Could not save link" }),
 	).toBeTruthy();
 });
 
@@ -94,13 +94,13 @@ test("shows a field error for an invalid publication date without submitting", a
 	vi.stubGlobal("fetch", fetchMock);
 	renderPage();
 	const user = userEvent.setup();
-	await user.type(screen.getByLabelText("ชื่อ Entry"), "A useful article");
-	await user.type(screen.getByLabelText("ลิงก์"), "https://example.com/article");
-	const publishedAt = screen.getByLabelText("วันที่เผยแพร่ (ไม่บังคับ)");
+	await user.type(screen.getByLabelText("Entry title"), "A useful article");
+	await user.type(screen.getByLabelText("Link"), "https://example.com/article");
+	const publishedAt = screen.getByLabelText("Publication date (optional)");
 	publishedAt.setAttribute("type", "text");
 	fireEvent.change(publishedAt, { target: { value: "not-a-date" } });
-	await user.click(screen.getByRole("button", { name: "บันทึกลิงก์" }));
+	await user.click(screen.getByRole("button", { name: "Save Link" }));
 
-	expect(await screen.findByText("กรุณาระบุวันที่เผยแพร่ที่ถูกต้อง")).toBeTruthy();
+	expect(await screen.findByText("Please enter a valid publication date")).toBeTruthy();
 	expect(fetchMock).not.toHaveBeenCalled();
 });

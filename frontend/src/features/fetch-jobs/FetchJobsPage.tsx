@@ -10,11 +10,11 @@ import { useCreateFetchJob, useFetchJob } from "#/hooks/queries";
 const exampleHistory = [
 	{
 		id: "example-succeeded",
-		source: "ตัวอย่าง RSS",
-		status: "สำเร็จ",
+		source: "Sample RSS",
+		status: "Succeeded",
 		entries: 3,
 	},
-	{ id: "example-failed", source: "ตัวอย่าง RSS", status: "ล้มเหลว", entries: 0 },
+	{ id: "example-failed", source: "Sample RSS", status: "Failed", entries: 0 },
 ];
 
 export function FetchJobsPage() {
@@ -39,11 +39,11 @@ export function FetchJobsPage() {
 		<div className="space-y-10">
 			<header>
 				<p className="text-xs font-bold uppercase tracking-widest text-primary">
-					เครื่องมือ
+					Tools
 				</p>
 				<h1 className="mt-2 text-3xl font-bold tracking-tight">Fetch Jobs</h1>
 				<p className="mt-2 text-muted-foreground">
-					เริ่ม Fetch Source และติดตามสถานะของงานล่าสุด
+					Start a source fetch and track the latest job status
 				</p>
 			</header>
 
@@ -52,11 +52,11 @@ export function FetchJobsPage() {
 				aria-labelledby="start-fetch-title"
 			>
 				<h2 id="start-fetch-title" className="text-lg font-semibold">
-					เริ่ม Fetch
+					Start Fetch
 				</h2>
 				<div className="mt-4 flex flex-col gap-3 sm:flex-row">
 					<label className="flex-1 text-sm font-medium" htmlFor="fetch-source">
-						Source ที่ต้องการ Fetch
+						Source to fetch
 						<select
 							id="fetch-source"
 							className="mt-2 block h-11 w-full rounded-lg border bg-background px-3"
@@ -64,7 +64,7 @@ export function FetchJobsPage() {
 							onChange={(event) => setSourceId(event.target.value)}
 							disabled={sourcesLoading || fetchableSources.length === 0}
 						>
-							<option value="">เลือก Source</option>
+							<option value="">Select a source</option>
 							{fetchableSources.map((source) => (
 								<option key={source.id} value={source.id}>
 									{source.name}
@@ -84,12 +84,12 @@ export function FetchJobsPage() {
 							})
 						}
 					>
-						{createJob.isPending ? "กำลังเริ่ม..." : "เริ่ม Fetch"}
+						{createJob.isPending ? "Starting..." : "Start Fetch"}
 					</button>
 				</div>
 				{sourcesLoading && (
 					<output className="mt-3 space-y-2" aria-busy="true">
-						<span className="sr-only">กำลังโหลด Sources</span>
+						<span className="sr-only">Loading sources</span>
 						<Skeleton className="h-3 w-28" />
 						<Skeleton className="h-11 w-full rounded-lg" />
 					</output>
@@ -98,9 +98,9 @@ export function FetchJobsPage() {
 					<ErrorState
 						size="compact"
 						error={sourcesErrorValue ?? "Sources unavailable"}
-						message="โหลด Sources ไม่สำเร็จ ลองอีกครั้งได้เลย"
+						message="Could not load sources. Please try again"
 						action={
-							<Button onClick={() => void refetchSources()}>ลองอีกครั้ง</Button>
+							<Button onClick={() => void refetchSources()}>Try again</Button>
 						}
 					/>
 				)}
@@ -108,13 +108,13 @@ export function FetchJobsPage() {
 					<NoDataState
 						size="compact"
 						illustration="feed"
-						title="ยังไม่มี Source ที่ Fetch ได้"
-						description="เพิ่มหรือเปิดใช้งาน RSS Source ก่อนเริ่ม Fetch"
+						title="No sources available to fetch"
+						description="Add or activate an RSS source before fetching"
 					/>
 				)}
 				{createJob.isError && (
 					<p role="alert" className="mt-3 text-sm text-destructive">
-						เริ่ม Fetch ไม่สำเร็จ กรุณาลองอีกครั้ง
+						Could not start fetch. Please try again
 					</p>
 				)}
 			</section>
@@ -124,19 +124,19 @@ export function FetchJobsPage() {
 				aria-labelledby="current-job-title"
 			>
 				<h2 id="current-job-title" className="text-lg font-semibold">
-					Fetch Job ล่าสุด
+					Latest Fetch Job
 				</h2>
 				{!jobId && (
 					<NoDataState
 						size="compact"
 						illustration="sleeping"
-						title="ยังไม่มี Fetch Job"
-						description="เลือก Source แล้วเริ่ม Fetch เพื่อดูสถานะงานที่นี่"
+						title="No fetch jobs yet"
+						description="Select a source and start a fetch to see its status here"
 					/>
 				)}
 				{jobQuery.isLoading && (
 					<output className="mt-3 space-y-2" aria-busy="true">
-						<span className="sr-only">กำลังโหลดสถานะ Fetch Job</span>
+						<span className="sr-only">Loading fetch job status</span>
 						<Skeleton className="h-4 w-48" />
 						<Skeleton className="h-4 w-36" />
 					</output>
@@ -145,37 +145,37 @@ export function FetchJobsPage() {
 					<ErrorState
 						size="compact"
 						error={jobQuery.error}
-						message="โหลดสถานะ Fetch Job ไม่สำเร็จ"
+						message="Could not load fetch job status"
 						action={
-							<Button onClick={() => void jobQuery.refetch()}>ลองอีกครั้ง</Button>
+							<Button onClick={() => void jobQuery.refetch()}>Try again</Button>
 						}
 					/>
 				)}
 				{job && (
 					<div className="mt-3 space-y-1 text-sm">
 						<p>
-							สถานะ:{" "}
+							Status:{" "}
 							<strong>
 								{job.status === "pending"
-									? "รอดำเนินการ"
+									? "Pending"
 									: job.status === "running"
-										? "กำลังทำงาน"
+										? "In progress"
 										: job.status === "succeeded"
-											? "สำเร็จ"
-											: "ล้มเหลว"}
+											? "Succeeded"
+											: "Failed"}
 							</strong>
 						</p>
 						{job.status === "succeeded" && (
-							<p>พบ Entry ใหม่ {job.entriesCreated} รายการ</p>
+							<p>New entries found: {job.entriesCreated}</p>
 						)}
 						{job.status === "failed" && (
 							<p role="alert" className="text-destructive">
-								ล้มเหลวหลังลอง {job.attempt} จาก {job.maxAttempts} ครั้ง โดย API
-								ไม่ได้ส่งรายละเอียดความผิดพลาดกลับมา
+								Failed after {job.attempt} of {job.maxAttempts} attempts. The API
+								did not return error details
 							</p>
 						)}
 						{!terminal && (
-							<p className="text-muted-foreground">กำลังติดตามสถานะ...</p>
+							<p className="text-muted-foreground">Tracking status...</p>
 						)}
 					</div>
 				)}
@@ -186,10 +186,10 @@ export function FetchJobsPage() {
 				aria-labelledby="example-history-title"
 			>
 				<h2 id="example-history-title" className="text-lg font-semibold">
-					ตัวอย่างประวัติ
+					Sample History
 				</h2>
 				<p className="mt-1 text-sm text-muted-foreground">
-					ข้อมูลจำลองเพื่อแสดงตัวอย่างเท่านั้น ไม่ใช่ประวัติ Fetch จริง
+					Sample data for display only; this is not actual fetch history
 				</p>
 				<ul className="mt-4 divide-y">
 					{exampleHistory.map((item) => (

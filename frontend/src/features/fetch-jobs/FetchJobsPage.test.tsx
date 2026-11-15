@@ -62,18 +62,18 @@ test("starts a Fetch Job for a selected fetchable Source and tracks it", async (
 		</QueryClientProvider>,
 	);
 	const user = userEvent.setup();
-	const sourceSelect = await screen.findByLabelText("Source ที่ต้องการ Fetch");
+	const sourceSelect = await screen.findByLabelText("Source to fetch");
 	expect(
 		await screen.findByRole("option", { name: "Engineering Blog" }),
 	).toBeTruthy();
 	expect(screen.queryByRole("option", { name: "Saved links" })).toBeNull();
 	expect(screen.queryByRole("option", { name: "Old Blog" })).toBeNull();
 	await user.selectOptions(sourceSelect, "rss-1");
-	await user.click(screen.getByRole("button", { name: "เริ่ม Fetch" }));
+	await user.click(screen.getByRole("button", { name: "Start Fetch" }));
 	await waitFor(() =>
-		expect(screen.getByText("สำเร็จ", { selector: "strong" })).toBeTruthy(),
+		expect(screen.getByText("Succeeded", { selector: "strong" })).toBeTruthy(),
 	);
-	expect(screen.getByText(/พบ Entry ใหม่ 4 รายการ/)).toBeTruthy();
+	expect(screen.getByText(/New entries found: 4/)).toBeTruthy();
 	expect(calls).toContainEqual({ url: "/api/v1/fetch-jobs/", method: "POST" });
 	expect(calls).toContainEqual({
 		url: "/api/v1/fetch-jobs/job-1",
@@ -136,22 +136,22 @@ test("continues polling while a Fetch Job runs and shows a terminal failure", as
 	const user = userEvent.setup();
 	await screen.findByRole("option", { name: "Blog" });
 	await user.selectOptions(
-		screen.getByLabelText("Source ที่ต้องการ Fetch"),
+		screen.getByLabelText("Source to fetch"),
 		"rss-1",
 	);
-	await user.click(screen.getByRole("button", { name: "เริ่ม Fetch" }));
-	await screen.findByText("กำลังทำงาน");
+	await user.click(screen.getByRole("button", { name: "Start Fetch" }));
+	await screen.findByText("In progress");
 	await waitFor(() => expect(statusReads).toBeGreaterThanOrEqual(2), {
 		timeout: 3000,
 	});
 	await waitFor(() =>
 		expect(
 			screen.getByText(
-				"ล้มเหลวหลังลอง 3 จาก 3 ครั้ง โดย API ไม่ได้ส่งรายละเอียดความผิดพลาดกลับมา",
+				"Failed after 3 of 3 attempts. The API did not return error details",
 			),
 		).toBeTruthy(),
 	);
-	expect(screen.getByText(/ข้อมูลจำลองเพื่อแสดงตัวอย่างเท่านั้น/)).toBeTruthy();
+	expect(screen.getByText(/Sample data for display only/)).toBeTruthy();
 });
 
 test("shows an error when the backend cannot start a Fetch Job", async () => {
@@ -183,9 +183,9 @@ test("shows an error when the backend cannot start a Fetch Job", async () => {
 	const user = userEvent.setup();
 	await screen.findByRole("option", { name: "Blog" });
 	await user.selectOptions(
-		screen.getByLabelText("Source ที่ต้องการ Fetch"),
+		screen.getByLabelText("Source to fetch"),
 		"rss-1",
 	);
-	await user.click(screen.getByRole("button", { name: "เริ่ม Fetch" }));
-	await screen.findByText("เริ่ม Fetch ไม่สำเร็จ กรุณาลองอีกครั้ง");
+	await user.click(screen.getByRole("button", { name: "Start Fetch" }));
+	await screen.findByText("Could not start fetch. Please try again");
 });

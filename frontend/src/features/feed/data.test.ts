@@ -9,9 +9,9 @@ test("surfaces the backend error message for a failed API response", async () =>
 		vi.fn(async () => ({
 			ok: false,
 			status: 422,
-			json: async () => ({ error: "ลิงก์ไม่ถูกต้อง", code: "INVALID_LINK" }),
+			json: async () => ({ error: "Invalid link", code: "INVALID_LINK" }),
 		})),
 	);
 
-	await expect(api("/entries/save-link")).rejects.toThrow("ลิงก์ไม่ถูกต้อง");
+	await expect(api("/entries/save-link")).rejects.toThrow("Invalid link");
 });

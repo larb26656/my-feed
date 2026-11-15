@@ -32,10 +32,10 @@ export function FeedFilters({
 					aria-pressed={savedOnly}
 					onClick={() => setSavedOnly(!savedOnly)}
 				>
-					บันทึกไว้
+					Saved
 				</Button>
 			</div>
-			<span className="text-xs text-muted-foreground">ล่าสุดก่อน ↓</span>
+			<span className="text-xs text-muted-foreground">Newest first ↓</span>
 		</div>
 	);
 }

@@ -7,16 +7,16 @@ import { toastManager } from "#/components/ui/toaster";
 import { useSaveLink } from "#/hooks/queries";
 
 const recordLinkSchema = z.object({
-	title: z.string().trim().min(1, "กรุณาระบุชื่อ Entry"),
-	link: z.url("กรุณาระบุลิงก์ที่ถูกต้อง"),
+	title: z.string().trim().min(1, "Please enter an entry title"),
+	link: z.url("Please enter a valid link"),
 	description: z.string().trim(),
-	thumbnail: z.union([z.literal(""), z.url("กรุณาระบุ URL รูปภาพที่ถูกต้อง")]),
+	thumbnail: z.union([z.literal(""), z.url("Please enter a valid image URL")]),
 	publishedAt: z
 		.string()
 		.refine(
 			(value) =>
 				!value || z.iso.datetime({ local: true }).safeParse(value).success,
-			"กรุณาระบุวันที่เผยแพร่ที่ถูกต้อง",
+			"Please enter a valid publication date",
 		),
 });
 
@@ -46,12 +46,12 @@ export function RecordLinkPage() {
 			},
 			{
 				onSuccess: () => {
-					toastManager.add({ title: "บันทึกลิงก์แล้ว", type: "success" });
+					toastManager.add({ title: "Link saved", type: "success" });
 					form.reset();
 				},
 				onError: (error) => {
 					toastManager.add({
-						title: "บันทึกลิงก์ไม่สำเร็จ",
+						title: "Could not save link",
 						description: error.message,
 						type: "error",
 					});
@@ -62,9 +62,9 @@ export function RecordLinkPage() {
 
 	return (
 		<section>
-			<h1 className="text-2xl font-bold">บันทึกลิงก์</h1>
+			<h1 className="text-2xl font-bold">Save Link</h1>
 			<p className="mt-2 text-sm text-muted-foreground">
-				เพิ่มลิงก์เป็น Entry ใน Source “Saved links”
+				Add a link as an entry in the “Saved links” source
 			</p>
 			<form
 				className="mt-6 space-y-4 rounded-xl border bg-card p-5"
@@ -73,44 +73,44 @@ export function RecordLinkPage() {
 			>
 				<FormField
 					id="entry-title"
-					label="ชื่อ Entry"
+					label="Entry title"
 					error={form.formState.errors.title?.message}
 					registration={form.register("title")}
 				/>
 				<FormField
 					id="entry-link"
-					label="ลิงก์"
+					label="Link"
 					type="url"
 					error={form.formState.errors.link?.message}
 					registration={form.register("link")}
 				/>
 				<FormField
 					id="entry-description"
-					label="คำอธิบาย"
+					label="Description"
 					error={form.formState.errors.description?.message}
 					registration={form.register("description")}
 				/>
 				<FormField
 					id="entry-thumbnail"
-					label="URL รูปภาพ (ไม่บังคับ)"
+					label="Image URL (optional)"
 					type="url"
 					error={form.formState.errors.thumbnail?.message}
 					registration={form.register("thumbnail")}
 				/>
 				<FormField
 					id="entry-published-at"
-					label="วันที่เผยแพร่ (ไม่บังคับ)"
+					label="Publication date (optional)"
 					type="datetime-local"
 					error={form.formState.errors.publishedAt?.message}
 					registration={form.register("publishedAt")}
 				/>
 				{mutation.isError && (
 					<p role="alert" className="text-sm text-destructive">
-						บันทึกลิงก์ไม่สำเร็จ: {mutation.error.message}
+						Could not save link: {mutation.error.message}
 					</p>
 				)}
 				<Button type="submit" disabled={mutation.isPending}>
-					{mutation.isPending ? "กำลังบันทึก..." : "บันทึกลิงก์"}
+					{mutation.isPending ? "Saving..." : "Save Link"}
 				</Button>
 			</form>
 		</section>

@@ -39,5 +39,5 @@ export type FetchJob = {
 	entriesCreated: number;
 };
 
-export const filters = ["ทั้งหมด", "ยังไม่อ่าน"] as const;
+export const filters = ["All", "Unread"] as const;
 export type FeedFilter = (typeof filters)[number];

@@ -12,7 +12,7 @@ export type ErrorStateProps = Omit<
 export function ErrorState({
 	error,
 	message,
-	title = "เกิดข้อผิดพลาด",
+	title = "An error occurred",
 	illustration = "error",
 	...props
 }: ErrorStateProps) {
@@ -22,7 +22,7 @@ export function ErrorState({
 	return (
 		<EmptyState
 			{...props}
-			description={description || "ไม่สามารถดำเนินการได้ในขณะนี้"}
+			description={description || "This action is unavailable right now"}
 			title={title}
 			illustration={illustration}
 			role="alert"

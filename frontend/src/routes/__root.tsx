@@ -39,12 +39,12 @@ function NotFound() {
 			<EmptyState
 				size="screen"
 				illustration="/empty-states/confused.png"
-				imageAlt="มาสคอตกำลังสงสัย"
-				title="ไม่พบหน้านี้"
-				description="หน้าที่คุณกำลังหาอาจถูกย้ายหรือลบไปแล้ว"
+				imageAlt="Curious mascot"
+				title="Page not found"
+				description="The page you are looking for may have been moved or deleted"
 				action={
 					<Link to="/" className="text-primary underline underline-offset-4">
-						กลับไปที่ฟีด
+						Back to feed
 					</Link>
 				}
 			/>
@@ -58,13 +58,13 @@ function GlobalError({ error, reset }: { error: Error; reset: () => void }) {
 			<ErrorState
 				size="screen"
 				error={error}
-				title="เกิดข้อผิดพลาดที่ไม่คาดคิด"
-				message="ระบบไม่สามารถแสดงหน้านี้ได้ ลองอีกครั้งหรือกลับไปที่ฟีด"
+				title="Unexpected error"
+				message="We could not display this page. Try again or return to the feed"
 				action={
 					<div className="flex flex-wrap justify-center gap-3">
-						<Button onClick={reset}>ลองอีกครั้ง</Button>
+						<Button onClick={reset}>Try again</Button>
 						<Button variant="outline" render={<Link to="/" />}>
-							กลับไปที่ฟีด
+							Back to feed
 						</Button>
 					</div>
 				}

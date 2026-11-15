@@ -16,14 +16,14 @@ export function FeedPage({
 	sourceId?: string;
 	savedOnly?: boolean;
 }) {
-	const [filter, setFilter] = useState<FeedFilter>("ทั้งหมด");
+	const [filter, setFilter] = useState<FeedFilter>("All");
 	const { allSources } = useFeedState();
 	const [savedFilter, setSavedFilter] = useState(savedOnly);
 	const loadMoreRef = useRef<HTMLDivElement>(null);
 	const query = useEntries({
 		sourceId,
 		savedOnly: savedFilter,
-		unread: filter === "ยังไม่อ่าน",
+		unread: filter === "Unread",
 	});
 	const mutation = useToggleEntry();
 	const visible = query.data?.pages.flatMap((page) => page.data) ?? [];
@@ -53,19 +53,19 @@ export function FeedPage({
 					})}
 				>
 					<ArrowLeft data-icon="inline-start" />
-					Sources ทั้งหมด
+					All Sources
 				</Link>
 			)}
 			<div className="mb-6 flex items-center justify-between gap-3">
 				<h1 className="text-2xl font-bold">
 					{allSources.find((source) => source.id === sourceId)?.name ??
-						(savedOnly ? "บันทึกไว้" : "ฟีดของฉัน")}
+						(savedOnly ? "Saved" : "My Feed")}
 				</h1>
 				<Link
 					to="/record-link"
 					className={buttonVariants({ variant: "outline", size: "sm" })}
 				>
-					บันทึกลิงก์
+					Save Link
 				</Link>
 			</div>
 			<FeedFilters
@@ -79,9 +79,9 @@ export function FeedPage({
 			) : query.isError ? (
 				<ErrorState
 					error={query.error}
-					message="โหลดรายการไม่สำเร็จ ลองอีกครั้งได้เลย"
+					message="Could not load entries. Please try again"
 					action={
-						<Button onClick={() => void query.refetch()}>ลองอีกครั้ง</Button>
+						<Button onClick={() => void query.refetch()}>Try again</Button>
 					}
 				/>
 			) : (
@@ -92,14 +92,14 @@ export function FeedPage({
 					onToggle={(entry, action) => mutation.mutate({ entry, action })}
 				/>
 			)}
-			{mutation.isError && <p role="alert">ไม่สามารถอัปเดตรายการได้</p>}
+			{mutation.isError && <p role="alert">Could not update the entry</p>}
 			{query.hasNextPage && (
 				<div ref={loadMoreRef} className="flex min-h-12 items-center justify-center">
-					{query.isFetchingNextPage && <p role="status">กำลังโหลด...</p>}
+					{query.isFetchingNextPage && <p role="status">Loading...</p>}
 					{query.isFetchNextPageError && (
 						<div className="flex items-center gap-3">
-							<p role="alert">ไม่สามารถโหลดรายการเพิ่มเติมได้</p>
-							<Button onClick={() => void query.fetchNextPage()}>ลองอีกครั้ง</Button>
+							<p role="alert">Could not load more entries</p>
+							<Button onClick={() => void query.fetchNextPage()}>Try again</Button>
 						</div>
 					)}
 				</div>

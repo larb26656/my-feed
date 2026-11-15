@@ -93,19 +93,19 @@ export function FeedItem({
 						onClick={() => onToggle(entry, "read")}
 						aria-label={
 							read
-								? `ทำเครื่องหมาย ${entry.title} ว่ายังไม่อ่าน`
-								: `ทำเครื่องหมาย ${entry.title} ว่าอ่านแล้ว`
+								? `Mark ${entry.title} as unread`
+								: `Mark ${entry.title} as read`
 						}
 						aria-pressed={read}
-						title={read ? "อ่านแล้ว" : "ทำเครื่องหมายว่าอ่านแล้ว"}
+						title={read ? "Read" : "Mark as read"}
 						className="inline-flex h-8 items-center justify-center rounded-md hover:bg-muted disabled:opacity-50"
 					>
 						{read ? <CircleCheck size={19} /> : <BookOpenCheck size={19} />}
 					</button>
 					<button
 						onClick={copyLink}
-						aria-label={copied ? "คัดลอกลิงก์แล้ว" : "คัดลอกลิงก์"}
-						title={copied ? "คัดลอกลิงก์แล้ว" : "คัดลอกลิงก์"}
+						aria-label={copied ? "Link copied" : "Copy link"}
+						title={copied ? "Link copied" : "Copy link"}
 						className="inline-flex h-8 items-center justify-center rounded-md hover:bg-muted"
 					>
 						{copied ? (
@@ -118,10 +118,10 @@ export function FeedItem({
 						disabled={disabled}
 						onClick={() => onToggle(entry, "save")}
 						aria-label={
-							saved ? `นำ ${entry.title} ออกจาก Saved` : `บันทึก ${entry.title}`
+							saved ? `Remove ${entry.title} from Saved` : `Save ${entry.title}`
 						}
 						aria-pressed={saved}
-						title={saved ? "นำออกจากบันทึกไว้" : "บันทึกไว้"}
+						title={saved ? "Remove from saved" : "Saved"}
 						className="inline-flex h-8 items-center justify-center rounded-md hover:bg-muted disabled:opacity-50"
 					>
 						<Bookmark

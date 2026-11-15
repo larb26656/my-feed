@@ -3,19 +3,19 @@ import type { ReactNode } from "react";
 export const EMPTY_STATE_ILLUSTRATIONS = {
 	feed: {
 		src: "/empty-states/feed-empty.png",
-		alt: "มาสคอตถือกล่องรวมรายการอ่าน",
+		alt: "Mascot holding a box of reading items",
 	},
 	saved: {
 		src: "/empty-states/saved-items.png",
-		alt: "มาสคอตถือที่คั่นรายการที่บันทึกไว้",
+		alt: "Mascot holding a saved items bookmark",
 	},
 	search: {
 		src: "/empty-states/search-empty.png",
-		alt: "มาสคอตกำลังค้นหา",
+		alt: "Mascot searching",
 	},
 	error: {
 		src: "/empty-states/error.png",
-		alt: "มาสคอตแสดงสัญลักษณ์ข้อผิดพลาด",
+		alt: "Mascot showing an error symbol",
 	},
 } as const;
 

@@ -12,11 +12,11 @@ export function MobileNavigation() {
 	return (
 		<nav
 			className="fixed inset-x-0 bottom-0 z-10 flex h-16 justify-around border-t bg-card md:hidden"
-			aria-label="เมนูหลัก"
+			aria-label="Main navigation"
 		>
 			<Link to="/" activeOptions={{ exact: true }} className={className}>
 				<Layers3 />
-				ฟีดของฉัน
+				My Feed
 			</Link>
 			<Link to="/fetch-jobs" className={className}>
 				<RefreshCw />
@@ -25,9 +25,9 @@ export function MobileNavigation() {
 			<Link to="/saved" className={className}>
 				<Bookmark />
 				<span>
-					บันทึกไว้
+					Saved
 					{savedCountError ? (
-						<span role="alert" aria-label="จำนวน Saved โหลดไม่สำเร็จ">
+						<span role="alert" aria-label="Could not load saved count">
 							{" "}
 							(!)
 						</span>

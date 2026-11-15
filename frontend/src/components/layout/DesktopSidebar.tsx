@@ -22,14 +22,14 @@ export function DesktopSidebar() {
 			<p className="mt-14 px-3 text-[10px] font-bold tracking-widest text-muted-foreground">
 				YOUR SPACE
 			</p>
-			<nav className="mt-3 flex flex-col gap-1" aria-label="เมนูหลัก">
+			<nav className="mt-3 flex flex-col gap-1" aria-label="Main navigation">
 				<Link
 					to="/"
 					className={navClass(path === "/", "h-11 justify-start")}
 					activeOptions={{ exact: true }}
 				>
 					<Layers3 data-icon="inline-start" />
-					ฟีดของฉัน
+					My Feed
 				</Link>
 				<Link
 					to="/fetch-jobs"
@@ -43,12 +43,12 @@ export function DesktopSidebar() {
 					className={navClass(path === "/saved", "h-11 justify-start")}
 				>
 					<Bookmark data-icon="inline-start" />
-					บันทึกไว้
+					Saved
 					{savedCountError ? (
 						<span
 							className="ml-auto"
 							role="alert"
-							aria-label="จำนวน Saved โหลดไม่สำเร็จ"
+							aria-label="Could not load saved count"
 						>
 							!
 						</span>
@@ -84,7 +84,7 @@ export function DesktopSidebar() {
 						"mt-2 justify-start text-xs",
 					)}
 				>
-					จัดการ Sources
+					Manage Sources
 				</Link>
 			</div>
 			<Link
