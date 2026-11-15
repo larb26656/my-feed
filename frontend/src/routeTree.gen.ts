@@ -9,50 +9,152 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppSavedRouteImport } from './routes/_app/saved'
+import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppSourcesIndexRouteImport } from './routes/_app/sources/index'
+import { Route as AppSourcesSourceIdRouteImport } from './routes/_app/sources/$sourceId'
 
-const IndexRoute = IndexRouteImport.update({
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSavedRoute = AppSavedRouteImport.update({
+  id: '/saved',
+  path: '/saved',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSourcesIndexRoute = AppSourcesIndexRouteImport.update({
+  id: '/sources/',
+  path: '/sources/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSourcesSourceIdRoute = AppSourcesSourceIdRouteImport.update({
+  id: '/sources/$sourceId',
+  path: '/sources/$sourceId',
+  getParentRoute: () => AppRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof AppIndexRoute
+  '/saved': typeof AppSavedRoute
+  '/settings': typeof AppSettingsRoute
+  '/sources/$sourceId': typeof AppSourcesSourceIdRoute
+  '/sources/': typeof AppSourcesIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/saved': typeof AppSavedRoute
+  '/settings': typeof AppSettingsRoute
+  '/': typeof AppIndexRoute
+  '/sources/$sourceId': typeof AppSourcesSourceIdRoute
+  '/sources': typeof AppSourcesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_app': typeof AppRouteWithChildren
+  '/_app/saved': typeof AppSavedRoute
+  '/_app/settings': typeof AppSettingsRoute
+  '/_app/': typeof AppIndexRoute
+  '/_app/sources/$sourceId': typeof AppSourcesSourceIdRoute
+  '/_app/sources/': typeof AppSourcesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/saved' | '/settings' | '/sources/$sourceId' | '/sources/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/saved' | '/settings' | '/' | '/sources/$sourceId' | '/sources'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/_app/saved'
+    | '/_app/settings'
+    | '/_app/'
+    | '/_app/sources/$sourceId'
+    | '/_app/sources/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/': {
+      id: '/_app/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/saved': {
+      id: '/_app/saved'
+      path: '/saved'
+      fullPath: '/saved'
+      preLoaderRoute: typeof AppSavedRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sources/': {
+      id: '/_app/sources/'
+      path: '/sources'
+      fullPath: '/sources/'
+      preLoaderRoute: typeof AppSourcesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sources/$sourceId': {
+      id: '/_app/sources/$sourceId'
+      path: '/sources/$sourceId'
+      fullPath: '/sources/$sourceId'
+      preLoaderRoute: typeof AppSourcesSourceIdRouteImport
+      parentRoute: typeof AppRoute
     }
   }
 }
 
+interface AppRouteChildren {
+  AppSavedRoute: typeof AppSavedRoute
+  AppSettingsRoute: typeof AppSettingsRoute
+  AppIndexRoute: typeof AppIndexRoute
+  AppSourcesSourceIdRoute: typeof AppSourcesSourceIdRoute
+  AppSourcesIndexRoute: typeof AppSourcesIndexRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppSavedRoute: AppSavedRoute,
+  AppSettingsRoute: AppSettingsRoute,
+  AppIndexRoute: AppIndexRoute,
+  AppSourcesSourceIdRoute: AppSourcesSourceIdRoute,
+  AppSourcesIndexRoute: AppSourcesIndexRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
