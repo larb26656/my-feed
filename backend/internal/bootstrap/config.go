@@ -9,15 +9,15 @@ import (
 )
 
 const (
-	defaultDatabaseURL = "postgres://quickfeed:quickfeed@localhost:54330/quick_feed?sslmode=disable"
-	defaultHTTPAddr    = ":8080"
+	defaultDatabasePath = "data/quick-feed.db"
+	defaultHTTPAddr     = ":8080"
 )
 
 // Config holds process settings loaded from the environment.
 type Config struct {
-	DatabaseURL string
-	HTTPAddr    string
-	Fetch       FetchConfig
+	DatabasePath string
+	HTTPAddr     string
+	Fetch        FetchConfig
 }
 
 // FetchConfig holds in-process Fetch Job scheduler/executor settings.
@@ -31,8 +31,8 @@ type FetchConfig struct {
 // value is missing or invalid. All fields currently have defaults.
 func LoadConfig() (Config, error) {
 	return Config{
-		DatabaseURL: envString("DATABASE_URL", defaultDatabaseURL),
-		HTTPAddr:    envString("HTTP_ADDR", defaultHTTPAddr),
+		DatabasePath: envString("DATABASE_PATH", defaultDatabasePath),
+		HTTPAddr:     envString("HTTP_ADDR", defaultHTTPAddr),
 		Fetch: FetchConfig{
 			RetryBackoff:     envDuration("FETCH_RETRY_BACKOFF", fetchsvc.DefaultRetryBackoff),
 			ScheduleInterval: envDuration("FETCH_SCHEDULE_INTERVAL", fetchsvc.DefaultScheduleInterval),

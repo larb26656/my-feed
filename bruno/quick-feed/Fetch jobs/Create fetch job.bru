@@ -1,0 +1,21 @@
+meta {
+  name: Create fetch job
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/fetch-jobs/
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "sourceId": "{{sourceId}}"
+  }
+}

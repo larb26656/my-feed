@@ -37,7 +37,7 @@ func (s *Service) Publish(ctx context.Context, id uuid.UUID) (*domain.Product, e
 **หน้าที่:** orchestrate หลาย port ใน **transaction เดียว**
 
 ```go
-err := s.db.WithinTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+err := s.db.WithinTransaction(ctx, func(ctx context.Context, tx database.Transaction) error {
     products := s.products.WithTx(tx)
     coupons := s.coupons.WithTx(tx)
     orders := s.orders.WithTx(tx)
@@ -53,7 +53,7 @@ err := s.db.WithinTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 
 | ทำ | ไม่ทำ |
 |----|------|
-| Inject **ports** ของ module ที่เกี่ยวข้อง | Import `adapter/postgres` ของ module อื่น |
+| Inject **ports** ของ module ที่เกี่ยวข้อง | Import `adapter/sqlite` ของ module อื่น |
 | ใช้ `WithTx(tx)` ทุก repo ใน tx | Commit เองใน service ย่อย |
 | Idempotency เช็กก่อน/ใน tx ถ้ามี key | กลืน error แล้ว partial success |
 | Domain ตรวจ “ทำได้ไหม” ก่อนเขียน | เขียน SQL ใน use case |

@@ -1,0 +1,23 @@
+meta {
+  name: Create source
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/sources/
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Example RSS",
+    "type": "rss",
+    "rssUrl": "https://example.com/feed.xml"
+  }
+}

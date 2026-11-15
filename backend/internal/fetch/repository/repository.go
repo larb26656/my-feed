@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
+	"github.com/larb26656/quick-feed/backend/internal/platform/database"
 
 	"github.com/larb26656/quick-feed/backend/internal/fetch/domain"
 )
@@ -22,5 +22,5 @@ type Repository interface {
 	// Returns FailedPrecondition when another claimer won or backoff has not elapsed.
 	ClaimFetchJob(ctx context.Context, id uuid.UUID, now time.Time) (*domain.FetchJob, error)
 	UpdateFetchJob(ctx context.Context, job *domain.FetchJob) error
-	WithTx(tx pgx.Tx) Repository
+	WithTx(tx database.Transaction) Repository
 }

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
+	"github.com/larb26656/quick-feed/backend/internal/platform/database"
 	"github.com/stretchr/testify/require"
 
 	"github.com/larb26656/quick-feed/backend/internal/platform/apperr"
@@ -99,7 +99,7 @@ func (f *fakeRepo) GetManualSource(_ context.Context) (*domain.Source, error) {
 	return nil, apperr.NotFound("source not found")
 }
 
-func (f *fakeRepo) WithTx(_ pgx.Tx) repository.Repository {
+func (f *fakeRepo) WithTx(_ database.Transaction) repository.Repository {
 	return f
 }
 

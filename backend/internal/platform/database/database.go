@@ -2,48 +2,87 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
-	"time"
+	"net/url"
+	"os"
+	"path/filepath"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	_ "modernc.org/sqlite"
 )
 
+const (
+	busyTimeoutMS = 5000
+	maxOpenConns  = 1
+)
+
+// Transaction is an opaque transaction handle shared by application ports.
+// Database adapters interpret the handle for their own driver.
+type Transaction interface{}
+
+// Transactor runs application work atomically without exposing driver types.
+type Transactor interface {
+	WithinTransaction(ctx context.Context, fn func(ctx context.Context, tx Transaction) error) error
+}
+
+// Pool owns the single SQLite connection used by this backend instance.
 type Pool struct {
-	*pgxpool.Pool
+	*sql.DB
 }
 
-func NewPool(ctx context.Context, databaseURL string) (*Pool, error) {
-	cfg, err := pgxpool.ParseConfig(databaseURL)
-	if err != nil {
-		return nil, fmt.Errorf("parse database url: %w", err)
+// NewPool opens a persistent SQLite database at path. SQLite serializes writes;
+// a single connection also queues in-process reads and writes behind transactions.
+func NewPool(ctx context.Context, path string) (*Pool, error) {
+	if path == "" {
+		return nil, fmt.Errorf("database path must not be empty")
 	}
-	cfg.MaxConns = 20
-	cfg.MinConns = 2
-	cfg.MaxConnLifetime = 30 * time.Minute
+	if path != ":memory:" {
+		absPath, err := filepath.Abs(path)
+		if err != nil {
+			return nil, fmt.Errorf("resolve database path: %w", err)
+		}
+		if err := os.MkdirAll(filepath.Dir(absPath), 0o755); err != nil {
+			return nil, fmt.Errorf("create database directory: %w", err)
+		}
+		path = absPath
+	}
 
-	pool, err := pgxpool.NewWithConfig(ctx, cfg)
+	dsn := sqliteDSN(path)
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
-		return nil, fmt.Errorf("connect database: %w", err)
+		return nil, fmt.Errorf("open SQLite database: %w", err)
 	}
-	if err := pool.Ping(ctx); err != nil {
-		pool.Close()
-		return nil, fmt.Errorf("ping database: %w", err)
+	db.SetMaxOpenConns(maxOpenConns)
+	db.SetMaxIdleConns(maxOpenConns)
+	if err := db.PingContext(ctx); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("connect SQLite database: %w", err)
 	}
-	return &Pool{Pool: pool}, nil
+	return &Pool{DB: db}, nil
 }
 
-func (p *Pool) WithinTransaction(ctx context.Context, fn func(ctx context.Context, tx pgx.Tx) error) error {
-	tx, err := p.Begin(ctx)
+func sqliteDSN(path string) string {
+	if path == ":memory:" {
+		return fmt.Sprintf("file::memory:?_pragma=busy_timeout(%d)&_pragma=foreign_keys(1)&_txlock=immediate", busyTimeoutMS)
+	}
+	return (&url.URL{
+		Scheme:   "file",
+		Path:     path,
+		RawQuery: fmt.Sprintf("_pragma=busy_timeout(%d)&_pragma=foreign_keys(1)&_txlock=immediate", busyTimeoutMS),
+	}).String()
+}
+
+func (p *Pool) WithinTransaction(ctx context.Context, fn func(ctx context.Context, tx Transaction) error) error {
+	tx, err := p.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	defer tx.Rollback(ctx) //nolint:errcheck
+	defer tx.Rollback() //nolint:errcheck
 
 	if err := fn(ctx, tx); err != nil {
 		return err
 	}
-	if err := tx.Commit(ctx); err != nil {
+	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit tx: %w", err)
 	}
 	return nil

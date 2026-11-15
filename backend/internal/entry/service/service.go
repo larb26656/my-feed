@@ -30,7 +30,7 @@ type SourceRef struct {
 }
 
 // Sources is the consumer-defined port Entry uses for Source lookups.
-// Missing Source must surface as apperr NotFound. Entry must not import source postgres.
+// Missing Source must surface as apperr NotFound. Entry must not import source SQLite.
 type Sources interface {
 	Get(ctx context.Context, id uuid.UUID) (*SourceRef, error)
 	GetManual(ctx context.Context) (*SourceRef, error)

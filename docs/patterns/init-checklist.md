@@ -15,7 +15,7 @@
 cmd/api/main.go
 internal/bootstrap/app.go
 internal/platform/{apperr,database,http}/
-internal/{module}/{domain,repository,service,adapter/http,adapter/postgres}/
+internal/{module}/{domain,repository,service,adapter/http,adapter/sqlite}/
 migrations/               # Goose: NNNNNN_name.sql (-- +goose Up/Down)
 scripts/migrate.sh        # Goose CLI wrapper (go run pressly/goose)
 api/openapi.yaml          # optional แต่แนะนำ
@@ -29,7 +29,7 @@ docs/patterns/            # คัดลอกชุดนี้มาทั้�
 - [ ] `go mod init …`
 - [ ] คัดลอกหรือเขียนใหม่ `platform` ให้ครบ 3 แพ็กเกจ
 - [ ] `cmd/api` + `bootstrap` ว่างๆ ที่ขึ้น `:8080` + `/healthz` ได้
-- [ ] Docker Postgres + `DATABASE_URL` + Goose migrate script
+- [ ] SQLite path + Goose migration script
 
 ## 2) Module แรก
 
@@ -37,7 +37,7 @@ docs/patterns/            # คัดลอกชุดนี้มาทั้�
 
 - [ ] Domain + unit tests
 - [ ] Repository port + `WithTx`
-- [ ] Postgres adapter + migration (UNIQUE/CHECK ตาม invariant)
+- [ ] SQLite adapter + migration (UNIQUE/CHECK ตาม invariant)
 - [ ] Module service (load → domain → persist)
 - [ ] HTTP handler + mount ใน bootstrap
 - [ ] เส้น happy path ทดสอบด้วย `go test ./internal/...` และยิง API มือหรือ integration test
@@ -48,12 +48,12 @@ docs/patterns/            # คัดลอกชุดนี้มาทั้�
 - [ ] ทุก side effect ใน `WithinTransaction` + `WithTx`
 - [ ] Conditional UPDATE / UNIQUE สำหรับแข่งกัน
 - [ ] Idempotency ถ้า client retry ได้
-- [ ] Integration test กับ Postgres จริง
+- [ ] Integration test กับ SQLite จริง
 
 ## 4) คุณภาพขั้นต่ำก่อนถือว่า “init เสร็จ”
 
 - [ ] Dependency direction ไม่พัง (domain ไม่ import adapter)
-- [ ] ไม่มี module import `…/adapter/postgres` ของ module อื่น
+- [ ] ไม่มี module import `…/adapter/sqlite` ของ module อื่น
 - [ ] Error ธุรกิจผ่าน `apperr` และ HTTP map ได้
 - [ ] README โปรเจกต์ใหม่ชี้มาที่ `docs/patterns/` + ADR ของตัวเอง
 - [ ] `make test-unit` ผ่านโดยไม่ต้องพึ่ง Docker; integration แยกชัด

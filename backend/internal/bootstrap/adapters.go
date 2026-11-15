@@ -17,7 +17,7 @@ type realClock struct{}
 func (realClock) Now() time.Time { return time.Now().UTC() }
 
 // sourceLookup adapts the Source repository port for Entry without importing
-// source/adapter/postgres into the entry module.
+// source/adapter/sqlite into the entry module.
 type sourceLookup struct {
 	repo sourcerepo.Repository
 }
@@ -83,7 +83,7 @@ func toFetchSourceRef(src *sourcedomain.Source) *fetchsvc.SourceRef {
 	}
 }
 
-// entryIngest adapts entry IngestEntry for Fetch without importing entry postgres.
+// entryIngest adapts entry IngestEntry for Fetch without importing entry SQLite.
 type entryIngest struct {
 	svc *entrysvc.Service
 }

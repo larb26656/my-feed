@@ -5,7 +5,7 @@
 ```
 internal/platform/
   apperr/       # typed application errors + HTTP status mapping
-  database/     # pgx pool + WithinTransaction
+  database/     # SQLite database/sql connection + WithinTransaction
   http/         # DecodeJSON, WriteJSON, WriteError
 ```
 
@@ -18,7 +18,7 @@ internal/platform/
 
 ## `database`
 
-- `NewPool(ctx, databaseURL)` — parse, ping, ตั้ง conn limits
+- `NewPool(ctx, databasePath)` — เปิด SQLite file, ping, ตั้ง busy timeout และ foreign keys
 - `WithinTransaction(ctx, fn)` — begin → fn → commit; error หรือ panic path ผ่าน rollback ด้วย `defer`
 - Cross-module use case เป็นผู้เรียก `WithinTransaction` แล้วส่ง `tx` เข้า `WithTx`
 

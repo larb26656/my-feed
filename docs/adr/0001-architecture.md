@@ -12,7 +12,7 @@ Quick Feed backend needs clear module boundaries without splitting into microser
 
 - Go modular monolith with hexagonal ports & adapters
 - No ORM, no message broker at init
-- Domain does not import adapters; modules must not import another module's `adapter/postgres`
+- Domain does not import adapters; modules must not import another module's `adapter/sqlite`
 - Repository ports expose explicit operations + `WithTx`
 - Cross-module use cases (when added) orchestrate via injected ports inside `WithinTransaction`
 - Business errors use `platform/apperr`

@@ -19,7 +19,7 @@ Single-context repo (most repos):
 ├── GLOSSARY.md
 ├── docs/adr/
 │   ├── 0001-event-sourced-orders.md
-│   └── 0002-postgres-for-write-model.md
+│   └── 0003-sqlite-for-self-hosting.md
 └── src/
 ```
 

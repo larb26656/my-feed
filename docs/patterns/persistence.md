@@ -11,24 +11,24 @@ type Repository interface {
     Update(ctx context.Context, p *domain.Product) error
     ReserveStock(ctx context.Context, id uuid.UUID, qty int) error
     RestoreStock(ctx context.Context, id uuid.UUID, qty int) error
-    WithTx(tx pgx.Tx) Repository
+    WithTx(tx database.Transaction) Repository
 }
 ```
 
 ตั้งชื่อ method ตามเจตนาธุรกิจเมื่อเป็น concurrency-sensitive (`ReserveStock`, `Redeem`) ไม่ใช่แค่ `Update` คลุมเครือ
 
-## Postgres adapter
+## SQLite adapter
 
 ```
-internal/{module}/adapter/postgres/repository.go
+internal/{module}/adapter/sqlite/repository.go
 ```
 
 รูปแบบที่ต้องมี:
 
 1. **`Querier` interface** ครอบ `Exec` / `Query` / `QueryRow` — ให้รับได้ทั้ง pool และ tx
 2. **`NewRepository(pool)`** สำหรับ request ปกติ
-3. **`WithTx(tx)`** คืน instance ใหม่ที่ชี้ tx เดียวกัน (type เป็น port)
-4. Map PG errors → `apperr` (unique → `Conflict`, 0 rows ที่ต้องเจอ → `NotFound`)
+3. **`WithTx(tx)`** คืน instance ใหม่ที่ชี้ SQLite transaction เดียวกัน (type เป็น port)
+4. Map SQLite errors → `apperr` (unique → `Conflict`, 0 rows ที่ต้องเจอ → `NotFound`)
 5. Conditional update สำหรับแข่งกัน:
 
 ```sql
@@ -50,6 +50,6 @@ WHERE id = $1 AND stock >= $2 AND status = 'AVAILABLE'
 
 ## สิ่งที่ห้าม
 
-- Module เรียก `*pgxpool.Pool` ตรงๆ จาก service โดยข้าม port (ยกเว้น `WithinTransaction` ที่ platform)
+- Module เรียก `*sql.DB` ตรงๆ จาก service โดยข้าม port (ยกเว้น `WithinTransaction` ที่ platform)
 - Shared “BaseRepository” ที่ซ่อน SQL ต่างโดเมนไว้ที่เดียวก่อนมีเหตุผลจริง
 - ใช้ ORM เป็นค่าเริ่มต้นของ pattern นี้

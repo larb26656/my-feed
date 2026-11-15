@@ -10,7 +10,7 @@ import (
 )
 
 func TestLoadConfigDefaults(t *testing.T) {
-	t.Setenv("DATABASE_URL", "")
+	t.Setenv("DATABASE_PATH", "")
 	t.Setenv("HTTP_ADDR", "")
 	t.Setenv("FETCH_RETRY_BACKOFF", "")
 	t.Setenv("FETCH_SCHEDULE_INTERVAL", "")
@@ -18,7 +18,7 @@ func TestLoadConfigDefaults(t *testing.T) {
 
 	cfg, err := LoadConfig()
 	require.NoError(t, err)
-	require.Equal(t, defaultDatabaseURL, cfg.DatabaseURL)
+	require.Equal(t, defaultDatabasePath, cfg.DatabasePath)
 	require.Equal(t, defaultHTTPAddr, cfg.HTTPAddr)
 	require.Equal(t, fetchsvc.DefaultRetryBackoff, cfg.Fetch.RetryBackoff)
 	require.Equal(t, fetchsvc.DefaultScheduleInterval, cfg.Fetch.ScheduleInterval)
@@ -26,7 +26,7 @@ func TestLoadConfigDefaults(t *testing.T) {
 }
 
 func TestLoadConfigFromEnv(t *testing.T) {
-	t.Setenv("DATABASE_URL", "postgres://example/db")
+	t.Setenv("DATABASE_PATH", "var/library.db")
 	t.Setenv("HTTP_ADDR", ":9090")
 	t.Setenv("FETCH_RETRY_BACKOFF", "30s")
 	t.Setenv("FETCH_SCHEDULE_INTERVAL", "5m")
@@ -34,7 +34,7 @@ func TestLoadConfigFromEnv(t *testing.T) {
 
 	cfg, err := LoadConfig()
 	require.NoError(t, err)
-	require.Equal(t, "postgres://example/db", cfg.DatabaseURL)
+	require.Equal(t, "var/library.db", cfg.DatabasePath)
 	require.Equal(t, ":9090", cfg.HTTPAddr)
 	require.Equal(t, 30*time.Second, cfg.Fetch.RetryBackoff)
 	require.Equal(t, 5*time.Minute, cfg.Fetch.ScheduleInterval)

@@ -5,9 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
-
 	"github.com/larb26656/quick-feed/backend/internal/entry/domain"
+	"github.com/larb26656/quick-feed/backend/internal/platform/database"
 )
 
 // EntryListCursor is the decoded position in the newest-first Entry stream.
@@ -22,5 +21,5 @@ type Repository interface {
 	GetEntryBySourceAndLink(ctx context.Context, sourceID uuid.UUID, link string) (*domain.Entry, error)
 	ListEntries(ctx context.Context, after *EntryListCursor, limit int) ([]*domain.Entry, error)
 	UpdateEntry(ctx context.Context, e *domain.Entry) (*domain.Entry, error)
-	WithTx(tx pgx.Tx) Repository
+	WithTx(tx database.Transaction) Repository
 }

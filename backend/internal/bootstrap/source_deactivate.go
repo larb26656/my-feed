@@ -4,8 +4,6 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
-
 	fetchrepo "github.com/larb26656/quick-feed/backend/internal/fetch/repository"
 	fetchsvc "github.com/larb26656/quick-feed/backend/internal/fetch/service"
 	"github.com/larb26656/quick-feed/backend/internal/platform/database"
@@ -17,7 +15,7 @@ import (
 // sourceAPIWithFetch wraps Source service so deactivate fails pending Fetch Jobs
 // in the same transaction as the Source update (no partial success).
 type sourceAPIWithFetch struct {
-	db         *database.Pool
+	db         database.Transactor
 	sourceRepo sourcerepo.Repository
 	fetchRepo  fetchrepo.Repository
 	inner      *sourcesvc.Service
@@ -46,7 +44,7 @@ func (s sourceAPIWithFetch) ReactivateSource(ctx context.Context, id uuid.UUID) 
 
 func (s sourceAPIWithFetch) DeactivateSource(ctx context.Context, id uuid.UUID) (*sourcedomain.Source, error) {
 	var out *sourcedomain.Source
-	err := s.db.WithinTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+	err := s.db.WithinTransaction(ctx, func(ctx context.Context, tx database.Transaction) error {
 		src, err := sourcesvc.New(s.sourceRepo.WithTx(tx)).DeactivateSource(ctx, id)
 		if err != nil {
 			return err

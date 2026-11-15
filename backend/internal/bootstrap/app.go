@@ -10,17 +10,17 @@ import (
 	chimw "github.com/go-chi/chi/v5/middleware"
 
 	entryhttp "github.com/larb26656/quick-feed/backend/internal/entry/adapter/http"
-	entrypg "github.com/larb26656/quick-feed/backend/internal/entry/adapter/postgres"
+	entrysqlite "github.com/larb26656/quick-feed/backend/internal/entry/adapter/sqlite"
 	entrysvc "github.com/larb26656/quick-feed/backend/internal/entry/service"
 	fetchhttp "github.com/larb26656/quick-feed/backend/internal/fetch/adapter/http"
 	"github.com/larb26656/quick-feed/backend/internal/fetch/adapter/obtain"
 	obtainrss "github.com/larb26656/quick-feed/backend/internal/fetch/adapter/obtain/rss"
-	fetchpg "github.com/larb26656/quick-feed/backend/internal/fetch/adapter/postgres"
 	"github.com/larb26656/quick-feed/backend/internal/fetch/adapter/runtime"
+	fetchsqlite "github.com/larb26656/quick-feed/backend/internal/fetch/adapter/sqlite"
 	fetchsvc "github.com/larb26656/quick-feed/backend/internal/fetch/service"
 	"github.com/larb26656/quick-feed/backend/internal/platform/database"
 	sourcehttp "github.com/larb26656/quick-feed/backend/internal/source/adapter/http"
-	sourcepg "github.com/larb26656/quick-feed/backend/internal/source/adapter/postgres"
+	sourcesqlite "github.com/larb26656/quick-feed/backend/internal/source/adapter/sqlite"
 	sourcesvc "github.com/larb26656/quick-feed/backend/internal/source/service"
 )
 
@@ -38,25 +38,25 @@ func New(ctx context.Context) (*App, error) {
 }
 
 func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
-	pool, err := database.NewPool(ctx, cfg.DatabaseURL)
+	pool, err := database.NewPool(ctx, cfg.DatabasePath)
 	if err != nil {
 		return nil, err
 	}
 
-	sourceRepo := sourcepg.NewRepository(pool.Pool)
+	sourceRepo := sourcesqlite.NewRepository(pool.DB)
 	sourceService := sourcesvc.New(sourceRepo)
 	if _, err := sourceService.EnsureSavedLinks(ctx); err != nil {
 		pool.Close()
 		return nil, fmt.Errorf("ensure saved links source: %w", err)
 	}
 
-	entryRepo := entrypg.NewRepository(pool.Pool)
+	entryRepo := entrysqlite.NewRepository(pool.DB)
 	entryService := entrysvc.New(entryRepo, sourceLookup{repo: sourceRepo})
 
 	obtainRegistry := obtain.NewRegistry()
 	obtainRegistry.Register(fetchsvc.SourceTypeRSS, obtainrss.New(http.DefaultClient))
 
-	fetchRepo := fetchpg.NewRepository(pool.Pool)
+	fetchRepo := fetchsqlite.NewRepository(pool.DB)
 	fetchService := fetchsvc.New(
 		fetchRepo,
 		fetchSources{repo: sourceRepo},

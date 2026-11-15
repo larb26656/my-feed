@@ -16,7 +16,7 @@ internal/{module}/
   adapter/
     http/
       handler.go         # Chi routes + DTO
-    postgres/
+    sqlite/
       repository.go      # implements repository.Repository
 ```
 
@@ -38,13 +38,13 @@ internal/{usecase}/
 | `repository/` | ต้อง persist | implementation |
 | `service/` | มี use case ของ module | raw SQL, `http.ResponseWriter` |
 | `adapter/http/` | มี REST API | business rule ซ้ำกับ domain |
-| `adapter/postgres/` | มีตาราง | business rule ที่ควรอยู่ domain |
+| `adapter/sqlite/` | มีตาราง | business rule ที่ควรอยู่ domain |
 
 ## Wiring ใน bootstrap
 
 ใน `internal/bootstrap/app.go` ลำดับเดิมเสมอ:
 
-1. สร้าง postgres repository จาก pool
+1. สร้าง SQLite repository จาก pool
 2. สร้าง module service จาก port
 3. สร้าง cross-module service (ถ้ามี) จาก pool + ports
 4. สร้าง HTTP handler จาก service
@@ -56,7 +56,7 @@ internal/{usecase}/
 
 - Aggregate / entity: คำโดเมนชัดเจน (`Product`, ไม่ใช่ `ProductModel`)
 - Port: `repository.Repository` ในแพ็กเกจของ module นั้น
-- Postgres impl: `adapter/postgres.Repository` — method set ตรงกับ port
+- SQLite impl: `adapter/sqlite.Repository` — method set ตรงกับ port
 - HTTP DTO: `createRequest`, `{entity}Response` ในไฟล์ handler (ไม่แชร์เป็น public API ของ domain)
 
 ## Migration
@@ -66,4 +66,4 @@ internal/{usecase}/
 - PK / UNIQUE ที่สะท้อน uniqueness ในโดเมน
 - CHECK ที่สะท้อน invariant สำคัญ (เช่น `stock >= 0`)
 - ไม่พึ่ง ORM tag — schema คือ source of truth ฝั่ง DB
-- ใช้ `make migrate` / `make migrate-status` (ไม่รัน SQL ตรงด้วย `psql`)
+- ใช้ `make migrate` / `make migrate-status` (ไม่รัน SQL ตรงด้วย `sqlite3`)

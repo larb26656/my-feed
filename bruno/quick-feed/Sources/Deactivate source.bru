@@ -1,0 +1,11 @@
+meta {
+  name: Deactivate source
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/v1/sources/{{sourceId}}/deactivate
+  body: none
+  auth: none
+}

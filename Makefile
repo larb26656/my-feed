@@ -1,7 +1,8 @@
-.PHONY: help backend frontend build test test-unit tidy up migrate migrate-status migrate-down
+.PHONY: help backend frontend build test test-unit tidy up down migrate migrate-status migrate-down
 
 help:
-	@echo "make up              - start Postgres (docker compose)"
+	@echo "make up              - build and start API with persistent SQLite (docker compose)"
+	@echo "make down            - stop API (database files remain in backend/data)"
 	@echo "make migrate         - apply pending SQL migrations (goose up)"
 	@echo "make migrate-status  - show goose migration status"
 	@echo "make migrate-down    - roll back one migration (goose down)"
@@ -13,7 +14,10 @@ help:
 	@echo "make tidy            - go mod tidy"
 
 up:
-	cd backend && docker compose up -d
+	cd backend && mkdir -p data && docker compose up -d --build
+
+down:
+	cd backend && docker compose down
 
 migrate:
 	cd backend && ./scripts/migrate.sh up

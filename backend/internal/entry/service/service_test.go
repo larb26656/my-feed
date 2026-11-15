@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
+	"github.com/larb26656/quick-feed/backend/internal/platform/database"
 	"github.com/stretchr/testify/require"
 
 	"github.com/larb26656/quick-feed/backend/internal/entry/domain"
@@ -153,7 +153,7 @@ func (f *fakeRepo) UpdateEntry(_ context.Context, e *domain.Entry) (*domain.Entr
 	return cloneEntry(stored), nil
 }
 
-func (f *fakeRepo) WithTx(_ pgx.Tx) repository.Repository {
+func (f *fakeRepo) WithTx(_ database.Transaction) repository.Repository {
 	return f
 }
 
@@ -178,7 +178,7 @@ func (f *fakeRepo) ListEntries(_ context.Context, after *repository.EntryListCur
 	}
 	sort.Slice(rankedEntries, func(i, j int) bool {
 		if rankedEntries[i].sortAt.Equal(rankedEntries[j].sortAt) {
-			// Newest-first: larger UUID first — match Postgres uuid byte order, not String().
+			// Newest-first: larger UUID first — match canonical UUID byte order, not String().
 			return bytes.Compare(rankedEntries[i].entry.ID[:], rankedEntries[j].entry.ID[:]) > 0
 		}
 		return rankedEntries[i].sortAt.After(rankedEntries[j].sortAt)
@@ -557,7 +557,7 @@ func TestListEntriesNewestFirstPublishedAtFallbackCreatedAtIDTieBreak(t *testing
 	pubNewest := time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC)
 	createdFallback := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
 
-	// idHexA (...000a) sorts AFTER idHex10 (...0010) in Postgres uuid byte order,
+	// idHexA (...000a) sorts AFTER idHex10 (...0010) in canonical UUID byte order,
 	// but BEFORE it under ID.String() lexicographic order — catch that divergence.
 	idHexA := uuid.MustParse("00000000-0000-4000-8000-00000000000a")
 	idHex10 := uuid.MustParse("00000000-0000-4000-8000-000000000010")

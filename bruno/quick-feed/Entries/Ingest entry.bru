@@ -1,0 +1,26 @@
+meta {
+  name: Ingest entry
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/entries/
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "sourceId": "{{sourceId}}",
+    "title": "Example feed item",
+    "link": "https://example.com/feed-item",
+    "description": "Ingested manually",
+    "thumbnail": null,
+    "publishedAt": "2026-11-15T10:00:00Z"
+  }
+}

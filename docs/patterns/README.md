@@ -26,7 +26,7 @@
 
 ## Stack อ้างอิง (จาก POC นี้)
 
-- Go + `chi` + `pgx` (ไม่มี ORM)
-- PostgreSQL + Goose SQL migrations (`migrations/`)
+- Go + `chi` + SQLite (`database/sql`, ไม่มี ORM)
+- SQLite + Goose SQL migrations (`migrations/`)
 - Money / จำนวนเงินเป็น `int64` (หน่วยย่อย) — ไม่ใช้ float
 - Modular monolith — ไม่แยก microservice, ไม่มี message broker ใน POC

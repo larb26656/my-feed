@@ -64,4 +64,4 @@ Body มาตรฐาน:
 
 - เปิด DB transaction
 - ตรวจ invariant ที่ซ้ำกับ domain (ยกเว้น parse UUID / รูปแบบ request ตื้นๆ)
-- Import adapter postgres
+- Import adapter/sqlite

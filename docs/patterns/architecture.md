@@ -7,7 +7,7 @@
 - แต่ละ business module เป็น bounded context ภายใน process เดียว
 - Domain ไม่รู้จัก HTTP / SQL
 - Application service คุยกับ persistence ผ่าน **repository port** (interface)
-- Adapter อยู่ขอบนอก: `adapter/http`, `adapter/postgres`
+- Adapter อยู่ขอบนอก: `adapter/http`, `adapter/sqlite`
 - Cross-module ผ่าน port ที่ inject — **ห้าม** import adapter ของ module อื่น
 
 ```mermaid
@@ -15,28 +15,27 @@ flowchart TB
   HTTP[adapter/http] --> SVC[service]
   SVC --> DOM[domain]
   SVC --> PORT[repository port]
-  PG[adapter/postgres] --> PORT
-  PG --> DOM
+  DB[adapter/sqlite] --> PORT
   BOOT[bootstrap] --> HTTP
   BOOT --> SVC
-  BOOT --> PG
+  BOOT --> DB
   XMOD[cross-module use case] --> PORT
 ```
 
 ## Dependency direction (บังคับ)
 
 ```
-cmd/ → bootstrap → (http adapters, services, postgres adapters)
+cmd/ → bootstrap → (http adapters, services, SQLite adapters)
 service → domain, repository (port)
 adapter/http → service, domain (mapping เท่านั้น), platform
-adapter/postgres → domain, repository (implements port), platform
+adapter/sqlite → domain, repository (implements port), platform
 domain → platform/apperr เท่านั้น (ไม่ import service/adapter)
 ```
 
 | อนุญาต | ห้าม |
 |--------|------|
-| `service` เรียก domain method | domain import `pgx` / `chi` / HTTP types |
-| `service` พึ่ง `repository.Repository` interface | module A import `moduleB/adapter/postgres` |
+| `service` เรียก domain method | domain import `database/sql` / `chi` / HTTP types |
+| `service` พึ่ง `repository.Repository` interface | module A import `moduleB/adapter/sqlite` |
 | cross-module ใช้ port ของหลาย module | generic `Save(any)` เป็น API หลักของ repo |
 | DB constraint + conditional UPDATE เสริม domain | public setter ที่ข้าม state machine |
 
@@ -48,7 +47,7 @@ domain → platform/apperr เท่านั้น (ไม่ import service/ad
 | **service** (module) | Load → domain method → persist |
 | **service** (use case) | Orchestrate หลาย aggregate ใน 1 transaction |
 | **repository port** | Explicit operations + `WithTx` |
-| **adapter/postgres** | SQL, map rows ↔ domain, map unique/check → `apperr` |
+| **adapter/sqlite** | SQL, map rows ↔ domain, map unique/check → `apperr` |
 | **adapter/http** | Decode/encode JSON, status code, เรียก service |
 | **platform** | Pool/tx, `apperr`, HTTP write helpers |
 | **bootstrap** | Wire dependencies, mount routes |
