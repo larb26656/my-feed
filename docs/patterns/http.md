@@ -65,3 +65,14 @@ Body มาตรฐาน:
 - เปิด DB transaction
 - ตรวจ invariant ที่ซ้ำกับ domain (ยกเว้น parse UUID / รูปแบบ request ตื้นๆ)
 - Import adapter/sqlite
+
+## Query parameters
+
+Use `httpx.DecodeQuery[queryDTO](r)` with `schema` tags for query names and
+`validate` tags for transport validation. Use pointer fields for optional values:
+`omitempty` skips omitted pointers while explicit empty values still undergo
+validation. The helper rejects unknown names, duplicate parameters, malformed
+URL encoding, conversion errors and validation failures with code `validation`.
+Map the decoded DTO into application input and domain types in the HTTP adapter.
+Fetch Job status filters use the domain's lowercase values; UUID filters use
+canonical UUID strings. Cursor contents remain the application's responsibility.
