@@ -22,29 +22,36 @@ test("combines Source, Saved and unread while retaining names of deactivated Sou
 		"fetch",
 		vi.fn(async (url: string) => {
 			calls.push(url);
-			const body = url.includes("/sources/")
-				? [
-						{ id: "active", name: "Active Source", type: "rss", active: true },
-						{
-							id: "inactive",
-							name: "Deactivated Source",
-							type: "rss",
-							active: false,
-						},
-					]
-				: {
-						data: [
+			const body = url.endsWith("/entries/saved-count")
+				? { count: 0 }
+				: url.includes("/sources/")
+					? [
 							{
-								id: "entry",
-								sourceId: "inactive",
-								title: "An Entry",
-								link: "https://example.com",
-								description: "",
-								createdAt: "2025-01-01T00:00:00Z",
+								id: "active",
+								name: "Active Source",
+								type: "rss",
+								active: true,
 							},
-						],
-						page: { nextCursor: null, hasNext: false },
-					};
+							{
+								id: "inactive",
+								name: "Deactivated Source",
+								type: "rss",
+								active: false,
+							},
+						]
+					: {
+							data: [
+								{
+									id: "entry",
+									sourceId: "inactive",
+									title: "An Entry",
+									link: "https://example.com",
+									description: "",
+									createdAt: "2025-01-01T00:00:00Z",
+								},
+							],
+							page: { nextCursor: null, hasNext: false },
+						};
 			return { ok: true, json: async () => body };
 		}),
 	);
@@ -54,13 +61,12 @@ test("combines Source, Saved and unread while retaining names of deactivated Sou
 	render(
 		<QueryClientProvider client={client}>
 			<FeedProvider>
-				<FeedPage sourceId="inactive" />
+				<FeedPage sourceId="inactive" savedOnly />
 			</FeedProvider>
 		</QueryClientProvider>,
 	);
 	expect(await screen.findAllByText("Deactivated Source")).toHaveLength(2);
 	const user = userEvent.setup();
-	await user.click(screen.getByRole("button", { name: "Saved" }));
 	await user.click(screen.getByRole("button", { name: "Unread" }));
 	await waitFor(() =>
 		expect(
@@ -138,9 +144,9 @@ test("loads the persisted Saved count endpoint and refreshes it after confirmed 
 	await screen.findByText("Navigation: Active / Saved: 0");
 	const user = userEvent.setup();
 	await user.click(
-		await screen.findByRole("button", { name: "Mark as read" }),
+		await screen.findByRole("button", { name: "Mark An Entry as read" }),
 	);
-	await screen.findByRole("button", { name: "Read" });
+	await screen.findByRole("button", { name: "Mark An Entry as unread" });
 	await user.click(screen.getByRole("button", { name: "Save An Entry" }));
 	await screen.findByText("Navigation: Active / Saved: 1");
 	await waitFor(() => expect(countRequests).toBe(2));
