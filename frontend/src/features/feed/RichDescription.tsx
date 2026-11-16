@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { cn } from "#/lib/utils";
 
 const allowedTags = new Set([
 	"A",
@@ -23,7 +24,9 @@ function safeHref(value: string | null) {
 	if (!value) return undefined;
 	try {
 		const url = new URL(value, window.location.origin);
-		return url.protocol === "http:" || url.protocol === "https:" ? url.href : undefined;
+		return url.protocol === "http:" || url.protocol === "https:"
+			? url.href
+			: undefined;
 	} catch {
 		return undefined;
 	}
@@ -41,23 +44,82 @@ function renderNode(node: Node, key: number): ReactNode {
 	if (node.tagName === "A") {
 		const href = safeHref(node.getAttribute("href"));
 		return href ? (
-			<a key={key} href={href} target="_blank" rel="noreferrer" className="text-primary underline underline-offset-2">
+			<a
+				key={key}
+				href={href}
+				target="_blank"
+				rel="noreferrer"
+				className="text-primary underline underline-offset-2"
+			>
 				{children}
 			</a>
-		) : <span key={key}>{children}</span>;
+		) : (
+			<span key={key}>{children}</span>
+		);
 	}
 
 	const Tag = node.tagName.toLowerCase() as
-		| "b" | "blockquote" | "br" | "code" | "em" | "i" | "li"
-		| "ol" | "p" | "pre" | "s" | "strong" | "u" | "ul";
+		| "b"
+		| "blockquote"
+		| "br"
+		| "code"
+		| "em"
+		| "i"
+		| "li"
+		| "ol"
+		| "p"
+		| "pre"
+		| "s"
+		| "strong"
+		| "u"
+		| "ul";
 	return <Tag key={key}>{children}</Tag>;
 }
 
 export function RichDescription({ html }: { html: string }) {
 	const parsed = new DOMParser().parseFromString(html, "text/html");
+	const contentRef = useRef<HTMLDivElement>(null);
+	const [expanded, setExpanded] = useState(false);
+	const [overflowing, setOverflowing] = useState(false);
+
+	useEffect(() => {
+		const content = contentRef.current;
+		if (!content) return;
+		const measure = () => {
+			const limit = parseFloat(getComputedStyle(content).lineHeight) * 5;
+			setOverflowing(content.scrollHeight > limit + 1);
+		};
+		measure();
+		if (typeof ResizeObserver === "undefined") return;
+		const observer = new ResizeObserver(measure);
+		observer.observe(content);
+		return () => observer.disconnect();
+	}, [html]);
+
 	return (
-		<div className="mt-1 space-y-2 text-sm leading-relaxed text-foreground/90 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5">
-			{Array.from(parsed.body.childNodes).map((node, index) => renderNode(node, index))}
+		<div className="mt-1 text-sm leading-relaxed text-foreground/90">
+			<div
+				ref={contentRef}
+				className={cn(
+					"space-y-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5",
+					!expanded && "max-h-[7.5em] overflow-hidden",
+				)}
+				inert={overflowing && !expanded ? true : undefined}
+			>
+				{Array.from(parsed.body.childNodes).map((node, index) =>
+					renderNode(node, index),
+				)}
+			</div>
+			{overflowing && (
+				<button
+					type="button"
+					aria-expanded={expanded}
+					onClick={() => setExpanded(!expanded)}
+					className="mt-1 font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+				>
+					{expanded ? "See less" : "See more"}
+				</button>
+			)}
 		</div>
 	);
 }
