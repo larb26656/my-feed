@@ -17,6 +17,7 @@ export type Source = {
 	image?: string | null;
 	type: string;
 	rssUrl?: string | null;
+	youtubeChannelId?: string | null;
 	active: boolean;
 };
 

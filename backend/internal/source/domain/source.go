@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"regexp"
 	"strings"
 	"time"
 
@@ -12,21 +13,23 @@ import (
 type Type string
 
 const (
-	TypeRSS    Type = "rss"
-	TypeManual Type = "manual"
+	TypeRSS     Type = "rss"
+	TypeYouTube Type = "youtube"
+	TypeManual  Type = "manual"
 
 	// SavedLinksName is the canonical display name of the system manual singleton.
 	SavedLinksName = "Saved links"
 )
 
 type Source struct {
-	ID        uuid.UUID
-	Name      string
-	Type      Type
-	RSSURL    string
-	Active    bool
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID               uuid.UUID
+	Name             string
+	Type             Type
+	RSSURL           string
+	YouTubeChannelID string
+	Active           bool
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 // NewRSSSource creates a fetchable RSS Source. Type is fixed at construction.
@@ -49,6 +52,20 @@ func NewRSSSource(name, feedURL string) (*Source, error) {
 		CreatedAt: now,
 		UpdatedAt: now,
 	}, nil
+}
+
+// NewYouTubeSource creates a Source for a canonical channel ID.
+func NewYouTubeSource(name, channelID string) (*Source, error) {
+	name, channelID = strings.TrimSpace(name), strings.TrimSpace(channelID)
+	if name == "" {
+		return nil, apperr.Validation("name is required")
+	}
+	channelID = strings.TrimPrefix(channelID, "https://www.youtube.com/channel/")
+	if !regexp.MustCompile(`^UC[A-Za-z0-9_-]{22}$`).MatchString(channelID) {
+		return nil, apperr.Validation("enter a YouTube channel ID starting with UC or a canonical https://www.youtube.com/channel/ URL")
+	}
+	now := time.Now().UTC()
+	return &Source{ID: uuid.New(), Name: name, Type: TypeYouTube, YouTubeChannelID: channelID, Active: true, CreatedAt: now, UpdatedAt: now}, nil
 }
 
 // NewManualSource creates a system manual Source. Type is fixed at construction.
@@ -107,8 +124,11 @@ func (s *Source) UpdateDetails(name, feedURL string) error {
 		return apperr.Validation("name is required")
 	}
 	feedURL = strings.TrimSpace(feedURL)
-	if feedURL == "" {
+	if s.Type == TypeRSS && feedURL == "" {
 		return apperr.Validation("rss url is required")
+	}
+	if s.Type == TypeYouTube && feedURL != "" {
+		return apperr.Validation("youtube channel cannot be changed")
 	}
 	s.Name = name
 	s.RSSURL = feedURL

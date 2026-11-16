@@ -21,9 +21,10 @@ func New(repo repository.Repository) *Service {
 }
 
 type CreateSourceInput struct {
-	Name   string
-	Type   string
-	RSSURL string
+	Name             string
+	Type             string
+	RSSURL           string
+	YouTubeChannelID string
 }
 
 func (s *Service) CreateSource(ctx context.Context, in CreateSourceInput) (*domain.Source, error) {
@@ -31,6 +32,15 @@ func (s *Service) CreateSource(ctx context.Context, in CreateSourceInput) (*doma
 	switch typ {
 	case domain.TypeManual:
 		return nil, apperr.Validation("manual sources cannot be created by the reader")
+	case domain.TypeYouTube:
+		src, err := domain.NewYouTubeSource(in.Name, in.YouTubeChannelID)
+		if err != nil {
+			return nil, err
+		}
+		if err := s.repo.CreateSource(ctx, src); err != nil {
+			return nil, err
+		}
+		return src, nil
 	case domain.TypeRSS:
 		src, err := domain.NewRSSSource(in.Name, in.RSSURL)
 		if err != nil {
@@ -41,7 +51,7 @@ func (s *Service) CreateSource(ctx context.Context, in CreateSourceInput) (*doma
 		}
 		return src, nil
 	default:
-		return nil, apperr.Validation("source type must be rss")
+		return nil, apperr.Validation("source type must be rss or youtube")
 	}
 }
 

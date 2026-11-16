@@ -45,9 +45,10 @@ func (h *Handler) Routes() chi.Router {
 }
 
 type createSourceRequest struct {
-	Name   string `json:"name"`
-	Type   string `json:"type"`
-	RSSURL string `json:"rssUrl"`
+	Name             string `json:"name"`
+	Type             string `json:"type"`
+	RSSURL           string `json:"rssUrl"`
+	YouTubeChannelID string `json:"youtubeChannelId"`
 }
 
 type updateSourceRequest struct {
@@ -56,13 +57,14 @@ type updateSourceRequest struct {
 }
 
 type sourceResponse struct {
-	ID        string  `json:"id"`
-	Name      string  `json:"name"`
-	Type      string  `json:"type"`
-	RSSURL    *string `json:"rssUrl"`
-	Active    bool    `json:"active"`
-	CreatedAt string  `json:"createdAt"`
-	UpdatedAt string  `json:"updatedAt"`
+	ID               string  `json:"id"`
+	Name             string  `json:"name"`
+	Type             string  `json:"type"`
+	RSSURL           *string `json:"rssUrl"`
+	YouTubeChannelID *string `json:"youtubeChannelId,omitempty"`
+	Active           bool    `json:"active"`
+	CreatedAt        string  `json:"createdAt"`
+	UpdatedAt        string  `json:"updatedAt"`
 }
 
 func toSourceResponse(s *domain.Source) sourceResponse {
@@ -73,6 +75,9 @@ func toSourceResponse(s *domain.Source) sourceResponse {
 		Active:    s.Active,
 		CreatedAt: s.CreatedAt.UTC().Format(time.RFC3339Nano),
 		UpdatedAt: s.UpdatedAt.UTC().Format(time.RFC3339Nano),
+	}
+	if s.YouTubeChannelID != "" {
+		resp.YouTubeChannelID = &s.YouTubeChannelID
 	}
 	if s.RSSURL != "" {
 		url := s.RSSURL
@@ -88,9 +93,10 @@ func (h *Handler) createSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s, err := h.svc.CreateSource(r.Context(), service.CreateSourceInput{
-		Name:   req.Name,
-		Type:   req.Type,
-		RSSURL: req.RSSURL,
+		Name:             req.Name,
+		Type:             req.Type,
+		RSSURL:           req.RSSURL,
+		YouTubeChannelID: req.YouTubeChannelID,
 	})
 	if err != nil {
 		httpx.WriteError(w, err)

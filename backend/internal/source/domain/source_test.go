@@ -202,3 +202,25 @@ func TestManualSourcesCannotBeEdited(t *testing.T) {
 	require.Equal(t, apperr.CodeFailedPrecondition, failure.Code)
 	require.Equal(t, original, *source)
 }
+
+func TestNewYouTubeSourceNormalizesIdentity(t *testing.T) {
+	// Arrange
+	name, channelID := " Channel ", " UC1234567890123456789012 "
+	// Act
+	src, err := domain.NewYouTubeSource(name, channelID)
+	// Assert
+	require.NoError(t, err)
+	require.Equal(t, "Channel", src.Name)
+	require.Equal(t, "UC1234567890123456789012", src.YouTubeChannelID)
+}
+
+func TestNewYouTubeSourceRejectsInvalidChannelID(t *testing.T) {
+	// Arrange
+	channelID := "@handle"
+	// Act
+	_, err := domain.NewYouTubeSource("Channel", channelID)
+	// Assert
+	var failure *apperr.Error
+	require.ErrorAs(t, err, &failure)
+	require.Equal(t, apperr.CodeValidation, failure.Code)
+}

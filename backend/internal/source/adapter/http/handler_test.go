@@ -158,7 +158,7 @@ func TestInvalidSubscriptionsReturnValidationErrorsWithoutCreatingSources(t *tes
 		{"blank name", `{"name":" ","type":"rss","rssUrl":"https://example.test/rss"}`, "name is required"},
 		{"blank feed URL", `{"name":"News","type":"rss","rssUrl":" "}`, "rss url is required"},
 		{"reader cannot create manual source", `{"name":"Bookmarks","type":"manual"}`, "manual sources cannot be created by the reader"},
-		{"unsupported type", `{"name":"News","type":"unknown"}`, "source type must be rss"},
+		{"unsupported type", `{"name":"News","type":"unknown"}`, "source type must be rss or youtube"},
 		{"malformed JSON", `{`, "invalid json body"},
 		{"unknown field", `{"extra":true}`, "invalid json body"},
 	} {
@@ -296,5 +296,70 @@ func TestUnknownSourceRequestsReturnUsefulErrors(t *testing.T) {
 				require.Equal(t, scenario.code, failure.Code)
 			})
 		}
+	}
+}
+
+func TestYouTubeChannelURLNormalizesToChannelID(t *testing.T) {
+	// Arrange
+	router := api.New(t)
+	// Act
+	created := testkit.Decode[struct{ YouTubeChannelID string }](t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]string{"name": "Channel", "type": "youtube", "youtubeChannelId": " https://www.youtube.com/channel/UC1234567890123456789012 "}, 201))
+	// Assert
+	require.Equal(t, "UC1234567890123456789012", created.YouTubeChannelID)
+}
+
+func TestRenamingYouTubeSourcePreservesChannel(t *testing.T) {
+	// Arrange
+	router := api.New(t)
+	created := testkit.Decode[struct{ ID, YouTubeChannelID string }](t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]string{"name": "Channel", "type": "youtube", "youtubeChannelId": "UC1234567890123456789012"}, 201))
+	// Act
+	got := testkit.Decode[struct{ ID, Name, YouTubeChannelID string }](t, testkit.Request(t, router, "PATCH", "/api/v1/sources/"+created.ID, map[string]string{"name": " Renamed "}, 200))
+	// Assert
+	require.Equal(t, created.ID, got.ID)
+	require.Equal(t, created.YouTubeChannelID, got.YouTubeChannelID)
+	require.Equal(t, "Renamed", got.Name)
+}
+
+func TestInvalidYouTubeChannelInputsAreRejected(t *testing.T) {
+	for _, input := range []string{"@handle", "https://www.youtube.com/@handle", "https://www.youtube.com/c/custom", "https://www.youtube.com/user/legacy", "http://www.youtube.com/channel/UC1234567890123456789012", "https://www.youtube.com/channel/UC1234567890123456789012?x=1"} {
+		t.Run(input, func(t *testing.T) {
+			// Arrange
+			router := api.New(t)
+			// Act
+			failure := testkit.Decode[httpx.ErrorBody](t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]string{"name": "Channel", "type": "youtube", "youtubeChannelId": input}, 400))
+			// Assert
+			require.Equal(t, "validation", failure.Code)
+			require.Contains(t, failure.Error, "channel ID")
+			require.Len(t, testkit.Decode[[]source](t, testkit.Request(t, router, "GET", "/api/v1/sources/", nil, 200)), 1)
+		})
+	}
+}
+
+func TestDuplicateYouTubeChannelConflictsEvenWhenDeactivated(t *testing.T) {
+	// Arrange
+	router := api.New(t)
+	created := testkit.Decode[source](t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]string{"name": "Channel", "type": "youtube", "youtubeChannelId": "UC1234567890123456789012"}, 201))
+	testkit.Request(t, router, "POST", "/api/v1/sources/"+created.ID+"/deactivate", nil, 200)
+	// Act
+	failure := testkit.Decode[httpx.ErrorBody](t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]string{"name": "Duplicate", "type": "youtube", "youtubeChannelId": "https://www.youtube.com/channel/UC1234567890123456789012"}, 409))
+	// Assert
+	require.Equal(t, "conflict", failure.Code)
+	got := testkit.Decode[source](t, testkit.Request(t, router, "GET", "/api/v1/sources/"+created.ID, nil, 200))
+	require.False(t, got.Active)
+}
+
+func TestYouTubeRetargetingIsRejected(t *testing.T) {
+	for _, changes := range []map[string]string{{"name": "Changed", "youtubeChannelId": "UCabcdefghijklmnopqrstuv"}, {"name": "Changed", "type": "rss"}, {"name": "Changed", "rssUrl": "https://example.test"}} {
+		t.Run(fmt.Sprint(changes), func(t *testing.T) {
+			// Arrange
+			router := api.New(t)
+			created := testkit.Decode[source](t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]string{"name": "Channel", "type": "youtube", "youtubeChannelId": "UC1234567890123456789012"}, 201))
+			// Act
+			failure := testkit.Decode[httpx.ErrorBody](t, testkit.Request(t, router, "PATCH", "/api/v1/sources/"+created.ID, changes, 400))
+			// Assert
+			require.Equal(t, "validation", failure.Code)
+			require.NotEmpty(t, failure.Error)
+			require.Equal(t, created, testkit.Decode[source](t, testkit.Request(t, router, "GET", "/api/v1/sources/"+created.ID, nil, 200)))
+		})
 	}
 }

@@ -24,16 +24,18 @@ const DefaultScheduleInterval = 15 * time.Minute
 type SourceType string
 
 const (
-	SourceTypeRSS    SourceType = "rss"
-	SourceTypeManual SourceType = "manual"
+	SourceTypeRSS     SourceType = "rss"
+	SourceTypeYouTube SourceType = "youtube"
+	SourceTypeManual  SourceType = "manual"
 )
 
 // SourceRef is the Fetch module's lookup view of a Source for create/obtain rules.
 type SourceRef struct {
-	ID     uuid.UUID
-	Type   SourceType
-	Active bool
-	RSSURL string
+	ID               uuid.UUID
+	Type             SourceType
+	Active           bool
+	RSSURL           string
+	YouTubeChannelID string
 }
 
 // Sources is the consumer-defined port Fetch uses for Source lookups.
@@ -278,7 +280,7 @@ func (s *Service) CreateManualFetchJob(ctx context.Context, sourceID uuid.UUID) 
 	if err != nil {
 		return nil, err
 	}
-	if src.Type != SourceTypeRSS {
+	if src.Type != SourceTypeRSS && src.Type != SourceTypeYouTube {
 		return nil, apperr.Validation("fetch jobs can only target fetchable sources")
 	}
 	if !src.Active {

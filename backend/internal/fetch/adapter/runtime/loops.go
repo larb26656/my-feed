@@ -13,8 +13,8 @@ const DefaultExecutorPoll = 2 * time.Second
 
 // Loops runs the fixed-rate schedule round and the claim/execute poller until ctx is cancelled.
 type Loops struct {
-	svc           *service.Service
-	executorPoll  time.Duration
+	svc          *service.Service
+	executorPoll time.Duration
 }
 
 func NewLoops(svc *service.Service, executorPoll time.Duration) *Loops {
@@ -26,15 +26,14 @@ func NewLoops(svc *service.Service, executorPoll time.Duration) *Loops {
 
 // Start launches scheduler and executor goroutines. They stop when ctx is cancelled.
 func (l *Loops) Start(ctx context.Context) {
+	// Complete the startup round before accepting new Sources.
+	l.scheduleOnce(ctx)
 	go l.runScheduler(ctx)
 	go l.runExecutor(ctx)
 }
 
 func (l *Loops) runScheduler(ctx context.Context) {
 	interval := l.svc.ScheduleInterval()
-	// Run once on start so a fresh API process does not wait a full interval.
-	l.scheduleOnce(ctx)
-
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {

@@ -34,16 +34,23 @@ func (r *Repository) WithTx(tx database.Transaction) repository.Repository {
 
 func (r *Repository) CreateSource(ctx context.Context, s *domain.Source) error {
 	var rssURL any
+	var channelID any
+	if s.YouTubeChannelID != "" {
+		channelID = s.YouTubeChannelID
+	}
 	if s.RSSURL != "" {
 		rssURL = s.RSSURL
 	}
 	_, err := r.q.ExecContext(ctx, `
-		INSERT INTO sources (id, name, type, rss_url, active, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		s.ID.String(), s.Name, string(s.Type), rssURL, s.Active, s.CreatedAt.UTC().UnixNano(), s.UpdatedAt.UTC().UnixNano())
+		INSERT INTO sources (id, name, type, rss_url, youtube_channel_id, active, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		s.ID.String(), s.Name, string(s.Type), rssURL, channelID, s.Active, s.CreatedAt.UTC().UnixNano(), s.UpdatedAt.UTC().UnixNano())
 	if database.IsUniqueConstraintViolation(err) {
 		if s.Type == domain.TypeManual {
 			return apperr.Conflict("manual source already exists")
+		}
+		if s.Type == domain.TypeYouTube {
+			return apperr.Conflict("youtube channel already in use")
 		}
 		return apperr.Conflict("rss url already in use")
 	}
@@ -51,15 +58,15 @@ func (r *Repository) CreateSource(ctx context.Context, s *domain.Source) error {
 }
 
 func (r *Repository) GetSourceByID(ctx context.Context, id uuid.UUID) (*domain.Source, error) {
-	return scanSource(r.q.QueryRowContext(ctx, `SELECT id, name, type, rss_url, active, created_at, updated_at FROM sources WHERE id = ?`, id.String()))
+	return scanSource(r.q.QueryRowContext(ctx, `SELECT id, name, type, rss_url, youtube_channel_id, active, created_at, updated_at FROM sources WHERE id = ?`, id.String()))
 }
 
 func (r *Repository) GetManualSource(ctx context.Context) (*domain.Source, error) {
-	return scanSource(r.q.QueryRowContext(ctx, `SELECT id, name, type, rss_url, active, created_at, updated_at FROM sources WHERE type = ? LIMIT 1`, string(domain.TypeManual)))
+	return scanSource(r.q.QueryRowContext(ctx, `SELECT id, name, type, rss_url, youtube_channel_id, active, created_at, updated_at FROM sources WHERE type = ? LIMIT 1`, string(domain.TypeManual)))
 }
 
 func (r *Repository) ListSources(ctx context.Context, filter repository.ListSourcesFilter) ([]*domain.Source, error) {
-	query := `SELECT id, name, type, rss_url, active, created_at, updated_at FROM sources`
+	query := `SELECT id, name, type, rss_url, youtube_channel_id, active, created_at, updated_at FROM sources`
 	if !filter.IncludeDeactivated {
 		query += ` WHERE active = 1`
 	}
@@ -108,10 +115,10 @@ type scanner interface{ Scan(...any) error }
 func scanSource(row scanner) (*domain.Source, error) {
 	var s domain.Source
 	var typ, id string
-	var rssURL sql.NullString
+	var rssURL, channelID sql.NullString
 	var active bool
 	var createdAt, updatedAt int64
-	if err := row.Scan(&id, &s.Name, &typ, &rssURL, &active, &createdAt, &updatedAt); err != nil {
+	if err := row.Scan(&id, &s.Name, &typ, &rssURL, &channelID, &active, &createdAt, &updatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, apperr.NotFound("source not found")
 		}
@@ -124,6 +131,9 @@ func scanSource(row scanner) (*domain.Source, error) {
 	s.ID, s.Type, s.Active = parsedID, domain.Type(typ), active
 	if rssURL.Valid {
 		s.RSSURL = rssURL.String
+	}
+	if channelID.Valid {
+		s.YouTubeChannelID = channelID.String
 	}
 	s.CreatedAt = unixTime(createdAt)
 	s.UpdatedAt = unixTime(updatedAt)

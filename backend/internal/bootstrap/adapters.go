@@ -66,7 +66,7 @@ func (f fetchSources) ListActiveFetchable(ctx context.Context) ([]fetchsvc.Sourc
 	}
 	out := make([]fetchsvc.SourceRef, 0, len(list))
 	for _, src := range list {
-		if src.Type != sourcedomain.TypeRSS {
+		if src.Type != sourcedomain.TypeRSS && src.Type != sourcedomain.TypeYouTube {
 			continue
 		}
 		out = append(out, *toFetchSourceRef(src))
@@ -76,10 +76,11 @@ func (f fetchSources) ListActiveFetchable(ctx context.Context) ([]fetchsvc.Sourc
 
 func toFetchSourceRef(src *sourcedomain.Source) *fetchsvc.SourceRef {
 	return &fetchsvc.SourceRef{
-		ID:     src.ID,
-		Type:   fetchsvc.SourceType(src.Type),
-		Active: src.Active,
-		RSSURL: src.RSSURL,
+		ID:               src.ID,
+		Type:             fetchsvc.SourceType(src.Type),
+		Active:           src.Active,
+		RSSURL:           src.RSSURL,
+		YouTubeChannelID: src.YouTubeChannelID,
 	}
 }
 

@@ -2,8 +2,10 @@ package bootstrap
 
 import (
 	"context"
+	"strings"
 
 	"github.com/google/uuid"
+	fetchdomain "github.com/larb26656/my-feed/backend/internal/fetch/domain"
 	fetchrepo "github.com/larb26656/my-feed/backend/internal/fetch/repository"
 	fetchsvc "github.com/larb26656/my-feed/backend/internal/fetch/service"
 	"github.com/larb26656/my-feed/backend/internal/platform/database"
@@ -23,7 +25,26 @@ type sourceAPIWithFetch struct {
 }
 
 func (s sourceAPIWithFetch) CreateSource(ctx context.Context, in sourcesvc.CreateSourceInput) (*sourcedomain.Source, error) {
-	return s.inner.CreateSource(ctx, in)
+	if strings.TrimSpace(in.Type) != string(sourcedomain.TypeYouTube) {
+		return s.inner.CreateSource(ctx, in)
+	}
+	var out *sourcedomain.Source
+	err := s.db.WithinTransaction(ctx, func(ctx context.Context, tx database.Transaction) error {
+		src, err := sourcesvc.New(s.sourceRepo.WithTx(tx)).CreateSource(ctx, in)
+		if err != nil {
+			return err
+		}
+		job, err := fetchdomain.NewFetchJob(src.ID)
+		if err != nil {
+			return err
+		}
+		if err := s.fetchRepo.WithTx(tx).CreateFetchJob(ctx, job); err != nil {
+			return err
+		}
+		out = src
+		return nil
+	})
+	return out, err
 }
 
 func (s sourceAPIWithFetch) ListSources(ctx context.Context, in sourcesvc.ListSourcesInput) ([]*sourcedomain.Source, error) {

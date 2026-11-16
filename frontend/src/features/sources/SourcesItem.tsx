@@ -35,9 +35,10 @@ export function SourcesItem({
 				</Link>
 				<span className="text-xs text-muted-foreground">
 					{source.type.toUpperCase()} · {source.active ? "Active" : "Inactive"}
+					{source.youtubeChannelId && ` · ${source.youtubeChannelId}`}
 				</span>
 			</span>
-			{source.type === "rss" && (
+			{source.type !== "manual" && (
 				<div className="flex gap-2">
 					<div className="relative">
 						<Button

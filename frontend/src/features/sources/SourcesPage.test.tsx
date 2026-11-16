@@ -46,7 +46,7 @@ test("creates an RSS Source and shows it in management after success", async () 
 	const user = userEvent.setup();
 	await user.click(await screen.findByRole("button", { name: "Add Source" }));
 	expect(
-		screen.getByRole("heading", { name: "Add RSS / Atom source" }),
+		screen.getByRole("heading", { name: "Add source" }),
 	).toBeTruthy();
 	await user.type(screen.getByLabelText("Source name"), "Engineering Blog");
 	await user.type(
@@ -104,7 +104,7 @@ test("edits the supported Source fields and refreshes management", async () => {
 	);
 	await user.click(screen.getByRole("menuitem", { name: "Edit source" }));
 	expect(
-		screen.getByRole("heading", { name: "Edit RSS / Atom source" }),
+		screen.getByRole("heading", { name: "Edit source" }),
 	).toBeTruthy();
 	const name = screen.getByLabelText("Source name");
 	await user.clear(name);

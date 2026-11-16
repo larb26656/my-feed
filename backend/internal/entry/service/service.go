@@ -19,8 +19,9 @@ import (
 type SourceType string
 
 const (
-	SourceTypeRSS    SourceType = "rss"
-	SourceTypeManual SourceType = "manual"
+	SourceTypeRSS     SourceType = "rss"
+	SourceTypeYouTube SourceType = "youtube"
+	SourceTypeManual  SourceType = "manual"
 )
 
 // SourceRef is the Entry module's lookup view of a Source for write-path rules.
@@ -98,7 +99,7 @@ func (s *Service) IngestEntry(ctx context.Context, in IngestEntryInput) (*Ingest
 	if err != nil {
 		return nil, err
 	}
-	if src.Type != SourceTypeRSS {
+	if src.Type != SourceTypeRSS && src.Type != SourceTypeYouTube {
 		return nil, apperr.Validation("ingest can only record entries into rss sources")
 	}
 	if !src.Active {

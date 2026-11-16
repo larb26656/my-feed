@@ -15,6 +15,7 @@ import (
 	fetchhttp "github.com/larb26656/my-feed/backend/internal/fetch/adapter/http"
 	"github.com/larb26656/my-feed/backend/internal/fetch/adapter/obtain"
 	obtainrss "github.com/larb26656/my-feed/backend/internal/fetch/adapter/obtain/rss"
+	obtainyoutube "github.com/larb26656/my-feed/backend/internal/fetch/adapter/obtain/youtube"
 	"github.com/larb26656/my-feed/backend/internal/fetch/adapter/runtime"
 	fetchsqlite "github.com/larb26656/my-feed/backend/internal/fetch/adapter/sqlite"
 	fetchsvc "github.com/larb26656/my-feed/backend/internal/fetch/service"
@@ -53,8 +54,7 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 	entryRepo := entrysqlite.NewRepository(pool.DB)
 	entryService := entrysvc.New(entryRepo, sourceLookup{repo: sourceRepo})
 
-	obtainRegistry := obtain.NewRegistry()
-	obtainRegistry.Register(fetchsvc.SourceTypeRSS, obtainrss.New(http.DefaultClient))
+	obtainRegistry := newObtainRegistry(http.DefaultClient)
 
 	fetchRepo := fetchsqlite.NewRepository(pool.DB)
 	fetchService := fetchsvc.New(
@@ -91,6 +91,13 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 	r.Mount("/api/v1/fetch-jobs", fetchhttp.NewHandler(fetchService).Routes())
 
 	return &App{Pool: pool, Router: r}, nil
+}
+
+func newObtainRegistry(client *http.Client) *obtain.Registry {
+	registry := obtain.NewRegistry()
+	registry.Register(fetchsvc.SourceTypeRSS, obtainrss.New(client))
+	registry.Register(fetchsvc.SourceTypeYouTube, obtainyoutube.New(client))
+	return registry
 }
 
 func (a *App) Close() {

@@ -20,17 +20,35 @@ export function useSaveSource() {
 			id?: string;
 			name: string;
 			rssUrl: string;
+			type: "rss" | "youtube";
+			youtubeChannelId: string;
 		}) =>
 			id
 				? api<Source>(`/sources/${id}`, {
 						method: "PATCH",
 						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify(values),
+						body: JSON.stringify(
+							values.type === "youtube"
+								? { name: values.name }
+								: { name: values.name, rssUrl: values.rssUrl },
+						),
 					})
 				: api<Source>("/sources/", {
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({ ...values, type: "rss" }),
+						body: JSON.stringify(
+							values.type === "youtube"
+								? {
+										name: values.name,
+										type: values.type,
+										youtubeChannelId: values.youtubeChannelId.trim(),
+									}
+								: {
+										name: values.name,
+										type: values.type,
+										rssUrl: values.rssUrl,
+									},
+						),
 					}),
 		onSuccess: () =>
 			queryClient.invalidateQueries({ queryKey: sourceKeys.all }),
