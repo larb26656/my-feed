@@ -1,13 +1,14 @@
 package rss
 
 import (
+	"bytes"
 	"context"
-	"encoding/xml"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
-	"time"
+
+	"github.com/mmcdole/gofeed"
 
 	"github.com/larb26656/my-feed/backend/internal/fetch/service"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
@@ -43,7 +44,7 @@ func (a *Adapter) Obtain(ctx context.Context, source *service.SourceRef) ([]serv
 	if err != nil {
 		return nil, apperr.Validation("invalid rss feed url")
 	}
-	req.Header.Set("Accept", "application/rss+xml, application/xml, text/xml, */*")
+	req.Header.Set("Accept", "application/rss+xml, application/atom+xml, application/xml, text/xml, */*")
 
 	res, err := a.client.Do(req)
 	if err != nil {
@@ -60,98 +61,34 @@ func (a *Adapter) Obtain(ctx context.Context, source *service.SourceRef) ([]serv
 	if err != nil {
 		return nil, apperr.FailedPrecondition("rss feed body read failed")
 	}
-	return parseRSS(body)
-}
-
-type rssFeed struct {
-	Channel rssChannel `xml:"channel"`
-}
-
-type rssChannel struct {
-	Items []rssItem `xml:"item"`
-}
-
-type rssItem struct {
-	Title       string         `xml:"title"`
-	Link        string         `xml:"link"`
-	Description string         `xml:"description"`
-	PubDate     string         `xml:"pubDate"`
-	Enclosure   *rssEnclosure  `xml:"enclosure"`
-	MediaThumb  *mediaThumbnail `xml:"http://search.yahoo.com/mrss/ thumbnail"`
-}
-
-type rssEnclosure struct {
-	URL  string `xml:"url,attr"`
-	Type string `xml:"type,attr"`
-}
-
-type mediaThumbnail struct {
-	URL string `xml:"url,attr"`
-}
-
-func parseRSS(body []byte) ([]service.PreparedEntry, error) {
-	var feed rssFeed
-	if err := xml.Unmarshal(body, &feed); err != nil {
-		return nil, apperr.Validation("invalid rss feed document")
+	feed, err := gofeed.NewParser().Parse(bytes.NewReader(body))
+	if err != nil {
+		return nil, apperr.Validation("invalid or unsupported feed document")
 	}
-
-	out := make([]service.PreparedEntry, 0, len(feed.Channel.Items))
-	for _, item := range feed.Channel.Items {
-		title := strings.TrimSpace(item.Title)
-		link := strings.TrimSpace(item.Link)
+	entries := make([]service.PreparedEntry, 0, len(feed.Items))
+	for _, item := range feed.Items {
+		title, link := strings.TrimSpace(item.Title), strings.TrimSpace(item.Link)
 		if title == "" || link == "" {
 			continue
 		}
-		entry := service.PreparedEntry{
-			Title:       title,
-			Link:        link,
-			Description: strings.TrimSpace(item.Description),
-			Thumbnail:   thumbnailFromItem(item),
+		description := strings.TrimSpace(item.Description)
+		if description == "" {
+			description = strings.TrimSpace(item.Content)
 		}
-		if published := parsePubDate(item.PubDate); published != nil {
-			entry.PublishedAt = published
+		entry := service.PreparedEntry{Title: title, Link: link, Description: description, PublishedAt: item.PublishedParsed}
+		if item.Image != nil && strings.TrimSpace(item.Image.URL) != "" {
+			thumbnail := strings.TrimSpace(item.Image.URL)
+			entry.Thumbnail = &thumbnail
+		} else {
+			for _, enclosure := range item.Enclosures {
+				if strings.HasPrefix(strings.ToLower(strings.TrimSpace(enclosure.Type)), "image/") && strings.TrimSpace(enclosure.URL) != "" {
+					thumbnail := strings.TrimSpace(enclosure.URL)
+					entry.Thumbnail = &thumbnail
+					break
+				}
+			}
 		}
-		out = append(out, entry)
+		entries = append(entries, entry)
 	}
-	return out, nil
-}
-
-func thumbnailFromItem(item rssItem) *string {
-	if item.MediaThumb != nil {
-		if u := strings.TrimSpace(item.MediaThumb.URL); u != "" {
-			return &u
-		}
-	}
-	if item.Enclosure != nil {
-		u := strings.TrimSpace(item.Enclosure.URL)
-		if u == "" {
-			return nil
-		}
-		typ := strings.ToLower(strings.TrimSpace(item.Enclosure.Type))
-		if typ == "" || strings.HasPrefix(typ, "image/") {
-			return &u
-		}
-	}
-	return nil
-}
-
-func parsePubDate(raw string) *time.Time {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return nil
-	}
-	layouts := []string{
-		time.RFC1123Z,
-		time.RFC1123,
-		time.RFC822Z,
-		time.RFC822,
-		time.RFC3339,
-	}
-	for _, layout := range layouts {
-		if t, err := time.Parse(layout, raw); err == nil {
-			utc := t.UTC()
-			return &utc
-		}
-	}
-	return nil
+	return entries, nil
 }

@@ -13,7 +13,7 @@ An origin of Entries, identified by a type and type-specific configuration. Some
 _Avoid_: subscription, channel, soft delete
 
 **Source Type**:
-The kind of Source, which determines how Entries arrive and what configuration it needs (for example `rss` or `manual`). The type is fixed when the Source is created.
+The kind of Source, which determines how Entries arrive and what configuration it needs (`rss`, `manual`, or `youtube`, which follows one YouTube channel). The `rss` type accepts both RSS and Atom documents from a URL; the document format does not define a separate Source Type. The type is fixed when the Source is created.
 _Avoid_: source kind, provider, connector
 
 **Saved**:

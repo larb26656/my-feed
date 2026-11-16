@@ -16,7 +16,7 @@ import { useSaveSource, useSetSourceActive } from "#/hooks/queries";
 
 const sourceSchema = z.object({
 	name: z.string().trim().min(1, "Please enter a source name"),
-	rssUrl: z.url("Please enter a valid RSS URL"),
+	rssUrl: z.url("Please enter a valid RSS / Atom URL"),
 });
 type SourceForm = z.infer<typeof sourceSchema>;
 
@@ -101,7 +101,7 @@ export function SourcesPage() {
 						<div className="flex items-start justify-between px-6 py-5 sm:px-7">
 							<div>
 								<h2 id="source-dialog-title" className="text-xl font-semibold">
-									{editing ? "Edit RSS source" : "Add RSS source"}
+									{editing ? "Edit RSS / Atom source" : "Add RSS / Atom source"}
 								</h2>
 								<p className="mt-1 text-sm text-muted-foreground">
 									Follow a feed and keep new articles in one place.
@@ -146,7 +146,7 @@ export function SourcesPage() {
 										<Rss size={18} />
 									</span>
 									<span className="flex-1">
-										<strong className="block text-sm">RSS feed</strong>
+										<strong className="block text-sm">RSS / Atom feed</strong>
 										<span className="text-xs text-muted-foreground">
 											A website or publication feed
 										</span>
@@ -158,7 +158,7 @@ export function SourcesPage() {
 							</fieldset>
 							<FormField
 								id="source-rss-url"
-								label="RSS feed URL"
+								label="RSS / Atom feed URL"
 								error={form.formState.errors.rssUrl?.message}
 								registration={form.register("rssUrl")}
 								type="url"
@@ -220,7 +220,7 @@ export function SourcesPage() {
 					size="compact"
 					illustration="feed"
 					title="No sources yet"
-					description="Add an RSS source to start following articles"
+					description="Add an RSS / Atom source to start following articles"
 					action={<Button onClick={openCreate}>Add Source</Button>}
 				/>
 			)}

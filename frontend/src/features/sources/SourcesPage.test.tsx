@@ -45,12 +45,15 @@ test("creates an RSS Source and shows it in management after success", async () 
 	);
 	const user = userEvent.setup();
 	await user.click(await screen.findByRole("button", { name: "Add Source" }));
+	expect(
+		screen.getByRole("heading", { name: "Add RSS / Atom source" }),
+	).toBeTruthy();
 	await user.type(screen.getByLabelText("Source name"), "Engineering Blog");
 	await user.type(
-		screen.getByLabelText("RSS URL"),
+		screen.getByLabelText("RSS / Atom feed URL"),
 		"https://example.com/feed.xml",
 	);
-	await user.click(screen.getByRole("button", { name: "Save Source" }));
+	await user.click(screen.getByRole("button", { name: "Save source" }));
 	await screen.findByText("Engineering Blog");
 	await waitFor(() => {
 		const request = vi
@@ -97,13 +100,17 @@ test("edits the supported Source fields and refreshes management", async () => {
 	);
 	const user = userEvent.setup();
 	await user.click(
-		await screen.findByRole("button", { name: "Edit Old name" }),
+		await screen.findByRole("button", { name: "Actions for Old name" }),
 	);
+	await user.click(screen.getByRole("menuitem", { name: "Edit source" }));
+	expect(
+		screen.getByRole("heading", { name: "Edit RSS / Atom source" }),
+	).toBeTruthy();
 	const name = screen.getByLabelText("Source name");
 	await user.clear(name);
 	await user.type(name, "New name");
-	await user.click(screen.getByRole("button", { name: "Save Source" }));
-	await screen.findByRole("button", { name: "Edit New name" });
+	await user.click(screen.getByRole("button", { name: "Save source" }));
+	await screen.findByRole("button", { name: "Actions for New name" });
 	const patchCall = fetchMock.mock.calls.find(
 		([, init]) => init?.method === "PATCH",
 	);
@@ -141,15 +148,17 @@ test("shows field validation and server submission errors", async () => {
 	);
 	const user = userEvent.setup();
 	await user.click(await screen.findByRole("button", { name: "Add Source" }));
-	await user.click(screen.getByRole("button", { name: "Save Source" }));
+	await user.click(screen.getByRole("button", { name: "Save source" }));
 	expect(await screen.findByText("Please enter a source name")).toBeTruthy();
-	expect(await screen.findByText("Please enter a valid RSS URL")).toBeTruthy();
+	expect(
+		await screen.findByText("Please enter a valid RSS / Atom URL"),
+	).toBeTruthy();
 	expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(
 		false,
 	);
 	await user.type(screen.getByLabelText("Source name"), "Good Source");
 	await user.type(
-		screen.getByLabelText("RSS URL"),
+		screen.getByLabelText("RSS / Atom feed URL"),
 		"https://example.com/feed.xml",
 	);
 	fetchMock.mockClear();
@@ -158,7 +167,7 @@ test("shows field validation and server submission errors", async () => {
 		status: 400,
 		json: async () => ({}),
 	}));
-	await user.click(screen.getByRole("button", { name: "Save Source" }));
+	await user.click(screen.getByRole("button", { name: "Save source" }));
 	expect(
 		await screen.findByText(/Could not save source: Request failed \(400\)/),
 	).toBeTruthy();
@@ -202,14 +211,16 @@ test("deactivates and reactivates RSS Sources while keeping Entries linked to th
 	);
 	const user = userEvent.setup();
 	await user.click(
-		await screen.findByRole("button", { name: "Inactive Engineering Blog" }),
+		await screen.findByRole("button", { name: "Actions for Engineering Blog" }),
 	);
-	await screen.findByRole("button", { name: "Activate Engineering Blog" });
-	expect(screen.getByText(/RSS.*Inactive/)).toBeTruthy();
+	await user.click(screen.getByRole("menuitem", { name: "Deactivate source" }));
+	await screen.findByText(/RSS.*Inactive/);
 	await user.click(
-		screen.getByRole("button", { name: "Activate Engineering Blog" }),
+		screen.getByRole("button", { name: "Actions for Engineering Blog" }),
 	);
-	await screen.findByRole("button", { name: "Inactive Engineering Blog" });
+	expect(screen.getByText(/RSS.*Inactive/)).toBeTruthy();
+	await user.click(screen.getByRole("menuitem", { name: "Activate source" }));
+	await screen.findByText(/RSS.*Active/);
 	expect(screen.getByText(/RSS.*Active/)).toBeTruthy();
 	expect(
 		fetchMock.mock.calls.some(
@@ -253,17 +264,17 @@ test("shows an activation failure without changing a Source", async () => {
 			</FeedProvider>
 		</QueryClientProvider>,
 	);
-	await userEvent
-		.setup()
-		.click(
-			await screen.findByRole("button", { name: "Inactive Engineering Blog" }),
-		);
+	const user = userEvent.setup();
+	await user.click(
+		await screen.findByRole("button", { name: "Actions for Engineering Blog" }),
+	);
+	await user.click(screen.getByRole("menuitem", { name: "Deactivate source" }));
 	expect(
 		await screen.findByText(
 			/Could not update source status: Request failed \(503\)/,
 		),
 	).toBeTruthy();
 	expect(
-		screen.getByRole("button", { name: "Inactive Engineering Blog" }),
+		screen.getByRole("button", { name: "Actions for Engineering Blog" }),
 	).toBeTruthy();
 });

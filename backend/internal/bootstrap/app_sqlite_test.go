@@ -813,3 +813,121 @@ func TestSavedCountEndpointTracksSavedEntriesAcrossPages(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 20, count())
 }
+
+func TestSQLiteAtomFetchLifecycle(t *testing.T) {
+	for _, scenario := range []string{"refresh preserves reader state", "empty document succeeds", "unsupported document fails"} {
+		t.Run(scenario, func(t *testing.T) {
+			// Arrange
+			var mu sync.RWMutex
+			body := `<rss><channel><item><title>Original</title><link>https://example.test/page</link></item></channel></rss>`
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				mu.RLock()
+				defer mu.RUnlock()
+				_, _ = w.Write([]byte(body))
+			}))
+			defer server.Close()
+			setBody := func(value string) { mu.Lock(); defer mu.Unlock(); body = value }
+			ctx, cancel := context.WithCancel(context.Background())
+			dbPath := filepath.Join(t.TempDir(), "atom.db")
+			require.NoError(t, goose.SetDialect("sqlite3"))
+			db, err := sql.Open("sqlite", sqliteTestDSN(dbPath))
+			require.NoError(t, err)
+			require.NoError(t, goose.Up(db, "../../migrations"))
+			require.NoError(t, db.Close())
+			cfg := Config{DatabasePath: dbPath, HTTPAddr: ":0", Fetch: FetchConfig{RetryBackoff: time.Millisecond, ScheduleInterval: time.Hour, ExecutorPoll: 5 * time.Millisecond}}
+			setupCtx, setupCancel := context.WithCancel(context.Background())
+			app, err := NewWithConfig(setupCtx, cfg)
+			require.NoError(t, err)
+			setupCancel()
+
+			response := requestJSON(t, app.Router, http.MethodPost, "/api/v1/sources/", map[string]any{"name": "Atom", "type": "rss", "rssUrl": server.URL})
+			require.Equal(t, http.StatusCreated, response.Code)
+			var source struct {
+				ID string `json:"id"`
+			}
+			require.NoError(t, json.Unmarshal(response.Body.Bytes(), &source))
+			app.Close()
+			app, err = NewWithConfig(ctx, cfg)
+			require.NoError(t, err)
+			defer func() { cancel(); app.Close() }()
+			var scheduled struct {
+				Data []struct {
+					ID             string `json:"id"`
+					Status         string `json:"status"`
+					EntriesCreated int    `json:"entriesCreated"`
+				} `json:"data"`
+			}
+			require.Eventually(t, func() bool {
+				res := requestJSON(t, app.Router, http.MethodGet, "/api/v1/fetch-jobs/?sourceId="+source.ID, nil)
+				require.NoError(t, json.Unmarshal(res.Body.Bytes(), &scheduled))
+				return len(scheduled.Data) == 1 && scheduled.Data[0].Status == "succeeded"
+			}, 5*time.Second, 10*time.Millisecond)
+			require.Equal(t, 1, scheduled.Data[0].EntriesCreated)
+			run := func(status string, count int) {
+				t.Helper()
+				res := requestJSON(t, app.Router, http.MethodPost, "/api/v1/fetch-jobs/", map[string]any{"sourceId": source.ID})
+				require.Equal(t, http.StatusCreated, res.Code, res.Body.String())
+				var job struct {
+					ID             string `json:"id"`
+					Status         string `json:"status"`
+					EntriesCreated int    `json:"entriesCreated"`
+					Attempt        int    `json:"attempt"`
+				}
+				require.NoError(t, json.Unmarshal(res.Body.Bytes(), &job))
+				require.Eventually(t, func() bool {
+					res = requestJSON(t, app.Router, http.MethodGet, "/api/v1/fetch-jobs/"+job.ID, nil)
+					require.NoError(t, json.Unmarshal(res.Body.Bytes(), &job))
+					return job.Status == status
+				}, 5*time.Second, 10*time.Millisecond)
+				require.Equal(t, count, job.EntriesCreated)
+				if status == "failed" {
+					require.Equal(t, 3, job.Attempt)
+				}
+			}
+			if scenario == "empty document succeeds" {
+				setBody(`<feed xmlns="http://www.w3.org/2005/Atom"/>`)
+				// Act & Assert
+				run("succeeded", 0)
+				return
+			}
+			if scenario == "unsupported document fails" {
+				setBody(`<html/>`)
+				// Act & Assert
+				run("failed", 0)
+				return
+			}
+			list := requestJSON(t, app.Router, http.MethodGet, "/api/v1/entries/", nil)
+			var entries struct {
+				Data []struct {
+					ID          string  `json:"id"`
+					Title       string  `json:"title"`
+					Description string  `json:"description"`
+					ReadAt      *string `json:"readAt"`
+					SavedAt     *string `json:"savedAt"`
+					Thumbnail   *string `json:"thumbnail"`
+				} `json:"data"`
+			}
+			require.NoError(t, json.Unmarshal(list.Body.Bytes(), &entries))
+			require.Len(t, entries.Data, 1)
+			id := entries.Data[0].ID
+			require.Equal(t, http.StatusOK, requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/"+id+"/read", nil).Code)
+			require.Equal(t, http.StatusOK, requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/"+id+"/save", nil).Code)
+			setBody(`<feed xmlns="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/"><entry><title>Refreshed</title><link href="https://example.test/page"/><link rel="enclosure" type="image/png" href="/fallback.png"/><media:thumbnail url="/selected.png"/><summary type="html">&lt;p&gt;Read &lt;strong&gt;this&lt;/strong&gt;&lt;/p&gt;</summary></entry></feed>`)
+
+			// Act
+			run("succeeded", 0)
+			// Assert
+			list = requestJSON(t, app.Router, http.MethodGet, "/api/v1/entries/", nil)
+			require.NoError(t, json.Unmarshal(list.Body.Bytes(), &entries))
+			require.Len(t, entries.Data, 1)
+			require.Equal(t, id, entries.Data[0].ID)
+			require.Equal(t, "Refreshed", entries.Data[0].Title)
+			require.Equal(t, "<p>Read <strong>this</strong></p>", entries.Data[0].Description)
+			require.NotNil(t, entries.Data[0].Thumbnail)
+			require.Equal(t, "/fallback.png", *entries.Data[0].Thumbnail)
+
+			require.NotNil(t, entries.Data[0].ReadAt)
+			require.NotNil(t, entries.Data[0].SavedAt)
+		})
+	}
+}
