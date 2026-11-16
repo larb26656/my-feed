@@ -105,11 +105,7 @@ func (h *Handler) listJobs(w http.ResponseWriter, r *http.Request) {
 	}
 	in := service.ListFetchJobsInput{Cursor: query.Cursor, PageSize: query.PageSize}
 	if query.SourceID != nil {
-		id, err := uuid.Parse(*query.SourceID)
-		if err != nil {
-			httpx.WriteError(w, apperr.Validation("invalid source id"))
-			return
-		}
+		id := uuid.MustParse(*query.SourceID)
 		in.Criteria.SourceID = &id
 	}
 	if query.Status != nil {
