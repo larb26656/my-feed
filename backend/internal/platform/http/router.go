@@ -10,6 +10,7 @@ import (
 )
 
 type requestIDKey struct{}
+type abortHandlerKey struct{}
 
 // RequestID returns the request identifier propagated to application services.
 func RequestID(ctx context.Context) string {
@@ -26,6 +27,7 @@ func NewRouter() *gin.Engine {
 	r.UnescapePathValues = false
 	r.HandleMethodNotAllowed = true
 	_ = r.SetTrustedProxies(nil)
+	recovery := gin.Recovery()
 	r.Use(func(c *gin.Context) {
 		id := c.GetHeader("X-Request-Id")
 		if id == "" {
@@ -33,7 +35,27 @@ func NewRouter() *gin.Engine {
 		}
 		c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), requestIDKey{}, id))
 		c.Next()
-	}, gin.Recovery())
+	}, func(c *gin.Context) {
+		// Carry abort panics past Gin's recovery without logging or swallowing them.
+		aborted := false
+		c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), abortHandlerKey{}, &aborted))
+		recovery(c)
+		if aborted {
+			panic(http.ErrAbortHandler)
+		}
+	}, func(c *gin.Context) {
+		aborted := c.Request.Context().Value(abortHandlerKey{}).(*bool)
+		defer func() {
+			if err := recover(); err != nil {
+				if err != http.ErrAbortHandler {
+					panic(err)
+				}
+				*aborted = true
+				c.Abort()
+			}
+		}()
+		c.Next()
+	})
 	r.NoRoute(func(c *gin.Context) { http.NotFound(c.Writer, c.Request) })
 	r.NoMethod(func(c *gin.Context) {
 		methods := strings.Split(c.Writer.Header().Get("Allow"), ", ")
