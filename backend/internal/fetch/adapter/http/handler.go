@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
 	"github.com/larb26656/my-feed/backend/internal/fetch/domain"
@@ -22,12 +22,12 @@ func NewHandler(svc *service.Service) *Handler {
 	return &Handler{svc: svc}
 }
 
-func (h *Handler) Routes() chi.Router {
-	r := chi.NewRouter()
-	r.Post("/", h.createManual)
-	r.Get("/", h.listJobs)
-	r.Get("/{id}", h.getJob)
-	return r
+func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
+	r.POST("/", h.createManual)
+	r.POST("", h.createManual)
+	r.GET("/", h.listJobs)
+	r.GET("", h.listJobs)
+	r.GET("/:id", h.getJob)
 }
 
 type createFetchJobRequest struct {
@@ -58,7 +58,8 @@ func toFetchJobResponse(job *domain.FetchJob) fetchJobResponse {
 	}
 }
 
-func (h *Handler) createManual(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) createManual(c *gin.Context) {
+	w, r := c.Writer, c.Request
 	var req createFetchJobRequest
 	if err := httpx.DecodeJSON(r, &req); err != nil {
 		httpx.WriteError(w, err)
@@ -77,8 +78,9 @@ func (h *Handler) createManual(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusCreated, toFetchJobResponse(job))
 }
 
-func (h *Handler) getJob(w http.ResponseWriter, r *http.Request) {
-	id, err := uuid.Parse(chi.URLParam(r, "id"))
+func (h *Handler) getJob(c *gin.Context) {
+	w, r := c.Writer, c.Request
+	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		httpx.WriteError(w, apperr.Validation("invalid fetch job id"))
 		return
@@ -91,7 +93,8 @@ func (h *Handler) getJob(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, toFetchJobResponse(job))
 }
 
-func (h *Handler) listJobs(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) listJobs(c *gin.Context) {
+	w, r := c.Writer, c.Request
 	in := service.ListFetchJobsInput{}
 	query := r.URL.Query()
 	if values, ok := query["sourceId"]; ok {

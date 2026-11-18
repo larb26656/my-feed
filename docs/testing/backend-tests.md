@@ -1,6 +1,6 @@
 # Entry and Source test strategy
 
-Business workflows are exercised through `httptest`, the production module Chi
+Business workflows are exercised through `httptest`, the production module Gin
 routes, real services, and SQLite with every production Goose migration applied.
 `internal/testkit` owns isolated temporary databases and small JSON request/response
 helpers. `internal/testkit/api` wires the two modules without starting fetch workers.

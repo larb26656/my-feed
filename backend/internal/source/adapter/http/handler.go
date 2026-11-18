@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
@@ -33,15 +33,15 @@ func NewHandler(svc SourceAPI) *Handler {
 	return &Handler{svc: svc}
 }
 
-func (h *Handler) Routes() chi.Router {
-	r := chi.NewRouter()
-	r.Post("/", h.createSource)
-	r.Get("/", h.listSources)
-	r.Get("/{id}", h.getSource)
-	r.Patch("/{id}", h.updateSource)
-	r.Post("/{id}/deactivate", h.deactivateSource)
-	r.Post("/{id}/reactivate", h.reactivateSource)
-	return r
+func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
+	r.POST("/", h.createSource)
+	r.POST("", h.createSource)
+	r.GET("/", h.listSources)
+	r.GET("", h.listSources)
+	r.GET("/:id", h.getSource)
+	r.PATCH("/:id", h.updateSource)
+	r.POST("/:id/deactivate", h.deactivateSource)
+	r.POST("/:id/reactivate", h.reactivateSource)
 }
 
 type createSourceRequest struct {
@@ -86,7 +86,8 @@ func toSourceResponse(s *domain.Source) sourceResponse {
 	return resp
 }
 
-func (h *Handler) createSource(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) createSource(c *gin.Context) {
+	w, r := c.Writer, c.Request
 	var req createSourceRequest
 	if err := httpx.DecodeJSON(r, &req); err != nil {
 		httpx.WriteError(w, err)
@@ -105,7 +106,8 @@ func (h *Handler) createSource(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusCreated, toSourceResponse(s))
 }
 
-func (h *Handler) listSources(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) listSources(c *gin.Context) {
+	w, r := c.Writer, c.Request
 	includeDeactivated := r.URL.Query().Get("includeDeactivated") == "true"
 	list, err := h.svc.ListSources(r.Context(), service.ListSourcesInput{
 		IncludeDeactivated: includeDeactivated,
@@ -121,8 +123,9 @@ func (h *Handler) listSources(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, out)
 }
 
-func (h *Handler) getSource(w http.ResponseWriter, r *http.Request) {
-	id, err := parseID(r, "invalid source id")
+func (h *Handler) getSource(c *gin.Context) {
+	w, r := c.Writer, c.Request
+	id, err := parseID(c, "invalid source id")
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
@@ -135,8 +138,9 @@ func (h *Handler) getSource(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, toSourceResponse(s))
 }
 
-func (h *Handler) updateSource(w http.ResponseWriter, r *http.Request) {
-	id, err := parseID(r, "invalid source id")
+func (h *Handler) updateSource(c *gin.Context) {
+	w, r := c.Writer, c.Request
+	id, err := parseID(c, "invalid source id")
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
@@ -157,8 +161,9 @@ func (h *Handler) updateSource(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, toSourceResponse(s))
 }
 
-func (h *Handler) deactivateSource(w http.ResponseWriter, r *http.Request) {
-	id, err := parseID(r, "invalid source id")
+func (h *Handler) deactivateSource(c *gin.Context) {
+	w, r := c.Writer, c.Request
+	id, err := parseID(c, "invalid source id")
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
@@ -171,8 +176,9 @@ func (h *Handler) deactivateSource(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, toSourceResponse(s))
 }
 
-func (h *Handler) reactivateSource(w http.ResponseWriter, r *http.Request) {
-	id, err := parseID(r, "invalid source id")
+func (h *Handler) reactivateSource(c *gin.Context) {
+	w, r := c.Writer, c.Request
+	id, err := parseID(c, "invalid source id")
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
@@ -185,8 +191,8 @@ func (h *Handler) reactivateSource(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, toSourceResponse(s))
 }
 
-func parseID(r *http.Request, invalidMsg string) (uuid.UUID, error) {
-	id, err := uuid.Parse(chi.URLParam(r, "id"))
+func parseID(c *gin.Context, invalidMsg string) (uuid.UUID, error) {
+	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return uuid.Nil, apperr.Validation(invalidMsg)
 	}

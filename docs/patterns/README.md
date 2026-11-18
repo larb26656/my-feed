@@ -20,13 +20,13 @@
 | [`domain.md`](./domain.md) | Aggregate, invariants, ไม่มี public setter ข้าม domain method |
 | [`application.md`](./application.md) | Module service vs cross-module use case |
 | [`persistence.md`](./persistence.md) | Repository port, explicit ops, `WithTx`, conditional update |
-| [`http.md`](./http.md) | Chi handler, DTO, `apperr` → HTTP |
+| [`http.md`](./http.md) | Gin handler, DTO, `apperr` → HTTP |
 | [`platform.md`](./platform.md) | Shared kernel: database, apperr, http helpers |
 | [`init-checklist.md`](./init-checklist.md) | Checklist เริ่มโปรเจกต์ว่าง |
 
 ## Stack อ้างอิง (จาก POC นี้)
 
-- Go + `chi` + SQLite (`database/sql`, ไม่มี ORM)
+- Go + `gin` + SQLite (`database/sql`, ไม่มี ORM)
 - SQLite + Goose SQL migrations (`migrations/`)
 - Money / จำนวนเงินเป็น `int64` (หน่วยย่อย) — ไม่ใช้ float
 - Modular monolith — ไม่แยก microservice, ไม่มี message broker ใน POC

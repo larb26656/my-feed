@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-	chimw "github.com/go-chi/chi/v5/middleware"
+	"github.com/gin-gonic/gin"
+	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
 
 	entryhttp "github.com/larb26656/my-feed/backend/internal/entry/adapter/http"
 	entrysqlite "github.com/larb26656/my-feed/backend/internal/entry/adapter/sqlite"
@@ -27,7 +27,7 @@ import (
 
 type App struct {
 	Pool   *database.Pool
-	Router chi.Router
+	Router *gin.Engine
 }
 
 func New(ctx context.Context) (*App, error) {
@@ -72,23 +72,22 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 		cfg.Fetch.ExecutorPoll,
 	).Start(ctx)
 
-	r := chi.NewRouter()
-	r.Use(chimw.RequestID, chimw.RealIP, chimw.Recoverer)
+	r := httpx.NewRouter()
 
-	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("ok"))
+	r.GET("/healthz", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+		_, _ = c.Writer.Write([]byte("ok"))
 	})
 
-	r.Mount("/api/v1/sources", sourcehttp.NewHandler(sourceAPIWithFetch{
+	sourcehttp.NewHandler(sourceAPIWithFetch{
 		db:         pool,
 		sourceRepo: sourceRepo,
 		fetchRepo:  fetchRepo,
 		inner:      sourceService,
 		fetch:      fetchService,
-	}).Routes())
-	r.Mount("/api/v1/entries", entryhttp.NewHandler(entryService).Routes())
-	r.Mount("/api/v1/fetch-jobs", fetchhttp.NewHandler(fetchService).Routes())
+	}).RegisterRoutes(r.Group("/api/v1/sources"))
+	entryhttp.NewHandler(entryService).RegisterRoutes(r.Group("/api/v1/entries"))
+	fetchhttp.NewHandler(fetchService).RegisterRoutes(r.Group("/api/v1/fetch-jobs"))
 
 	return &App{Pool: pool, Router: r}, nil
 }

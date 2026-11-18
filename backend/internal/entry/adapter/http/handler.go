@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
 	"github.com/larb26656/my-feed/backend/internal/entry/domain"
@@ -36,21 +36,22 @@ func NewHandler(svc EntryAPI) *Handler {
 	return &Handler{svc: svc}
 }
 
-func (h *Handler) Routes() chi.Router {
-	r := chi.NewRouter()
-	r.Post("/save-link", h.saveLink)
-	r.Post("/", h.ingestEntry)
-	r.Get("/", h.listEntries)
-	r.Get("/saved-count", h.savedCount)
-	r.Get("/{id}", h.getEntry)
-	r.Post("/{id}/read", h.markEntryRead)
-	r.Post("/{id}/clear-read", h.clearEntryRead)
-	r.Post("/{id}/save", h.markEntrySaved)
-	r.Post("/{id}/clear-save", h.clearEntrySaved)
-	return r
+func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
+	r.POST("/save-link", h.saveLink)
+	r.POST("/", h.ingestEntry)
+	r.POST("", h.ingestEntry)
+	r.GET("/", h.listEntries)
+	r.GET("", h.listEntries)
+	r.GET("/saved-count", h.savedCount)
+	r.GET("/:id", h.getEntry)
+	r.POST("/:id/read", h.markEntryRead)
+	r.POST("/:id/clear-read", h.clearEntryRead)
+	r.POST("/:id/save", h.markEntrySaved)
+	r.POST("/:id/clear-save", h.clearEntrySaved)
 }
 
-func (h *Handler) savedCount(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) savedCount(c *gin.Context) {
+	w, r := c.Writer, c.Request
 	count, err := h.svc.CountSavedEntries(r.Context())
 	if err != nil {
 		httpx.WriteError(w, err)
@@ -131,7 +132,8 @@ func parseOptionalTime(raw *string) (*time.Time, error) {
 	return &utc, nil
 }
 
-func (h *Handler) saveLink(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) saveLink(c *gin.Context) {
+	w, r := c.Writer, c.Request
 	var req saveLinkRequest
 	if err := httpx.DecodeJSON(r, &req); err != nil {
 		httpx.WriteError(w, err)
@@ -156,7 +158,8 @@ func (h *Handler) saveLink(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusCreated, toEntryResponse(entry))
 }
 
-func (h *Handler) ingestEntry(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ingestEntry(c *gin.Context) {
+	w, r := c.Writer, c.Request
 	var req ingestEntryRequest
 	if err := httpx.DecodeJSON(r, &req); err != nil {
 		httpx.WriteError(w, err)
@@ -191,8 +194,9 @@ func (h *Handler) ingestEntry(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, status, toEntryResponse(result.Entry))
 }
 
-func (h *Handler) getEntry(w http.ResponseWriter, r *http.Request) {
-	id, err := parseID(r, "invalid entry id")
+func (h *Handler) getEntry(c *gin.Context) {
+	w, r := c.Writer, c.Request
+	id, err := parseID(c, "invalid entry id")
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
@@ -205,7 +209,8 @@ func (h *Handler) getEntry(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, toEntryResponse(entry))
 }
 
-func (h *Handler) listEntries(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) listEntries(c *gin.Context) {
+	w, r := c.Writer, c.Request
 	in := service.ListEntriesInput{}
 	query := r.URL.Query()
 	if values, ok := query["sourceId"]; ok {
@@ -256,24 +261,25 @@ func (h *Handler) listEntries(w http.ResponseWriter, r *http.Request) {
 
 type entryMutator func(ctx context.Context, id uuid.UUID) (*domain.Entry, error)
 
-func (h *Handler) markEntryRead(w http.ResponseWriter, r *http.Request) {
-	h.mutateEntry(w, r, h.svc.MarkEntryRead)
+func (h *Handler) markEntryRead(c *gin.Context) {
+	h.mutateEntry(c, h.svc.MarkEntryRead)
 }
 
-func (h *Handler) clearEntryRead(w http.ResponseWriter, r *http.Request) {
-	h.mutateEntry(w, r, h.svc.ClearEntryRead)
+func (h *Handler) clearEntryRead(c *gin.Context) {
+	h.mutateEntry(c, h.svc.ClearEntryRead)
 }
 
-func (h *Handler) markEntrySaved(w http.ResponseWriter, r *http.Request) {
-	h.mutateEntry(w, r, h.svc.MarkEntrySaved)
+func (h *Handler) markEntrySaved(c *gin.Context) {
+	h.mutateEntry(c, h.svc.MarkEntrySaved)
 }
 
-func (h *Handler) clearEntrySaved(w http.ResponseWriter, r *http.Request) {
-	h.mutateEntry(w, r, h.svc.ClearEntrySaved)
+func (h *Handler) clearEntrySaved(c *gin.Context) {
+	h.mutateEntry(c, h.svc.ClearEntrySaved)
 }
 
-func (h *Handler) mutateEntry(w http.ResponseWriter, r *http.Request, fn entryMutator) {
-	id, err := parseID(r, "invalid entry id")
+func (h *Handler) mutateEntry(c *gin.Context, fn entryMutator) {
+	w, r := c.Writer, c.Request
+	id, err := parseID(c, "invalid entry id")
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
@@ -286,8 +292,8 @@ func (h *Handler) mutateEntry(w http.ResponseWriter, r *http.Request, fn entryMu
 	httpx.WriteJSON(w, http.StatusOK, toEntryResponse(entry))
 }
 
-func parseID(r *http.Request, invalidMsg string) (uuid.UUID, error) {
-	id, err := uuid.Parse(chi.URLParam(r, "id"))
+func parseID(c *gin.Context, invalidMsg string) (uuid.UUID, error) {
+	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return uuid.Nil, apperr.Validation(invalidMsg)
 	}

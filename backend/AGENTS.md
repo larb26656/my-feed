@@ -16,7 +16,7 @@ Default `DATABASE_PATH` and `HTTP_ADDR`: `backend/.env.example`. Compose mounts 
 
 ## Stack
 
-Go + chi + SQLite. No ORM, no message broker. HTTP via chi; SQL via `database/sql` and modernc SQLite; schema via Goose + `migrations/` SQL files. Run one backend instance with its database on a local persistent filesystem. Business errors: `platform/apperr`. Overview: `docs/patterns/README.md`.
+Go + gin + SQLite. No ORM, no message broker. HTTP via gin; SQL via `database/sql` and modernc SQLite; schema via Goose + `migrations/` SQL files. Run one backend instance with its database on a local persistent filesystem. Business errors: `platform/apperr`. Overview: `docs/patterns/README.md`.
 
 ## Architecture
 
@@ -33,7 +33,7 @@ Reach the matching doc when changing that layer:
 - Domain invariants, factories, transitions: `docs/patterns/domain.md`
 - Module service or cross-module use case: `docs/patterns/application.md`
 - Repository port, `WithTx`, SQLite adapter: `docs/patterns/persistence.md`
-- Chi handlers, DTOs, `apperr` → HTTP: `docs/patterns/http.md`
+- Gin handlers, DTOs, `apperr` → HTTP: `docs/patterns/http.md`
 - Shared `platform` kernel: `docs/patterns/platform.md`
 
 ## Domain language
@@ -46,7 +46,7 @@ Write tests as business scenarios: name the behavior and expected outcome, keep 
 
 - **One behavior per case:** each test or named subtest should specify one primary behavior and run independently. A sorting case checks order; pagination, filtering, validation, state changes, and persistence belong in separate cases. Multiple assertions are fine when they describe the same outcome. Use table-driven subtests for variations of one rule, with fresh mutable fixtures per case. Keep several steps together only when necessary to prove one behavior, such as reingestion preserving read/saved choices; put prerequisite actions in Arrange and persisted-state verification with the outcome. Do not combine unrelated checks merely to reuse setup; prefer a small fixture helper or a little explicit setup duplication.
 - **AAA sections:** use `// Arrange`, `// Act`, and `// Assert` comments to separate fixture/input setup, the operation under test, and its expected outcomes. Aim for one AAA sequence per case; repeated Act/Assert blocks are a signal to split independent behaviors. Add a short business description when useful, such as `// Act: ingest the same article again.` Table-driven subtests may share immutable Arrange data outside the subtest; label local setup when present. Setup checks such as `require.NoError` belong with Arrange, and request helpers may validate transport status during Act. For a trivial getter asserted inline, `// Act & Assert` is sufficient. Label phases, not every statement; avoid consecutive Act comments for one business action.
-- **Business workflows:** prefer `httptest` through the production module Chi routes, real services, and real SQLite. For Entry and Source, use `internal/testkit/api.New(t)`; it mounts the module routes without starting fetch workers. Bootstrap tests cover middleware, cross-module fetch hooks, and worker wiring separately.
+- **Business workflows:** prefer `httptest` through the production module Gin routes, real services, and real SQLite. For Entry and Source, use `internal/testkit/api.New(t)`; it mounts the module routes without starting fetch workers. Bootstrap tests cover middleware, cross-module fetch hooks, and worker wiring separately.
 - **Shared setup:** use `internal/testkit.NewDatabase(t)` for an isolated temporary SQLite file with production connection settings, all production migrations, and automatic cleanup. Use `testkit.Migrate(t, db)` when a persistence test needs to own and reopen its database. Do not copy schemas or build large fake repositories.
 - **HTTP assertions:** use `testkit.Request` and `testkit.Decode[T]` for transport boilerplate; keep business actions and assertions visible in each test. Check response fields and persisted state, not only status codes. For errors, check the business code and useful message; internal errors must not leak infrastructure details.
 - **Focused tests:** retain domain unit tests for invariants and transitions, and repository tests for SQL constraints, ordering, and persistence across reopen. Use small service stubs for difficult storage-error and conflict-recovery branches. Implement only the relevant port methods and make unexpected calls fail; avoid reimplementing repository behavior or introducing a test DSL.

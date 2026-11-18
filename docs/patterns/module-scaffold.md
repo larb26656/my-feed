@@ -15,7 +15,7 @@ internal/{module}/
     service.go           # application service ของ module
   adapter/
     http/
-      handler.go         # Chi routes + DTO
+      handler.go         # Gin routes + DTO
     sqlite/
       repository.go      # implements repository.Repository
 ```
@@ -48,7 +48,7 @@ internal/{usecase}/
 2. สร้าง module service จาก port
 3. สร้าง cross-module service (ถ้ามี) จาก pool + ports
 4. สร้าง HTTP handler จาก service
-5. `Mount` ใต้ `/api/v1/...`
+5. `RegisterRoutes` ใต้ `/api/v1/...`
 
 อย่าให้ handler สร้าง repository เอง
 

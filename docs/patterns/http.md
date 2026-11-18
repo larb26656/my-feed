@@ -9,20 +9,21 @@ type Handler struct {
 
 func NewHandler(svc *service.Service) *Handler { ... }
 
-func (h *Handler) Routes() chi.Router {
-    r := chi.NewRouter()
-    r.Post("/", h.create)
-    r.Get("/{id}", h.get)
-    // command-style: POST /{id}/publish
-    return r
+func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
+    r.POST("/", h.create)
+    r.POST("", h.create) // collection path without trailing slash
+    r.GET("/:id", h.get)
+    // command-style: POST /:id/publish
 }
 ```
 
-Bootstrap เป็นคน `Mount` path prefix:
+Bootstrap owns the prefix and uses the same registration as HTTP tests:
 
 ```go
-r.Mount("/api/v1/products", producthttp.NewHandler(productService).Routes())
+producthttp.NewHandler(productService).RegisterRoutes(r.Group("/api/v1/products"))
 ```
+
+Handlers use `*gin.Context` for parameters and pass `c.Request.Context()` to services. Use `platform/http.NewRouter` for request IDs, recovery, untrusted forwarded headers and compatible routing responses.
 
 ## Request / response
 

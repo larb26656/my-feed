@@ -34,7 +34,7 @@ domain → platform/apperr เท่านั้น (ไม่ import service/ad
 
 | อนุญาต | ห้าม |
 |--------|------|
-| `service` เรียก domain method | domain import `database/sql` / `chi` / HTTP types |
+| `service` เรียก domain method | domain import `database/sql` / `gin` / HTTP types |
 | `service` พึ่ง `repository.Repository` interface | module A import `moduleB/adapter/sqlite` |
 | cross-module ใช้ port ของหลาย module | generic `Save(any)` เป็น API หลักของ repo |
 | DB constraint + conditional UPDATE เสริม domain | public setter ที่ข้าม state machine |

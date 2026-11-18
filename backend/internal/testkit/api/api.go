@@ -5,11 +5,12 @@ import (
 	"context"
 	"testing"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	entryhttp "github.com/larb26656/my-feed/backend/internal/entry/adapter/http"
 	entrysqlite "github.com/larb26656/my-feed/backend/internal/entry/adapter/sqlite"
 	entrysvc "github.com/larb26656/my-feed/backend/internal/entry/service"
+	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
 	sourcehttp "github.com/larb26656/my-feed/backend/internal/source/adapter/http"
 	sourcesqlite "github.com/larb26656/my-feed/backend/internal/source/adapter/sqlite"
 	sourcedomain "github.com/larb26656/my-feed/backend/internal/source/domain"
@@ -19,9 +20,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// New mounts the production module routes and services on Chi. Bootstrap tests
+// New mounts the production module routes and services on Gin. Bootstrap tests
 // separately cover fetch hooks and worker wiring.
-func New(t testing.TB) chi.Router {
+func New(t testing.TB) *gin.Engine {
 	t.Helper()
 	pool := testkit.NewDatabase(t)
 	sourceRepo := sourcesqlite.NewRepository(pool.DB)
@@ -29,9 +30,9 @@ func New(t testing.TB) chi.Router {
 	_, err := sources.EnsureSavedLinks(context.Background())
 	require.NoError(t, err)
 	entries := entrysvc.New(entrysqlite.NewRepository(pool.DB), sourceLookup{sourceRepo})
-	router := chi.NewRouter()
-	router.Mount("/api/v1/sources", sourcehttp.NewHandler(sources).Routes())
-	router.Mount("/api/v1/entries", entryhttp.NewHandler(entries).Routes())
+	router := httpx.NewRouter()
+	sourcehttp.NewHandler(sources).RegisterRoutes(router.Group("/api/v1/sources"))
+	entryhttp.NewHandler(entries).RegisterRoutes(router.Group("/api/v1/entries"))
 	return router
 }
 

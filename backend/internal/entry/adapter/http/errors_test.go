@@ -20,10 +20,11 @@ func (unavailableSavedCount) CountSavedEntries(context.Context) (int, error) {
 
 func TestStorageFailuresReturnAnInternalErrorWithoutLeakingDatabaseDetails(t *testing.T) {
 	// Arrange
-	router := entryhttp.NewHandler(unavailableSavedCount{}).Routes()
+	router := httpx.NewRouter()
+	entryhttp.NewHandler(unavailableSavedCount{}).RegisterRoutes(router.Group("/entries"))
 
 	// Act: request the saved count while storage is unavailable.
-	response := testkit.Request(t, router, "GET", "/saved-count", nil, 500)
+	response := testkit.Request(t, router, "GET", "/entries/saved-count", nil, 500)
 	failure := testkit.Decode[httpx.ErrorBody](t, response)
 
 	// Assert
