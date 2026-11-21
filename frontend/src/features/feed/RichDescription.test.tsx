@@ -21,4 +21,13 @@ describe("RichDescription", () => {
 		expect(screen.queryByText("hidden")).toBeNull();
 		expect(screen.queryByRole("img")).toBeNull();
 	});
+
+	it("renders void br tags without children", () => {
+		expect(() =>
+			render(<RichDescription html={"line one<br>line two<br/>"} />),
+		).not.toThrow();
+		expect(document.querySelectorAll("br")).toHaveLength(2);
+		expect(document.body.textContent).toContain("line one");
+		expect(document.body.textContent).toContain("line two");
+	});
 });

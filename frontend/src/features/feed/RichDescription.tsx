@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { cn } from "#/lib/utils";
 
 const allowedTags = new Set([
@@ -37,6 +37,8 @@ function renderNode(node: Node, key: number): ReactNode {
 	if (!(node instanceof Element)) return null;
 	if (blockedTags.has(node.tagName)) return null;
 
+	if (node.tagName === "BR") return <br key={key} />;
+
 	const children = Array.from(node.childNodes).map((child, index) =>
 		renderNode(child, index),
 	);
@@ -61,7 +63,6 @@ function renderNode(node: Node, key: number): ReactNode {
 	const Tag = node.tagName.toLowerCase() as
 		| "b"
 		| "blockquote"
-		| "br"
 		| "code"
 		| "em"
 		| "i"
@@ -82,6 +83,7 @@ export function RichDescription({ html }: { html: string }) {
 	const [expanded, setExpanded] = useState(false);
 	const [overflowing, setOverflowing] = useState(false);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: remeasure when html content changes
 	useEffect(() => {
 		const content = contentRef.current;
 		if (!content) return;

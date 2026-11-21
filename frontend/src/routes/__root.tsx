@@ -1,4 +1,4 @@
-import { Link, Outlet, createRootRoute } from "@tanstack/react-router";
+import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
 
 import { EmptyState } from "#/components/EmptyState";
 import { ErrorState } from "#/components/ErrorState";
@@ -46,7 +46,11 @@ function GlobalError({ error, reset }: { error: Error; reset: () => void }) {
 				action={
 					<div className="flex flex-wrap justify-center gap-3">
 						<Button onClick={reset}>Try again</Button>
-						<Button variant="outline" render={<Link to="/" />}>
+						<Button
+							variant="outline"
+							nativeButton={false}
+							render={<Link to="/" />}
+						>
 							Back to feed
 						</Button>
 					</div>
