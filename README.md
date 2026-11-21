@@ -26,7 +26,7 @@ Run commands from the repository root. You need Node.js compatible with Vite 8 (
 Start the backend with Docker Compose:
 
 ```bash
-make up
+make backend:up
 ```
 
 This builds the API, applies Goose migrations, and exposes it on port 8080. SQLite data persists in `backend/data/my-feed.db` on the host.
@@ -46,11 +46,11 @@ To begin, open **Manage Sources** and add an RSS Source. View **Fetch Jobs** to 
 ### Run the backend without Docker
 
 ```bash
-make migrate
-make backend
+make backend:migrate
+make backend:backend
 ```
 
-Both commands default to `backend/data/my-feed.db`. Stop the API with Ctrl-C. Stop the Compose backend with `make down` before running a local backend on the same port.
+Both commands default to `backend/data/my-feed.db`. Stop the API with Ctrl-C. Stop the Compose backend with `make backend:down` before running a local backend on the same port.
 
 ## Configuration
 
@@ -71,17 +71,17 @@ The backend reads environment variables; defaults are listed in [backend/.env.ex
 | Task | Command |
 | --- | --- |
 | Start frontend after installing dependencies | `make frontend` |
-| Build backend binary | `make build` |
-| Run backend unit and adapter tests | `make test-unit` |
-| Run all backend tests | `make test` |
-| Apply migrations | `make migrate` |
-| Inspect migration status | `make migrate-status` |
-| Roll back one migration | `make migrate-down` |
+| Build backend binary | `make backend:build` |
+| Run backend unit and adapter tests | `make backend:test-unit` |
+| Run all backend tests | `make backend:test` |
+| Apply migrations | `make backend:migrate` |
+| Inspect migration status | `make backend:migrate-status` |
+| Roll back one migration | `make backend:migrate-down` |
 | Build frontend | `cd frontend && pnpm build` |
 | Run frontend tests | `cd frontend && pnpm test` |
 | Check frontend lint and formatting | `cd frontend && pnpm check` |
 
-`make build` writes `backend/bin/server`. The frontend build writes `frontend/dist`; serve it with SPA route fallback and route API requests to the backend. Docker Compose currently runs the API only.
+`make backend:build` writes `backend/bin/server`. The frontend build writes `frontend/dist`; serve it with SPA route fallback and route API requests to the backend. Docker Compose currently runs the API only.
 
 ## Architecture
 

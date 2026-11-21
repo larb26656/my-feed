@@ -3,7 +3,7 @@
 A separate, in-memory Bookmark module for discussing API layering and the new
 `platform/http` success, error and cursor response shapes. It is registered in the main application; restarting it clears its data.
 
-Run the main API using `make backend` from the repository root. The default
+Run the main API using `make backend:backend` from the repository root. The default
 address is `localhost:8080`.
 
 For Bruno, open the `bruno/my-feed` collection, select the `Local` environment,

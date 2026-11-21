@@ -2,15 +2,18 @@
 
 From repo root via `Makefile` (`make help` for the full list):
 
-- `make up` — build and run the API with a persistent SQLite file at `backend/data/my-feed.db`
-- `make down` — stop the API container; data remains on the host
-- `make migrate` — Goose `up` on SQLite `migrations/`
-- `make migrate-status` — Goose status
-- `make migrate-down` — Goose `down` (one step)
-- `make backend` — API (:8080)
-- `make test-unit` — unit tests, no Docker
-- `make test` — all Go tests
-- `make build` / `make tidy` — binary / `go mod tidy`
+- `make backend:up` — build and run the API with a persistent SQLite file at `backend/data/my-feed.db`
+- `make backend:down` — stop the API container; data remains on the host
+- `make backend:migrate` — Goose `up` on SQLite `migrations/`
+- `make backend:migrate-status` — Goose status
+- `make backend:migrate-down` — Goose `down` (one step)
+- `make backend:backend` — API (:8080)
+- `make backend:test-unit` — unit tests, no Docker
+- `make backend:test` — all Go tests
+- `make backend:check-arch` — verify module and layer dependencies
+- `make backend:fmt-check` — check Go formatting
+- `make backend:lint` — run Go linters
+- `make backend:build` / `make backend:tidy` — binary / `go mod tidy`
 
 Default `DATABASE_PATH` and `HTTP_ADDR`: `backend/.env.example`. Compose mounts `backend/data` at `/data` in the API container and runs Goose migrations before starting the API.
 
