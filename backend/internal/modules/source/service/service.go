@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/google/uuid"
@@ -64,6 +65,26 @@ func (s *Service) GetSource(ctx context.Context, id uuid.UUID) (*domain.Source, 
 
 type ListSourcesInput struct {
 	IncludeDeactivated bool
+}
+
+type ListSourcesPageInput struct {
+	NameLike, TypeEqual, SortBy, SortDirection string
+	ActiveEqual                                *bool
+	Page, PageSize                             int
+}
+
+func (s *Service) ListSourcesPage(ctx context.Context, in ListSourcesPageInput) ([]*domain.Source, int64, error) {
+	if in.Page < 1 || in.PageSize < 1 || in.PageSize > 100 {
+		return nil, 0, apperr.InvalidInput.New("invalid source page")
+	}
+	items, total, err := s.repo.ListSourcesPage(ctx, repository.SourcePageQuery{
+		NameLike: in.NameLike, TypeEqual: in.TypeEqual, ActiveEqual: in.ActiveEqual,
+		SortBy: in.SortBy, SortDirection: in.SortDirection, Page: in.Page, PageSize: in.PageSize,
+	})
+	if err != nil {
+		return nil, 0, fmt.Errorf("list sources page: %w", err)
+	}
+	return items, total, nil
 }
 
 func (s *Service) ListSources(ctx context.Context, in ListSourcesInput) ([]*domain.Source, error) {

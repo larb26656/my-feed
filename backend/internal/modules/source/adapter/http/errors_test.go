@@ -15,8 +15,8 @@ import (
 
 type failingSourceAPI struct{ SourceAPI }
 
-func (failingSourceAPI) ListSources(context.Context, service.ListSourcesInput) ([]*domain.Source, error) {
-	return nil, errors.New("private database failure")
+func (failingSourceAPI) ListSourcesPage(context.Context, service.ListSourcesPageInput) ([]*domain.Source, int64, error) {
+	return nil, 0, errors.New("private database failure")
 }
 
 func TestListErrorsUseCentralEnvelope(t *testing.T) {

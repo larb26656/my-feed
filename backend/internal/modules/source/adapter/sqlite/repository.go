@@ -3,10 +3,15 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"errors"
+	"fmt"
+	"math"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"modernc.org/sqlite"
 
 	"github.com/larb26656/my-feed/backend/internal/modules/source/domain"
 	"github.com/larb26656/my-feed/backend/internal/modules/source/repository"
@@ -14,10 +19,90 @@ import (
 	"github.com/larb26656/my-feed/backend/internal/platform/database"
 )
 
+func init() {
+	sqlite.MustRegisterDeterministicScalarFunction("source_name_contains", 2, func(_ *sqlite.FunctionContext, args []driver.Value) (driver.Value, error) {
+		name, okName := args[0].(string)
+		needle, okNeedle := args[1].(string)
+		if !okName || !okNeedle {
+			return int64(0), nil
+		}
+		text, search := []rune(name), []rune(needle)
+		for i := 0; i+len(search) <= len(text); i++ {
+			if strings.EqualFold(string(text[i:i+len(search)]), needle) {
+				return int64(1), nil
+			}
+		}
+		return int64(0), nil
+	})
+}
+
 type querier interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+func (r *Repository) ListSourcesPage(ctx context.Context, q repository.SourcePageQuery) ([]*domain.Source, int64, error) {
+	where := []string{"1=1"}
+	args := []any{}
+	if q.NameLike != "" {
+		where = append(where, `source_name_contains(name, ?) = 1`)
+		args = append(args, q.NameLike)
+	}
+	if q.TypeEqual != "" {
+		where = append(where, "type = ?")
+		args = append(args, q.TypeEqual)
+	}
+	if q.ActiveEqual != nil {
+		where = append(where, "active = ?")
+		args = append(args, *q.ActiveEqual)
+	}
+	clause := " WHERE " + strings.Join(where, " AND ")
+	columns := map[string]string{"name": "name", "type": "type", "active": "active", "createdAt": "created_at"}
+	column, ok := columns[q.SortBy]
+	if !ok {
+		return nil, 0, fmt.Errorf("invalid sort field")
+	}
+	direction := "ASC"
+	if q.SortDirection == "desc" {
+		direction = "DESC"
+	} else if q.SortDirection != "asc" {
+		return nil, 0, fmt.Errorf("invalid sort direction")
+	}
+	query := `WITH filtered AS (SELECT * FROM sources` + clause + `),
+		page AS (SELECT * FROM filtered ORDER BY ` + column + " " + direction + `, id ASC LIMIT ? OFFSET ?)
+		SELECT page.id, page.name, page.type, page.rss_url, page.youtube_channel_id,
+		page.active, page.created_at, page.updated_at, (SELECT count(*) FROM filtered)
+		FROM (SELECT 1) LEFT JOIN page ON 1=1 ORDER BY page.` + column + " " + direction + ", page.id ASC"
+	offset := math.MaxInt
+	if q.Page-1 <= math.MaxInt/q.PageSize {
+		offset = (q.Page - 1) * q.PageSize
+	}
+	args = append(args, q.PageSize, offset)
+	rows, err := r.q.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer func() { _ = rows.Close() }()
+	out := make([]*domain.Source, 0)
+	var total int64
+	for rows.Next() {
+		var id, name, typ, rssURL, channelID sql.NullString
+		var active sql.NullBool
+		var createdAt, updatedAt sql.NullInt64
+		if err := rows.Scan(&id, &name, &typ, &rssURL, &channelID, &active, &createdAt, &updatedAt, &total); err != nil {
+			return nil, 0, err
+		}
+		if !id.Valid {
+			continue
+		}
+		parsedID, err := uuid.Parse(id.String)
+		if err != nil {
+			return nil, 0, err
+		}
+		out = append(out, &domain.Source{ID: parsedID, Name: name.String, Type: domain.Type(typ.String), RSSURL: rssURL.String, YouTubeChannelID: channelID.String, Active: active.Bool, CreatedAt: unixTime(createdAt.Int64), UpdatedAt: unixTime(updatedAt.Int64)})
+	}
+	return out, total, rows.Err()
 }
 
 type Repository struct{ q querier }

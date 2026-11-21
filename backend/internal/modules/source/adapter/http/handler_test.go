@@ -90,6 +90,94 @@ func TestDefaultSourceListOmitsPausedSubscriptions(t *testing.T) {
 	require.Equal(t, "manual", active[0].Type)
 }
 
+func TestSourceListReturnsRequestedPageAndTotal(t *testing.T) {
+	// Arrange
+	router := api.New(t)
+	createRSSSource(t, router, "First", "https://example.test/first")
+	second := createRSSSource(t, router, "Second", "https://example.test/second")
+
+	// Act
+	response := testkit.Request(t, router, "GET", "/api/v1/sources/?page=2&pageSize=2", nil, 200)
+	result := testkit.Decode[httpx.SuccessResponse[[]source]](t, response)
+
+	// Assert
+	require.Len(t, result.Data, 1)
+	require.Equal(t, second.ID, result.Data[0].ID)
+	require.Equal(t, map[string]any{"page": float64(2), "pageSize": float64(2), "total": float64(3), "totalPages": float64(2)}, result.Meta)
+}
+
+func TestSourceListCombinesNameTypeAndStatusFilters(t *testing.T) {
+	// Arrange
+	router := api.New(t)
+	second := createRSSSource(t, router, "Tech 100% Zebra", "https://example.test/z")
+	first := createRSSSource(t, router, "Tech 100% Alpha", "https://example.test/a")
+	createRSSSource(t, router, "tech 100X Other", "https://example.test/x")
+	// Act
+	response := testkit.Request(t, router, "GET", "/api/v1/sources/?nameLike=100%25&typeEqual=rss&activeEqual=true", nil, 200)
+	result := testkit.Decode[httpx.SuccessResponse[[]source]](t, response)
+	// Assert
+	require.Len(t, result.Data, 2)
+	require.Equal(t, []string{second.ID, first.ID}, []string{result.Data[0].ID, result.Data[1].ID})
+	require.Equal(t, float64(2), result.Meta.(map[string]any)["total"])
+}
+
+func TestSourceListFiltersDeactivatedSources(t *testing.T) {
+	// Arrange
+	router := api.New(t)
+	paused := createRSSSource(t, router, "Paused", "https://example.test/paused")
+	testkit.Request(t, router, "POST", "/api/v1/sources/"+paused.ID+"/deactivate", nil, 200)
+	// Act
+	got := decodeSuccess[[]source](t, testkit.Request(t, router, "GET", "/api/v1/sources/?activeEqual=false", nil, 200))
+	// Assert
+	require.Len(t, got, 1)
+	require.Equal(t, paused.ID, got[0].ID)
+}
+
+func TestSourceNameFilterMatchesUnicodeIgnoringCase(t *testing.T) {
+	// Arrange
+	router := api.New(t)
+	want := createRSSSource(t, router, "ÉCOLE", "https://example.test/ecole")
+	// Act
+	got := decodeSuccess[[]source](t, testkit.Request(t, router, "GET", "/api/v1/sources/?nameLike=%C3%A9cole", nil, 200))
+	// Assert
+	require.Len(t, got, 1)
+	require.Equal(t, want.ID, got[0].ID)
+}
+
+func TestSourceListVeryLargePageIsEmpty(t *testing.T) {
+	// Arrange
+	router := api.New(t)
+	// Act
+	got := testkit.Decode[httpx.SuccessResponse[[]source]](t, testkit.Request(t, router, "GET", "/api/v1/sources/?page=9223372036854775807&pageSize=100", nil, 200))
+	// Assert
+	require.Empty(t, got.Data)
+	require.Equal(t, float64(1), got.Meta.(map[string]any)["total"])
+}
+
+func TestSourceListSortsNamesDescending(t *testing.T) {
+	// Arrange
+	router := api.New(t)
+	createRSSSource(t, router, "Alpha", "https://example.test/alpha")
+	want := createRSSSource(t, router, "Zebra", "https://example.test/zebra")
+	// Act
+	got := decodeSuccess[[]source](t, testkit.Request(t, router, "GET", "/api/v1/sources/?sortBy=name&sortDirection=desc", nil, 200))
+	// Assert
+	require.Equal(t, want.ID, got[0].ID)
+}
+
+func TestSourceListRejectsInvalidQueries(t *testing.T) {
+	for _, query := range []string{"page=0", "pageSize=101", "typeEqual=unknown", "activeEqual=maybe", "sortBy=unknown", "sortDirection=sideways", "includeDeactivated=false&activeEqual=false"} {
+		t.Run(query, func(t *testing.T) {
+			// Arrange
+			router := api.New(t)
+			// Act
+			failure := decodeFailure(t, testkit.Request(t, router, "GET", "/api/v1/sources/?"+query, nil, 400))
+			// Assert
+			require.Equal(t, "VALIDATION", failure.Code)
+		})
+	}
+}
+
 func TestSourceListCanIncludePausedSubscriptions(t *testing.T) {
 	// Arrange
 	router := api.New(t)

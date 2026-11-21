@@ -51,9 +51,15 @@ For example, a domain conflict defined with code `CONFLICT` produces this envelo
 
 ## Paginate list requests
 
+### Criteria naming
+
+Name new criteria fields for the property and comparison they perform: use `NameLike` for a partial match and `NameEqual` for an exact match. Use the corresponding lower-camel-case names in query parameters, such as `nameLike` and `nameEqual`. Apply the same convention to other properties, for example `typeEqual`.
+
 ### Page numbers
 
 Initialize `httpx.PageOption` with `httpx.NewPageOption()` before binding the query. The defaults are `page=1` and `pageSize=10`. Apply the same filters to the page query and the total count, and pass the total before pagination to `httpx.Page`. The helper computes `totalPages` from the total and page size.
+
+The Source list accepts `nameLike` (case-insensitive literal substring), `typeEqual` (`rss`, `youtube`, or `manual`), and `activeEqual` (`true` or `false`). Without a status filter it returns active Sources; `includeDeactivated=true` includes both statuses. `includeDeactivated=false` conflicts with `activeEqual=false`. Set `sortBy` to `name`, `type`, `active`, or `createdAt`, and `sortDirection` to `asc` or `desc`; the default is `createdAt` ascending, with ID as the tie-breaker.
 
 ### Cursors
 

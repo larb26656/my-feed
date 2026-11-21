@@ -16,7 +16,7 @@ import (
 
 // SourceAPI exposes operations that only need the Source service.
 type SourceAPI interface {
-	ListSources(ctx context.Context, in service.ListSourcesInput) ([]*domain.Source, error)
+	ListSourcesPage(ctx context.Context, in service.ListSourcesPageInput) ([]*domain.Source, int64, error)
 	GetSource(ctx context.Context, id uuid.UUID) (*domain.Source, error)
 	UpdateSource(ctx context.Context, id uuid.UUID, in service.UpdateSourceInput) (*domain.Source, error)
 	ReactivateSource(ctx context.Context, id uuid.UUID) (*domain.Source, error)
@@ -63,13 +63,23 @@ func (h *Handler) createSource(c *gin.Context) {
 
 func (h *Handler) listSources(c *gin.Context) {
 	r := c.Request
-	var req listSourcesQuery
+	req := listSourcesQuery{PageOption: httpx.NewPageOption(), SortBy: "createdAt", SortDirection: "asc"}
 	if err := c.ShouldBindQuery(&req); err != nil {
 		_ = c.Error(apperr.InvalidInput.Wrap(err, "Invalid Source query"))
 		return
 	}
-	list, err := h.svc.ListSources(r.Context(), service.ListSourcesInput{
-		IncludeDeactivated: req.IncludeDeactivated,
+	if req.IncludeDeactivated != nil && !*req.IncludeDeactivated && req.ActiveEqual != nil && !*req.ActiveEqual {
+		_ = c.Error(apperr.InvalidInput.New("conflicting Source status filters"))
+		return
+	}
+	active := req.ActiveEqual
+	if active == nil && (req.IncludeDeactivated == nil || !*req.IncludeDeactivated) {
+		value := true
+		active = &value
+	}
+	list, total, err := h.svc.ListSourcesPage(r.Context(), service.ListSourcesPageInput{
+		NameLike: req.NameLike, TypeEqual: req.TypeEqual, ActiveEqual: active,
+		SortBy: req.SortBy, SortDirection: req.SortDirection, Page: req.Page, PageSize: req.PageSize,
 	})
 	if err != nil {
 		_ = c.Error(err)
@@ -79,7 +89,7 @@ func (h *Handler) listSources(c *gin.Context) {
 	for _, s := range list {
 		out = append(out, toSourceResponse(s))
 	}
-	c.JSON(http.StatusOK, httpx.Success(out))
+	c.JSON(http.StatusOK, httpx.Page(out, req.Page, req.PageSize, total))
 }
 
 func (h *Handler) getSource(c *gin.Context) {
