@@ -49,9 +49,9 @@ Validated with Go 1.25.7:
 cd backend
 go test ./...
 go test -race ./...
-go test ./internal/entry/... ./internal/source/... -shuffle=on -count=1
-go test ./internal/entry/... ./internal/source/... \
-  -coverpkg=./internal/entry/...,./internal/source/... -coverprofile=/tmp/modules.cover
+go test ./internal/modules/entry/... ./internal/modules/source/... -shuffle=on -count=1
+go test ./internal/modules/entry/... ./internal/modules/source/... \
+  -coverpkg=./internal/modules/entry/...,./internal/modules/source/... -coverprofile=/tmp/modules.cover
 go tool cover -func=/tmp/modules.cover
 ```
 

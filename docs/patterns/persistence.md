@@ -17,7 +17,7 @@ type Repository interface {
 
 ## SQLite adapter
 
-Place the implementation in `internal/{module}/adapter/sqlite/`.
+Place the implementation in `internal/modules/{module}/adapter/sqlite/`.
 
 1. Use a `Querier` interface for the execution and query methods shared by the database handle and a transaction.
 2. Construct the adapter with `NewRepository(pool)` for ordinary requests.

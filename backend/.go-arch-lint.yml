@@ -1,0 +1,41 @@
+version: 3
+workdir: internal
+
+allow:
+  depOnAnyVendor: true
+  deepScan: false
+  ignoreNotFoundComponents: true
+
+excludeFiles:
+  - '_test\.go$'
+
+components:
+  platform: { in: 'platform/**' }
+  api: { in: 'modules/*/api/**' }
+  domain: { in: 'modules/*/domain/**' }
+  repository: { in: 'modules/*/repository/**' }
+  service: { in: 'modules/*/service/**' }
+  adapter: { in: 'modules/*/adapter/**' }
+  bootstrap: { in: bootstrap }
+  source-lifecycle: { in: 'sourcelifecycle/service/**' }
+  testkit: { in: ['testkit', 'testkit/**'] }
+
+deps:
+  platform:
+    mayDependOn: [platform]
+  api:
+    mayDependOn: [api, platform]
+  domain:
+    mayDependOn: [domain, platform]
+  repository:
+    mayDependOn: [repository, domain, platform]
+  service:
+    mayDependOn: [service, api, domain, repository, platform]
+  adapter:
+    mayDependOn: [adapter, api, domain, repository, service, platform]
+  bootstrap:
+    anyProjectDeps: true
+  source-lifecycle:
+    mayDependOn: [api, platform]
+  testkit:
+    anyProjectDeps: true

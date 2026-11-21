@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	fetchapi "github.com/larb26656/my-feed/backend/internal/fetch/api"
+	fetchapi "github.com/larb26656/my-feed/backend/internal/modules/fetch/api"
 	"github.com/larb26656/my-feed/backend/internal/platform/database"
-	sourceapi "github.com/larb26656/my-feed/backend/internal/source/api"
+	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
 )
 
 // Service coordinates Source changes that must commit with Fetch Job changes.

@@ -27,6 +27,10 @@ flowchart TD
 
 Keep HTTP and SQLite dependencies in adapters. Services depend on repository contracts with explicit operations. Repository ports may use the shared transaction type for `WithTx`. For calls from one module to another, inject the providing module’s API contract. Keep repository access inside the owning module for those calls. Bootstrap wires the implementations. See [ADR 0004](../adr/0004-module-api-contracts.md).
 
+Run `make check-arch` to verify module boundaries. The configuration in [backend/.gomodulith.yaml](../../backend/.gomodulith.yaml) discovers every feature module under `internal/modules/` and limits imports between those modules to the provider's `api` packages. Bootstrap, platform, test helpers, and application-level transaction orchestration live outside the feature module directory.
+
+[backend/.go-arch-lint.yml](../../backend/.go-arch-lint.yml) checks direct imports between layers using the same rules for every feature module. Platform packages can depend on other platform packages and external libraries. Imports from platform into any feature layer, including its `api` package, fail the check.
+
 ## Layer responsibilities
 
 | Layer | Responsibility |

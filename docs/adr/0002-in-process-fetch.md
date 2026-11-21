@@ -10,7 +10,7 @@ Fetchable Sources need a Fetch Job lifecycle (see `GLOSSARY.md`) and a way to ob
 
 ## Decision
 
-- Own Fetch Jobs in a new `backend/internal/fetch` module; orchestrate `source` / `entry` via injected ports
+- Own Fetch Jobs in a new `backend/internal/modules/fetch` module; orchestrate `source` / `entry` via injected ports
 - Run the fixed-rate scheduler and Fetch Job executor **in-process** with `cmd/api` (started from bootstrap) — no separate worker process for now
 - Fixed-rate rounds and manual API triggers both create Fetch Jobs onto the same queue; the executor claims work by moving `pending` → `running` in persistence
 - Register obtain adapters by Source Type at bootstrap wiring (`rss` first); adapters return Entry-ready fields only — `fetch` records through the entry port; adapters do not write the database

@@ -9,13 +9,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	fetchdomain "github.com/larb26656/my-feed/backend/internal/fetch/domain"
-	fetchrepo "github.com/larb26656/my-feed/backend/internal/fetch/repository"
-	fetchsvc "github.com/larb26656/my-feed/backend/internal/fetch/service"
+	fetchdomain "github.com/larb26656/my-feed/backend/internal/modules/fetch/domain"
+	fetchrepo "github.com/larb26656/my-feed/backend/internal/modules/fetch/repository"
+	fetchsvc "github.com/larb26656/my-feed/backend/internal/modules/fetch/service"
 	"github.com/larb26656/my-feed/backend/internal/platform/database"
-	sourcedomain "github.com/larb26656/my-feed/backend/internal/source/domain"
-	sourcerepo "github.com/larb26656/my-feed/backend/internal/source/repository"
-	sourcesvc "github.com/larb26656/my-feed/backend/internal/source/service"
+	sourcedomain "github.com/larb26656/my-feed/backend/internal/modules/source/domain"
+	sourcerepo "github.com/larb26656/my-feed/backend/internal/modules/source/repository"
+	sourcesvc "github.com/larb26656/my-feed/backend/internal/modules/source/service"
 	sourcelifecycle "github.com/larb26656/my-feed/backend/internal/sourcelifecycle/service"
 )
 

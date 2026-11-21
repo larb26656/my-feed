@@ -1,0 +1,4 @@
+module_root: internal/modules
+api_element: api
+# Use the same package for both public surfaces so only api is exposed.
+event_element: api

@@ -1,11 +1,12 @@
 # Module scaffold
 
-Use this layout when adding a module under `backend/internal/`. Add packages and files as their responsibilities appear.
+Use this layout when adding a module under `backend/internal/modules/`. Add packages and files as their responsibilities appear.
 
 ## Directory layout
 
 ```text
-internal/{module}/
+internal/modules/{module}/
+  api/                   # Provider-owned contracts for other modules
   domain/
     {entity}.go          # Aggregate state, invariants, and transitions
     {entity}_test.go     # Domain tests with no database dependency

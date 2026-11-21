@@ -38,7 +38,7 @@ Reach the matching doc when changing that layer:
 
 ## Domain language
 
-Use root `GLOSSARY.md`. Bounded contexts live under `internal/source` and `internal/entry`. Glossary **Feed** is reserved for a future ranked stream — there is no `internal/feed` module.
+Use root `GLOSSARY.md`. Bounded contexts live under `internal/modules/source` and `internal/modules/entry`. Glossary **Feed** is reserved for a future ranked stream — there is no `internal/feed` module.
 
 ## Testing pattern
 

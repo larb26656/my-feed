@@ -1,4 +1,4 @@
-.PHONY: help backend frontend build test test-unit tidy up down migrate migrate-status migrate-down
+.PHONY: help backend frontend build test test-unit check-arch tidy up down migrate migrate-status migrate-down
 
 help:
 	@echo "make up              - build and start API with persistent SQLite (docker compose)"
@@ -11,6 +11,7 @@ help:
 	@echo "make build           - build Go binary"
 	@echo "make test            - run all Go tests"
 	@echo "make test-unit       - unit tests (no Docker)"
+	@echo "make check-arch      - verify Go module and layer dependencies"
 	@echo "make tidy            - go mod tidy"
 
 up:
@@ -42,6 +43,10 @@ test-unit:
 
 test:
 	cd backend && go test ./...
+
+check-arch:
+	cd backend && GOTOOLCHAIN=$$(go env GOVERSION) go run github.com/MouXiaoJun/gomodulith/cmd/gomodulith@v0.7.1 verify --no-cache ./internal/modules/...
+	cd backend && GOTOOLCHAIN=$$(go env GOVERSION) go run github.com/fe3dback/go-arch-lint@v1.19.1 check
 
 tidy:
 	cd backend && go mod tidy

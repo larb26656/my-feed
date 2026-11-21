@@ -2,7 +2,7 @@
 
 ## Module service
 
-Place module services in `internal/{module}/service`. A service loads an aggregate, invokes its domain method, and persists the resulting state.
+Place module services in `internal/modules/{module}/service`. A service loads an aggregate, invokes its domain method, and persists the resulting state.
 
 ```go
 type Service struct {
