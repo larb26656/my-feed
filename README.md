@@ -68,6 +68,8 @@ The backend reads environment variables; defaults are listed in [backend/.env.ex
 
 ## Development
 
+To enable the repository's Git hooks, install [Lefthook](https://lefthook.dev/install/) and run `make hooks` from the repository root. Install frontend dependencies with `cd frontend && pnpm install` before committing frontend changes. When matching files are staged, the pre-commit hook checks backend formatting, lint, and architecture, and runs Biome on the matching frontend files. These checks read the working tree, including unstaged changes.
+
 | Task | Command |
 | --- | --- |
 | Start frontend after installing dependencies | `make frontend` |

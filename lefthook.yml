@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://lefthook.dev/schema.json
+glob_matcher: doublestar
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: backend-format
+      glob: "backend/**/*.go"
+      run: make backend:fmt-check
+    - name: backend-lint
+      glob: "backend/**/*.{go,mod,sum}"
+      run: make backend:lint
+    - name: backend-check-arch
+      glob: "backend/**/*.{go,mod,sum}"
+      run: make backend:check-arch
+    - name: frontend-check
+      glob: "frontend/**/*.{js,jsx,ts,tsx,json,jsonc,css}"
+      root: frontend/
+      run: pnpm exec biome check --no-errors-on-unmatched "{staged_files}"
