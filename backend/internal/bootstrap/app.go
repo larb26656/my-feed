@@ -12,7 +12,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
-	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
 
 	prototypehttp "github.com/larb26656/my-feed/backend/internal/apiprototype/adapter/http"
 	"github.com/larb26656/my-feed/backend/internal/apiprototype/adapter/memory"
@@ -28,8 +27,10 @@ import (
 	fetchsqlite "github.com/larb26656/my-feed/backend/internal/fetch/adapter/sqlite"
 	fetchsvc "github.com/larb26656/my-feed/backend/internal/fetch/service"
 	"github.com/larb26656/my-feed/backend/internal/platform/database"
+	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
 	sourcehttp "github.com/larb26656/my-feed/backend/internal/source/adapter/http"
 	sourcesqlite "github.com/larb26656/my-feed/backend/internal/source/adapter/sqlite"
+	sourceapi "github.com/larb26656/my-feed/backend/internal/source/api"
 	sourcesvc "github.com/larb26656/my-feed/backend/internal/source/service"
 )
 
@@ -69,9 +70,9 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 	fetchRepo := fetchsqlite.NewRepository(pool.DB)
 	fetchService := fetchsvc.New(
 		fetchRepo,
-		fetchSources{repo: sourceRepo},
+		sourceService,
 		obtainRegistry,
-		entryIngest{svc: entryService},
+		entrysvc.NewIngester(entryService),
 		realClock{},
 		cfg.Fetch.RetryBackoff,
 		cfg.Fetch.ScheduleInterval,
@@ -118,8 +119,8 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 
 func newObtainRegistry(client *http.Client) *obtain.Registry {
 	registry := obtain.NewRegistry()
-	registry.Register(fetchsvc.SourceTypeRSS, obtainrss.New(client))
-	registry.Register(fetchsvc.SourceTypeYouTube, obtainyoutube.New(client))
+	registry.Register(sourceapi.SourceTypeRSS, obtainrss.New(client))
+	registry.Register(sourceapi.SourceTypeYouTube, obtainyoutube.New(client))
 	return registry
 }
 

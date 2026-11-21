@@ -26,6 +26,12 @@ func (s *Service) Publish(ctx context.Context, id uuid.UUID) (*domain.Product, e
 
 Define operation inputs such as `CreateInput` in the service package. The HTTP adapter maps request DTOs to those inputs. Add operation context with `fmt.Errorf` and `%w` when returning errors. Wrapping preserves typed errors for callers that use `errors.As`. See the [application error pattern](./errors.md) for translating errors at a layer that knows their application meaning.
 
+## Module-to-module calls
+
+The providing module declares the interface and exposes the operations and data the caller needs. The caller accepts that interface as its dependency and calls it for reads and writes owned by the provider. For example, Fetch uses a Source contract to read fetchable Sources and an Entry contract to ingest Entries. Keep repository access inside the provider for these calls.
+
+Wire the implementation in bootstrap. Reuse the provider's existing service when its method signatures and behavior satisfy the contract. The provider may add methods or supply an adapter when the contract calls for different behavior or types. See [ADR 0004](../adr/0004-module-api-contracts.md).
+
 ## Cross-module use case
 
 Place cross-module orchestration in `internal/{usecase}/service`. When repository operations across modules must succeed together, bind their ports to the same transaction.

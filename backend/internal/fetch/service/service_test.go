@@ -8,13 +8,15 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/larb26656/my-feed/backend/internal/platform/database"
 	"github.com/stretchr/testify/require"
 
+	entryapi "github.com/larb26656/my-feed/backend/internal/entry/api"
 	"github.com/larb26656/my-feed/backend/internal/fetch/domain"
 	"github.com/larb26656/my-feed/backend/internal/fetch/repository"
 	"github.com/larb26656/my-feed/backend/internal/fetch/service"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
+	"github.com/larb26656/my-feed/backend/internal/platform/database"
+	sourceapi "github.com/larb26656/my-feed/backend/internal/source/api"
 )
 
 type fakeRepo struct {
@@ -130,7 +132,7 @@ func (f *fakeRepo) WithTx(database.Transaction) repository.Repository { return f
 
 type fakeSource struct {
 	id     uuid.UUID
-	typ    service.SourceType
+	typ    sourceapi.SourceType
 	active bool
 	rssURL string
 }
@@ -144,21 +146,21 @@ func newFakeSources() *fakeSources {
 	return &fakeSources{byID: make(map[uuid.UUID]fakeSource)}
 }
 
-func (f *fakeSources) seed(id uuid.UUID, typ service.SourceType, active bool, rssURL string) {
+func (f *fakeSources) seed(id uuid.UUID, typ sourceapi.SourceType, active bool, rssURL string) {
 	f.byID[id] = fakeSource{id: id, typ: typ, active: active, rssURL: rssURL}
 }
 
 func (f *fakeSources) seedActiveFetchable(id uuid.UUID, rssURL string) {
-	f.seed(id, service.SourceTypeRSS, true, rssURL)
+	f.seed(id, sourceapi.SourceTypeRSS, true, rssURL)
 	f.activeFetchable = append(f.activeFetchable, id)
 }
 
-func (f *fakeSources) Get(_ context.Context, id uuid.UUID) (*service.SourceRef, error) {
+func (f *fakeSources) Get(_ context.Context, id uuid.UUID) (*sourceapi.SourceRef, error) {
 	src, ok := f.byID[id]
 	if !ok {
 		return nil, apperr.ResourceNotFound.New("source not found")
 	}
-	return &service.SourceRef{
+	return &sourceapi.SourceRef{
 		ID:     src.id,
 		Type:   src.typ,
 		Active: src.active,
@@ -166,14 +168,14 @@ func (f *fakeSources) Get(_ context.Context, id uuid.UUID) (*service.SourceRef, 
 	}, nil
 }
 
-func (f *fakeSources) ListActiveFetchable(_ context.Context) ([]service.SourceRef, error) {
-	out := make([]service.SourceRef, 0, len(f.activeFetchable))
+func (f *fakeSources) ListActiveFetchable(_ context.Context) ([]sourceapi.SourceRef, error) {
+	out := make([]sourceapi.SourceRef, 0, len(f.activeFetchable))
 	for _, id := range f.activeFetchable {
 		src, ok := f.byID[id]
 		if !ok {
 			continue
 		}
-		out = append(out, service.SourceRef{
+		out = append(out, sourceapi.SourceRef{
 			ID:     src.id,
 			Type:   src.typ,
 			Active: src.active,
@@ -191,7 +193,7 @@ type fakeObtain struct {
 	hook  func()
 }
 
-func (f *fakeObtain) Obtain(_ context.Context, _ *service.SourceRef) ([]service.PreparedEntry, error) {
+func (f *fakeObtain) Obtain(_ context.Context, _ *sourceapi.SourceRef) ([]service.PreparedEntry, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.calls++
@@ -208,7 +210,7 @@ func (f *fakeObtain) Obtain(_ context.Context, _ *service.SourceRef) ([]service.
 
 type ingestCall struct {
 	sourceID uuid.UUID
-	item     service.IngestEntryInput
+	item     entryapi.IngestEntryInput
 }
 
 type fakeIngest struct {
@@ -220,7 +222,7 @@ type fakeIngest struct {
 	calls         []ingestCall
 }
 
-func (f *fakeIngest) IngestEntry(ctx context.Context, in service.IngestEntryInput) (*service.IngestEntryResult, error) {
+func (f *fakeIngest) IngestEntry(ctx context.Context, in entryapi.IngestEntryInput) (*entryapi.IngestEntryResult, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.calls = append(f.calls, ingestCall{sourceID: in.SourceID, item: in})
@@ -232,7 +234,7 @@ func (f *fakeIngest) IngestEntry(ctx context.Context, in service.IngestEntryInpu
 		if err != nil {
 			return nil, err
 		}
-		if src.Type != service.SourceTypeRSS {
+		if src.Type != sourceapi.SourceTypeRSS {
 			return nil, apperr.InvalidInput.New("ingest can only record entries into rss sources")
 		}
 		if !src.Active {
@@ -243,7 +245,7 @@ func (f *fakeIngest) IngestEntry(ctx context.Context, in service.IngestEntryInpu
 	if !ok {
 		created = true
 	}
-	return &service.IngestEntryResult{Created: created}, nil
+	return &entryapi.IngestEntryResult{Created: created}, nil
 }
 
 type fakeClock struct {
@@ -339,9 +341,9 @@ func TestScheduleRoundExcludesDeactivatedAndManualSources(t *testing.T) {
 	active := seedActiveRSS(h.sources)
 
 	deactivated := uuid.New()
-	h.sources.seed(deactivated, service.SourceTypeRSS, false, "https://example.com/off.xml")
+	h.sources.seed(deactivated, sourceapi.SourceTypeRSS, false, "https://example.com/off.xml")
 	manual := uuid.New()
-	h.sources.seed(manual, service.SourceTypeManual, true, "")
+	h.sources.seed(manual, sourceapi.SourceTypeManual, true, "")
 
 	jobs, err := h.svc.ScheduleRound(context.Background())
 	require.NoError(t, err)
@@ -474,7 +476,7 @@ func TestCreateManualFetchJobAllowedAfterTerminalJob(t *testing.T) {
 func TestCreateManualFetchJobRejectsManualSource(t *testing.T) {
 	h := newHarness()
 	manualID := uuid.New()
-	h.sources.seed(manualID, service.SourceTypeManual, true, "")
+	h.sources.seed(manualID, sourceapi.SourceTypeManual, true, "")
 
 	_, err := h.svc.CreateManualFetchJob(context.Background(), manualID)
 	require.Error(t, err)
@@ -496,7 +498,7 @@ func TestCreateManualFetchJobRejectsMissingSource(t *testing.T) {
 func TestCreateManualFetchJobRejectsDeactivatedSource(t *testing.T) {
 	h := newHarness()
 	sourceID := uuid.New()
-	h.sources.seed(sourceID, service.SourceTypeRSS, false, "https://example.com/feed.xml")
+	h.sources.seed(sourceID, sourceapi.SourceTypeRSS, false, "https://example.com/feed.xml")
 
 	_, err := h.svc.CreateManualFetchJob(context.Background(), sourceID)
 	require.Error(t, err)
@@ -540,7 +542,7 @@ func TestHandleSourceDeactivatedLeavesRunningJobUncancelledButIngestMayFail(t *t
 		statusDuringObtain = still.Status
 
 		// Source is deactivated mid-flight; job is not killed, but real ingest rejects inactive RSS.
-		h.sources.seed(sourceID, service.SourceTypeRSS, false, "https://example.com/feed.xml")
+		h.sources.seed(sourceID, sourceapi.SourceTypeRSS, false, "https://example.com/feed.xml")
 	}
 
 	created, err := h.svc.CreateManualFetchJob(context.Background(), sourceID)
@@ -567,7 +569,7 @@ func TestDeactivatedSourceReceivesNoNewFetchJobs(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, h.svc.HandleSourceDeactivated(context.Background(), sourceID))
 
-	h.sources.seed(sourceID, service.SourceTypeRSS, false, "https://example.com/feed.xml")
+	h.sources.seed(sourceID, sourceapi.SourceTypeRSS, false, "https://example.com/feed.xml")
 
 	_, err = h.svc.CreateManualFetchJob(context.Background(), sourceID)
 	require.Error(t, err)

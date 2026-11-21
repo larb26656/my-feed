@@ -2,7 +2,7 @@
 
 ## Modular monolith
 
-The Go backend runs as a single process and uses hexagonal architecture to keep business logic behind ports. Source and Entry own their respective domain rules. Fetch owns the Fetch Job lifecycle and coordinates with Source and Entry through injected ports. Bootstrap wires the modules and starts the in-process scheduler and executor. See [ADR 0001](../adr/0001-architecture.md) and [ADR 0002](../adr/0002-in-process-fetch.md).
+The Go backend runs as a single process and uses hexagonal architecture to keep business logic behind ports. Source and Entry own their respective domain rules. Fetch owns the Fetch Job lifecycle and coordinates with Source and Entry through API contracts owned by Source and Entry. Bootstrap wires the modules and starts the in-process scheduler and executor. See [ADR 0001](../adr/0001-architecture.md) and [ADR 0002](../adr/0002-in-process-fetch.md).
 
 ## Dependency direction
 
@@ -25,7 +25,7 @@ flowchart TD
     DOMAIN --> ERR["platform/apperr"]
 ```
 
-Keep HTTP and SQLite dependencies in adapters. Services depend on repository contracts with explicit operations. Repository ports may use the shared transaction type for `WithTx`. Connect modules through injected ports and wire concrete adapters in bootstrap.
+Keep HTTP and SQLite dependencies in adapters. Services depend on repository contracts with explicit operations. Repository ports may use the shared transaction type for `WithTx`. For calls from one module to another, inject the providing module’s API contract. Keep repository access inside the owning module for those calls. Bootstrap wires the implementations. See [ADR 0004](../adr/0004-module-api-contracts.md).
 
 ## Layer responsibilities
 

@@ -2,7 +2,6 @@ package rss_test
 
 import (
 	"context"
-	"github.com/larb26656/my-feed/backend/internal/fetch/domain"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -16,8 +15,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/larb26656/my-feed/backend/internal/fetch/adapter/obtain/rss"
-	"github.com/larb26656/my-feed/backend/internal/fetch/service"
+	"github.com/larb26656/my-feed/backend/internal/fetch/domain"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
+	sourceapi "github.com/larb26656/my-feed/backend/internal/source/api"
 )
 
 type fixtureTransport struct {
@@ -50,9 +50,9 @@ func TestObtainMapsRSSItemsFromFeedFixture(t *testing.T) {
 	client := &http.Client{Transport: fixtureTransport{body: body}}
 	adapter := rss.New(client)
 
-	items, err := adapter.Obtain(context.Background(), &service.SourceRef{
+	items, err := adapter.Obtain(context.Background(), &sourceapi.SourceRef{
 		ID:     uuid.New(),
-		Type:   service.SourceTypeRSS,
+		Type:   sourceapi.SourceTypeRSS,
 		Active: true,
 		RSSURL: "https://feeds.example/fixture.xml",
 	})
@@ -74,9 +74,9 @@ func TestObtainMapsRSSItemsFromFeedFixture(t *testing.T) {
 
 func TestObtainRejectsMissingFeedURL(t *testing.T) {
 	adapter := rss.New(&http.Client{Transport: fixtureTransport{body: ""}})
-	_, err := adapter.Obtain(context.Background(), &service.SourceRef{
+	_, err := adapter.Obtain(context.Background(), &sourceapi.SourceRef{
 		ID:   uuid.New(),
-		Type: service.SourceTypeRSS,
+		Type: sourceapi.SourceTypeRSS,
 	})
 	require.Error(t, err)
 	var ae *apperr.AppError
@@ -87,9 +87,9 @@ func TestObtainRejectsMissingFeedURL(t *testing.T) {
 func TestObtainSurfacesHTTPFailure(t *testing.T) {
 	client := &http.Client{Transport: fixtureTransport{body: "nope", code: http.StatusBadGateway}}
 	adapter := rss.New(client)
-	_, err := adapter.Obtain(context.Background(), &service.SourceRef{
+	_, err := adapter.Obtain(context.Background(), &sourceapi.SourceRef{
 		ID:     uuid.New(),
-		Type:   service.SourceTypeRSS,
+		Type:   sourceapi.SourceTypeRSS,
 		RSSURL: "https://feeds.example/fixture.xml",
 	})
 	require.Error(t, err)
@@ -101,9 +101,9 @@ func TestObtainSurfacesHTTPFailure(t *testing.T) {
 func TestObtainSurfacesInvalidFeedDocument(t *testing.T) {
 	client := &http.Client{Transport: fixtureTransport{body: "not xml at all"}}
 	adapter := rss.New(client)
-	_, err := adapter.Obtain(context.Background(), &service.SourceRef{
+	_, err := adapter.Obtain(context.Background(), &sourceapi.SourceRef{
 		ID:     uuid.New(),
-		Type:   service.SourceTypeRSS,
+		Type:   sourceapi.SourceTypeRSS,
 		RSSURL: "https://feeds.example/fixture.xml",
 	})
 	require.Error(t, err)
@@ -117,7 +117,7 @@ func TestObtainAtomEntries(t *testing.T) {
 	body := `<a:feed xmlns:a="http://www.w3.org/2005/Atom" xml:base="https://example.com/base/"><a:entry xml:base="../articles/"><a:title> First </a:title><a:link rel="alternate" type="application/pdf" href="file.pdf"/><a:link type="text/html" href="page"/><a:published>2024-01-02T03:04:05+07:00</a:published></a:entry><a:entry><a:title>Missing link</a:title><a:link rel="self" href="self"/></a:entry></a:feed>`
 	adapter := rss.New(&http.Client{Transport: fixtureTransport{body: body}})
 	// Act
-	entries, err := adapter.Obtain(context.Background(), &service.SourceRef{RSSURL: "https://feeds.example/feed"})
+	entries, err := adapter.Obtain(context.Background(), &sourceapi.SourceRef{RSSURL: "https://feeds.example/feed"})
 	// Assert
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
@@ -142,7 +142,7 @@ func TestObtainDistinguishesEmptyAndUnsupportedDocuments(t *testing.T) {
 			// Arrange
 			adapter := rss.New(&http.Client{Transport: fixtureTransport{body: tc.body}})
 			// Act
-			entries, err := adapter.Obtain(context.Background(), &service.SourceRef{RSSURL: "https://example.com/feed"})
+			entries, err := adapter.Obtain(context.Background(), &sourceapi.SourceRef{RSSURL: "https://example.com/feed"})
 			// Assert
 			if tc.valid {
 				// Assert
@@ -160,7 +160,7 @@ func TestObtainAtomSkipsIncompleteEntriesAndUsesGofeedPublishedTime(t *testing.T
 	body := `<feed xmlns="http://www.w3.org/2005/Atom"><entry><title> </title><link href="/missing-title"/></entry><entry><title>No alternate</title><id>https://example.com/id</id><link rel="enclosure" href="/image"/></entry><entry><title>Unknown time</title><link href="/page"/><published>bad</published><updated>2024-01-01T00:00:00Z</updated></entry></feed>`
 	adapter := rss.New(&http.Client{Transport: fixtureTransport{body: body}})
 	// Act
-	entries, err := adapter.Obtain(context.Background(), &service.SourceRef{RSSURL: "https://example.com/feed"})
+	entries, err := adapter.Obtain(context.Background(), &sourceapi.SourceRef{RSSURL: "https://example.com/feed"})
 	// Assert
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
@@ -173,7 +173,7 @@ func TestObtainAtomDescriptions(t *testing.T) {
 	body := `<feed xmlns="http://www.w3.org/2005/Atom" xml:base="https://example.test/base/"><entry><title>Summary</title><link href="one"/><summary type="html" xml:base="../docs/">&lt;p&gt;Read &lt;a href="guide"&gt;guide&lt;/a&gt;&lt;/p&gt;</summary><content>ignored</content></entry><entry><title>Literal</title><link href="two"/><summary> </summary><content type="text">&lt;b&gt;literal&lt;/b&gt;</content></entry><entry><title>XHTML</title><link href="three"/><content type="xhtml"><div xmlns="http://www.w3.org/1999/xhtml" xml:base="../"><p>See <a href="page">page</a></p></div></content></entry><entry><title>External</title><link href="four"/><content src="external" type="text/html"/></entry></feed>`
 	adapter := rss.New(&http.Client{Transport: fixtureTransport{body: body}})
 	// Act
-	entries, err := adapter.Obtain(context.Background(), &service.SourceRef{RSSURL: "https://feeds.test/feed"})
+	entries, err := adapter.Obtain(context.Background(), &sourceapi.SourceRef{RSSURL: "https://feeds.test/feed"})
 	// Assert
 	require.NoError(t, err)
 	require.Len(t, entries, 4)
@@ -189,7 +189,7 @@ func TestObtainAtomDescriptionFallbacks(t *testing.T) {
 	body := `<feed xmlns="http://www.w3.org/2005/Atom"><entry><title>Fallback</title><link href="one"/><summary type="html">&lt;p&gt; &lt;/p&gt;</summary><content type="html">&lt;strong&gt;Content&lt;/strong&gt;</content></entry><entry><title>Binary</title><link href="two"/><content type="image/png">aGVsbG8=</content></entry><entry><title>Missing</title><link href="three"/></entry></feed>`
 	adapter := rss.New(&http.Client{Transport: fixtureTransport{body: body}})
 	// Act
-	entries, err := adapter.Obtain(context.Background(), &service.SourceRef{RSSURL: "https://feeds.test/feed"})
+	entries, err := adapter.Obtain(context.Background(), &sourceapi.SourceRef{RSSURL: "https://feeds.test/feed"})
 	// Assert
 	require.NoError(t, err)
 	require.Len(t, entries, 3)
@@ -203,7 +203,7 @@ func TestObtainAtomUsesGofeedImageSelection(t *testing.T) {
 	body := `<feed xmlns="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/" xml:base="https://example.com/base/"><entry xml:base="../entries/"><title>Entry</title><link href="page"/><link rel="enclosure" type="image/jpeg" href="fallback.jpg"/><media:thumbnail xml:base="images/" url="preferred.jpg"/></entry></feed>`
 	adapter := rss.New(&http.Client{Transport: fixtureTransport{body: body}})
 	// Act
-	entries, err := adapter.Obtain(context.Background(), &service.SourceRef{RSSURL: "https://feeds.example/feed"})
+	entries, err := adapter.Obtain(context.Background(), &sourceapi.SourceRef{RSSURL: "https://feeds.example/feed"})
 	// Assert
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
@@ -224,7 +224,7 @@ func TestObtainAtomImageEnclosureFallback(t *testing.T) {
 			body := `<feed xmlns="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/"><entry><title>Entry</title><link href="page"/>` + tc.media + tc.links + `</entry></feed>`
 			adapter := rss.New(&http.Client{Transport: fixtureTransport{body: body}})
 			// Act
-			entries, err := adapter.Obtain(context.Background(), &service.SourceRef{RSSURL: "https://feeds.example/feed"})
+			entries, err := adapter.Obtain(context.Background(), &sourceapi.SourceRef{RSSURL: "https://feeds.example/feed"})
 			// Assert
 			require.NoError(t, err)
 			require.Len(t, entries, 1)
@@ -244,7 +244,7 @@ func TestObtainAtomFormattedTitles(t *testing.T) {
 	body := `<feed xmlns="http://www.w3.org/2005/Atom" xmlns:h="http://www.w3.org/1999/xhtml"><entry><title type="html">Hello &lt;strong&gt;world&lt;/strong&gt; &amp;amp; friends</title><link href="one"/></entry><entry><title type="xhtml"><h:div>Another <h:em>title</h:em></h:div></title><link href="two"/></entry></feed>`
 	adapter := rss.New(&http.Client{Transport: fixtureTransport{body: body}})
 	// Act
-	entries, err := adapter.Obtain(context.Background(), &service.SourceRef{RSSURL: "https://example.com/feed"})
+	entries, err := adapter.Obtain(context.Background(), &sourceapi.SourceRef{RSSURL: "https://example.com/feed"})
 	// Assert
 	require.NoError(t, err)
 	require.Len(t, entries, 2)
@@ -257,7 +257,7 @@ func TestObtainAtomPrefixedXHTMLDescription(t *testing.T) {
 	body := `<feed xmlns="http://www.w3.org/2005/Atom" xmlns:h="http://www.w3.org/1999/xhtml"><entry><title>Title</title><link href="page"/><summary type="xhtml"><h:div xml:base="/docs/"><h:p>Read <h:a href="guide"><h:strong>guide</h:strong></h:a></h:p></h:div></summary></entry></feed>`
 	adapter := rss.New(&http.Client{Transport: fixtureTransport{body: body}})
 	// Act
-	entries, err := adapter.Obtain(context.Background(), &service.SourceRef{RSSURL: "https://example.com/feed"})
+	entries, err := adapter.Obtain(context.Background(), &sourceapi.SourceRef{RSSURL: "https://example.com/feed"})
 	// Assert
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
@@ -276,7 +276,7 @@ func TestObtainAtomKeepsRelativeURLsAfterRedirect(t *testing.T) {
 	}))
 	defer server.Close()
 	// Act
-	entries, err := rss.New(server.Client()).Obtain(context.Background(), &service.SourceRef{RSSURL: server.URL + "/feed"})
+	entries, err := rss.New(server.Client()).Obtain(context.Background(), &sourceapi.SourceRef{RSSURL: server.URL + "/feed"})
 	// Assert
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
@@ -291,7 +291,7 @@ func TestObtainRSSAlternateMediaPrefixIsNotMappedToImage(t *testing.T) {
 	adapter := rss.New(&http.Client{Transport: fixtureTransport{body: body}})
 
 	// Act
-	items, err := adapter.Obtain(context.Background(), &service.SourceRef{RSSURL: "https://example.com/feed"})
+	items, err := adapter.Obtain(context.Background(), &sourceapi.SourceRef{RSSURL: "https://example.com/feed"})
 
 	// Assert
 	require.NoError(t, err)

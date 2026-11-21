@@ -8,10 +8,12 @@ import (
 
 	"github.com/google/uuid"
 
+	entryapi "github.com/larb26656/my-feed/backend/internal/entry/api"
 	"github.com/larb26656/my-feed/backend/internal/fetch/domain"
 	"github.com/larb26656/my-feed/backend/internal/fetch/repository"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	"github.com/larb26656/my-feed/backend/internal/platform/cursor"
+	sourceapi "github.com/larb26656/my-feed/backend/internal/source/api"
 )
 
 // DefaultRetryBackoff is the fixed delay between attempts on the same Fetch Job.
@@ -19,31 +21,6 @@ const DefaultRetryBackoff = time.Minute
 
 // DefaultScheduleInterval is the global fixed-rate interval for schedule rounds.
 const DefaultScheduleInterval = 15 * time.Minute
-
-// SourceType is the Fetch module's view of a Source's type.
-type SourceType string
-
-const (
-	SourceTypeRSS     SourceType = "rss"
-	SourceTypeYouTube SourceType = "youtube"
-	SourceTypeManual  SourceType = "manual"
-)
-
-// SourceRef is the Fetch module's lookup view of a Source for create/obtain rules.
-type SourceRef struct {
-	ID               uuid.UUID
-	Type             SourceType
-	Active           bool
-	RSSURL           string
-	YouTubeChannelID string
-}
-
-// Sources is the consumer-defined port Fetch uses for Source lookups.
-type Sources interface {
-	Get(ctx context.Context, id uuid.UUID) (*SourceRef, error)
-	// ListActiveFetchable returns active fetchable Sources (excludes manual and deactivated).
-	ListActiveFetchable(ctx context.Context) ([]SourceRef, error)
-}
 
 // PreparedEntry is Entry-ready fields returned by an obtain adapter (no DB writes).
 type PreparedEntry struct {
@@ -56,27 +33,7 @@ type PreparedEntry struct {
 
 // Obtain is the port that obtains Entry-ready items for a Source (fake or real adapter).
 type Obtain interface {
-	Obtain(ctx context.Context, source *SourceRef) ([]PreparedEntry, error)
-}
-
-// IngestEntryInput is the record contract Fetch drives through the entry ingest port.
-type IngestEntryInput struct {
-	SourceID    uuid.UUID
-	Title       string
-	Link        string
-	Description string
-	Thumbnail   *string
-	PublishedAt *time.Time
-}
-
-// IngestEntryResult reports whether ingest newly created an Entry.
-type IngestEntryResult struct {
-	Created bool
-}
-
-// EntryIngest is the consumer-defined port Fetch uses to record Entries.
-type EntryIngest interface {
-	IngestEntry(ctx context.Context, in IngestEntryInput) (*IngestEntryResult, error)
+	Obtain(ctx context.Context, source *sourceapi.SourceRef) ([]PreparedEntry, error)
 }
 
 // Clock provides the current time for retry backoff (injectable in tests).
@@ -87,9 +44,9 @@ type Clock interface {
 // Service owns Fetch Job create and execute orchestration.
 type Service struct {
 	repo             repository.Repository
-	sources          Sources
+	sources          sourceapi.Reader
 	obtain           Obtain
-	ingest           EntryIngest
+	ingest           entryapi.Ingester
 	clock            Clock
 	retryBackoff     time.Duration
 	scheduleInterval time.Duration
@@ -97,9 +54,9 @@ type Service struct {
 
 func New(
 	repo repository.Repository,
-	sources Sources,
+	sources sourceapi.Reader,
 	obtain Obtain,
-	ingest EntryIngest,
+	ingest entryapi.Ingester,
 	clock Clock,
 	retryBackoff time.Duration,
 	scheduleInterval time.Duration,
@@ -278,7 +235,7 @@ func (s *Service) CreateManualFetchJob(ctx context.Context, sourceID uuid.UUID) 
 	if err != nil {
 		return nil, err
 	}
-	if src.Type != SourceTypeRSS && src.Type != SourceTypeYouTube {
+	if src.Type != sourceapi.SourceTypeRSS && src.Type != sourceapi.SourceTypeYouTube {
 		return nil, apperr.InvalidInput.New("fetch jobs can only target fetchable sources")
 	}
 	if !src.Active {
@@ -344,7 +301,7 @@ func (s *Service) ExecuteFetchJob(ctx context.Context, jobID uuid.UUID) (*domain
 
 	created := 0
 	for _, item := range items {
-		result, err := s.ingest.IngestEntry(ctx, IngestEntryInput{
+		result, err := s.ingest.IngestEntry(ctx, entryapi.IngestEntryInput{
 			SourceID:    job.SourceID,
 			Title:       item.Title,
 			Link:        item.Link,

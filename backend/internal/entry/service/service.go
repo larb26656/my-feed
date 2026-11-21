@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	entryapi "github.com/larb26656/my-feed/backend/internal/entry/api"
 	"github.com/larb26656/my-feed/backend/internal/entry/domain"
 	"github.com/larb26656/my-feed/backend/internal/entry/repository"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
@@ -75,15 +76,7 @@ func (s *Service) SaveLink(ctx context.Context, in SaveLinkInput) (*domain.Entry
 	return result.Entry, nil
 }
 
-// IngestEntryInput is the ingest write path into a fetchable Source by id.
-type IngestEntryInput struct {
-	SourceID    uuid.UUID
-	Title       string
-	Link        string
-	Description string
-	Thumbnail   *string
-	PublishedAt *time.Time
-}
+type IngestEntryInput = entryapi.IngestEntryInput
 
 // IngestEntryResult is the outcome of recording an Entry through ingest.
 // Created is true only when a new Entry was written; metadata refresh is false.

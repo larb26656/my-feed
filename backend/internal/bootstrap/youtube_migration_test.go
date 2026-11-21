@@ -2,13 +2,6 @@ package bootstrap
 
 import (
 	"context"
-	entrysqlite "github.com/larb26656/my-feed/backend/internal/entry/adapter/sqlite"
-	entrysvc "github.com/larb26656/my-feed/backend/internal/entry/service"
-	fetchsqlite "github.com/larb26656/my-feed/backend/internal/fetch/adapter/sqlite"
-	fetchsvc "github.com/larb26656/my-feed/backend/internal/fetch/service"
-	sourcesqlite "github.com/larb26656/my-feed/backend/internal/source/adapter/sqlite"
-	sourcesvc "github.com/larb26656/my-feed/backend/internal/source/service"
-	"github.com/larb26656/my-feed/backend/internal/testkit"
 	"io"
 	"net/http"
 	"os"
@@ -17,9 +10,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/larb26656/my-feed/backend/internal/platform/database"
 	"github.com/pressly/goose/v3"
 	"github.com/stretchr/testify/require"
+
+	entrysqlite "github.com/larb26656/my-feed/backend/internal/entry/adapter/sqlite"
+	entrysvc "github.com/larb26656/my-feed/backend/internal/entry/service"
+	fetchsqlite "github.com/larb26656/my-feed/backend/internal/fetch/adapter/sqlite"
+	fetchsvc "github.com/larb26656/my-feed/backend/internal/fetch/service"
+	"github.com/larb26656/my-feed/backend/internal/platform/database"
+	sourcesqlite "github.com/larb26656/my-feed/backend/internal/source/adapter/sqlite"
+	sourcesvc "github.com/larb26656/my-feed/backend/internal/source/service"
+	"github.com/larb26656/my-feed/backend/internal/testkit"
 )
 
 func TestYouTubeMigrationPreservesExistingRelationships(t *testing.T) {
@@ -115,7 +116,7 @@ func TestProductionYouTubeRegistryObtainsAndIngestsInitialJob(t *testing.T) {
 		require.Equal(t, "https://www.youtube.com/feeds/videos.xml?channel_id=UC1234567890123456789012", r.URL.String())
 		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`<feed xmlns="http://www.w3.org/2005/Atom" xmlns:yt="http://www.youtube.com/xml/schemas/2015"><entry><yt:videoId>video123</yt:videoId><title>Video</title></entry></feed>`))}, nil
 	})}
-	fetchService := fetchsvc.New(fetchRepo, fetchSources{repo: sourceRepo}, newObtainRegistry(client), entryIngest{svc: entryService}, realClock{}, time.Minute, time.Hour)
+	fetchService := fetchsvc.New(fetchRepo, sourceService, newObtainRegistry(client), entrysvc.NewIngester(entryService), realClock{}, time.Minute, time.Hour)
 	api := sourceAPIWithFetch{db: db, sourceRepo: sourceRepo, fetchRepo: fetchRepo, inner: sourceService, fetch: fetchService}
 	src, err := api.CreateSource(ctx, sourcesvc.CreateSourceInput{Name: "Channel", Type: "youtube", YouTubeChannelID: "UC1234567890123456789012"})
 	require.NoError(t, err)
@@ -146,7 +147,7 @@ func TestYouTubeRetryRefreshAndOmissionPreserveEntries(t *testing.T) {
 		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(body))}, nil
 	})}
 	clock := &controlledClock{now: time.Now().UTC()}
-	fetchService := fetchsvc.New(fetchRepo, fetchSources{repo: sourceRepo}, newObtainRegistry(client), entryIngest{svc: entryService}, clock, time.Minute, time.Hour)
+	fetchService := fetchsvc.New(fetchRepo, sourceService, newObtainRegistry(client), entrysvc.NewIngester(entryService), clock, time.Minute, time.Hour)
 	api := sourceAPIWithFetch{db: db, sourceRepo: sourceRepo, fetchRepo: fetchRepo, inner: sourceService, fetch: fetchService}
 	src, err := api.CreateSource(ctx, sourcesvc.CreateSourceInput{Name: "Channel", Type: "youtube", YouTubeChannelID: "UC1234567890123456789012"})
 	require.NoError(t, err)

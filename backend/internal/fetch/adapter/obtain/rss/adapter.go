@@ -4,15 +4,16 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/larb26656/my-feed/backend/internal/fetch/domain"
 	"io"
 	"net/http"
 	"strings"
 
 	"github.com/mmcdole/gofeed"
 
+	"github.com/larb26656/my-feed/backend/internal/fetch/domain"
 	"github.com/larb26656/my-feed/backend/internal/fetch/service"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
+	sourceapi "github.com/larb26656/my-feed/backend/internal/source/api"
 )
 
 // HTTPClient is the narrow HTTP seam used to fetch a feed document.
@@ -32,7 +33,7 @@ func New(client HTTPClient) *Adapter {
 	return &Adapter{client: client}
 }
 
-func (a *Adapter) Obtain(ctx context.Context, source *service.SourceRef) ([]service.PreparedEntry, error) {
+func (a *Adapter) Obtain(ctx context.Context, source *sourceapi.SourceRef) ([]service.PreparedEntry, error) {
 	if source == nil {
 		return nil, apperr.InvalidInput.New("source is required")
 	}

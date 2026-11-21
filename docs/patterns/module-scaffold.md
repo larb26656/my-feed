@@ -41,7 +41,7 @@ Wire modules in `internal/bootstrap/app.go`.
 
 1. Build the SQLite repository with the application's database handle.
 2. Pass the repository port to the module service.
-3. Construct any cross-module services with the ports they need and a transaction helper when required.
+3. For module-to-module calls, wire the implementation of the provider-owned API interface into the calling module. Construct cross-module use cases with the ports and transaction helper they need. See the [application service pattern](./application.md#module-to-module-calls).
 4. Construct the handler with the service and call `RegisterRoutes` on the router group for that API.
 
 Keep a cross-module use case in `internal/{usecase}/service/` when it coordinates multiple modules. Use the transaction helper to bind participating repository ports to the same transaction when their writes must succeed together.

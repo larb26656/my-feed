@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 
 	entrysvc "github.com/larb26656/my-feed/backend/internal/entry/service"
-	fetchsvc "github.com/larb26656/my-feed/backend/internal/fetch/service"
 	sourcedomain "github.com/larb26656/my-feed/backend/internal/source/domain"
 	sourcerepo "github.com/larb26656/my-feed/backend/internal/source/repository"
 )
@@ -44,62 +43,4 @@ func toEntrySourceRef(src *sourcedomain.Source) *entrysvc.SourceRef {
 		Type:   entrysvc.SourceType(src.Type),
 		Active: src.Active,
 	}
-}
-
-// fetchSources adapts Source persistence for the Fetch module's consumer port.
-type fetchSources struct {
-	repo sourcerepo.Repository
-}
-
-func (f fetchSources) Get(ctx context.Context, id uuid.UUID) (*fetchsvc.SourceRef, error) {
-	src, err := f.repo.GetSourceByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	return toFetchSourceRef(src), nil
-}
-
-func (f fetchSources) ListActiveFetchable(ctx context.Context) ([]fetchsvc.SourceRef, error) {
-	list, err := f.repo.ListSources(ctx, sourcerepo.ListSourcesFilter{IncludeDeactivated: false})
-	if err != nil {
-		return nil, err
-	}
-	out := make([]fetchsvc.SourceRef, 0, len(list))
-	for _, src := range list {
-		if src.Type != sourcedomain.TypeRSS && src.Type != sourcedomain.TypeYouTube {
-			continue
-		}
-		out = append(out, *toFetchSourceRef(src))
-	}
-	return out, nil
-}
-
-func toFetchSourceRef(src *sourcedomain.Source) *fetchsvc.SourceRef {
-	return &fetchsvc.SourceRef{
-		ID:               src.ID,
-		Type:             fetchsvc.SourceType(src.Type),
-		Active:           src.Active,
-		RSSURL:           src.RSSURL,
-		YouTubeChannelID: src.YouTubeChannelID,
-	}
-}
-
-// entryIngest adapts entry IngestEntry for Fetch without importing entry SQLite.
-type entryIngest struct {
-	svc *entrysvc.Service
-}
-
-func (e entryIngest) IngestEntry(ctx context.Context, in fetchsvc.IngestEntryInput) (*fetchsvc.IngestEntryResult, error) {
-	result, err := e.svc.IngestEntry(ctx, entrysvc.IngestEntryInput{
-		SourceID:    in.SourceID,
-		Title:       in.Title,
-		Link:        in.Link,
-		Description: in.Description,
-		Thumbnail:   in.Thumbnail,
-		PublishedAt: in.PublishedAt,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &fetchsvc.IngestEntryResult{Created: result.Created}, nil
 }
