@@ -12,7 +12,7 @@ COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 COPY backend/ ./
 RUN CGO_ENABLED=0 go build -o /out/server ./cmd/api \
-    && CGO_ENABLED=0 go build -o /out/goose github.com/pressly/goose/v3/cmd/goose
+    && GOBIN=/out CGO_ENABLED=0 go install github.com/pressly/goose/v3/cmd/goose@$(go list -m -f '{{.Version}}' github.com/pressly/goose/v3)
 
 FROM alpine:3.22
 RUN apk add --no-cache ca-certificates
