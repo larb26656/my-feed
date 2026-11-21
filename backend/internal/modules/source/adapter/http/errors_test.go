@@ -8,20 +8,21 @@ import (
 	"testing"
 
 	"github.com/larb26656/my-feed/backend/internal/modules/source/domain"
+	"github.com/larb26656/my-feed/backend/internal/modules/source/repository"
 	"github.com/larb26656/my-feed/backend/internal/modules/source/service"
 	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
 	"github.com/stretchr/testify/require"
 )
 
-type failingSourceAPI struct{ SourceAPI }
+type failingListRepo struct{ repository.Repository }
 
-func (failingSourceAPI) ListSourcesPage(context.Context, service.ListSourcesPageInput) ([]*domain.Source, int64, error) {
+func (failingListRepo) ListSourcesPage(context.Context, repository.SourcePageQuery) ([]*domain.Source, int64, error) {
 	return nil, 0, errors.New("private database failure")
 }
 
 func TestListErrorsUseCentralEnvelope(t *testing.T) {
 	router := httpx.NewRouter()
-	NewHandler(failingSourceAPI{}, nil).RegisterRoutes(router.Group("/sources"))
+	NewHandler(service.New(failingListRepo{}), nil).RegisterRoutes(router.Group("/sources"))
 	for _, tc := range []struct {
 		path   string
 		status int

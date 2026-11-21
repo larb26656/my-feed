@@ -12,24 +12,11 @@ import (
 	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
 )
 
-// EntryAPI is the application surface the HTTP adapter needs.
-type EntryAPI interface {
-	SaveLink(ctx context.Context, in service.SaveLinkInput) (*domain.Entry, error)
-	IngestEntry(ctx context.Context, in service.IngestEntryInput) (*service.IngestEntryResult, error)
-	GetEntry(ctx context.Context, id uuid.UUID) (*domain.Entry, error)
-	ListEntries(ctx context.Context, in service.ListEntriesInput) (*service.ListEntriesResult, error)
-	CountSavedEntries(ctx context.Context) (int, error)
-	MarkEntryRead(ctx context.Context, id uuid.UUID) (*domain.Entry, error)
-	ClearEntryRead(ctx context.Context, id uuid.UUID) (*domain.Entry, error)
-	MarkEntrySaved(ctx context.Context, id uuid.UUID) (*domain.Entry, error)
-	ClearEntrySaved(ctx context.Context, id uuid.UUID) (*domain.Entry, error)
-}
-
 type Handler struct {
-	svc EntryAPI
+	svc *service.Service
 }
 
-func NewHandler(svc EntryAPI) *Handler {
+func NewHandler(svc *service.Service) *Handler {
 	return &Handler{svc: svc}
 }
 

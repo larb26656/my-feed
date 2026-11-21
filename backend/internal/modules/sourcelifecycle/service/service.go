@@ -17,6 +17,8 @@ type Service struct {
 	fetch  fetchapi.TransactionalSourceLifecycle
 }
 
+var _ sourceapi.Lifecycle = (*Service)(nil)
+
 func New(db database.Transactor, source sourceapi.TransactionalLifecycle, fetch fetchapi.TransactionalSourceLifecycle) *Service {
 	return &Service{db: db, source: source, fetch: fetch}
 }

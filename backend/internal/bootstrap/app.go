@@ -15,9 +15,6 @@ import (
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 
-	prototypehttp "github.com/larb26656/my-feed/backend/internal/modules/apiprototype/adapter/http"
-	"github.com/larb26656/my-feed/backend/internal/modules/apiprototype/adapter/memory"
-	prototypesvc "github.com/larb26656/my-feed/backend/internal/modules/apiprototype/service"
 	entryhttp "github.com/larb26656/my-feed/backend/internal/modules/entry/adapter/http"
 	entrysqlite "github.com/larb26656/my-feed/backend/internal/modules/entry/adapter/sqlite"
 	entrysvc "github.com/larb26656/my-feed/backend/internal/modules/entry/service"
@@ -32,10 +29,10 @@ import (
 	sourcesqlite "github.com/larb26656/my-feed/backend/internal/modules/source/adapter/sqlite"
 	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
 	sourcesvc "github.com/larb26656/my-feed/backend/internal/modules/source/service"
+	sourcelifecycle "github.com/larb26656/my-feed/backend/internal/modules/sourcelifecycle/service"
 	"github.com/larb26656/my-feed/backend/internal/platform/apidocs"
 	"github.com/larb26656/my-feed/backend/internal/platform/database"
 	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
-	sourcelifecycle "github.com/larb26656/my-feed/backend/internal/sourcelifecycle/service"
 )
 
 type realClock struct{}
@@ -47,7 +44,7 @@ type App struct {
 	Router *gin.Engine
 }
 
-var configurePrototypeValidator sync.Once
+var configureJSONValidator sync.Once
 
 func New(ctx context.Context) (*App, error) {
 	cfg, err := LoadConfig()
@@ -92,7 +89,7 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 		cfg.Fetch.ExecutorPoll,
 	).Start(ctx)
 
-	configurePrototypeValidator.Do(func() {
+	configureJSONValidator.Do(func() {
 		if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 			v.RegisterTagNameFunc(func(field reflect.StructField) string {
 				name := strings.SplitN(field.Tag.Get("json"), ",", 2)[0]
@@ -113,7 +110,6 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 	sourcehttp.NewHandler(sourceService, sourceLifecycle).RegisterRoutes(r.Group("/api/v1/sources"))
 	entryhttp.NewHandler(entryService).RegisterRoutes(r.Group("/api/v1/entries"))
 	fetchhttp.NewHandler(fetchService).RegisterRoutes(r.Group("/api/v1/fetch-jobs"))
-	prototypehttp.New(prototypesvc.New(memory.New())).RegisterRoutes(r.Group("/api/prototype"))
 
 	return &App{Pool: pool, Router: r}, nil
 }

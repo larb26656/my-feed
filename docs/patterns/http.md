@@ -69,4 +69,4 @@ For SQLite, derive the cursor from the query's ordering and its tie-breaker so r
 
 ## Verify at the route boundary
 
-Run requests through `httptest` and the module's `RegisterRoutes`. Include the router's error middleware when checking the error envelope. Cover query binding and continuation across filtered, sorted pages. For Entry and Source, see the [backend test strategy](../testing/backend-tests.md).
+Run requests through `httptest` and the module's `RegisterRoutes` as HTTP integration tests. Include the router's error middleware when checking the error envelope. Cover query binding and continuation across filtered, sorted pages. See the [testing pattern](./testing.md).

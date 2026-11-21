@@ -1,33 +1,23 @@
 package http
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
 	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
-	"github.com/larb26656/my-feed/backend/internal/modules/source/domain"
 	"github.com/larb26656/my-feed/backend/internal/modules/source/service"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
 )
 
-// SourceAPI exposes operations that only need the Source service.
-type SourceAPI interface {
-	ListSourcesPage(ctx context.Context, in service.ListSourcesPageInput) ([]*domain.Source, int64, error)
-	GetSource(ctx context.Context, id uuid.UUID) (*domain.Source, error)
-	UpdateSource(ctx context.Context, id uuid.UUID, in service.UpdateSourceInput) (*domain.Source, error)
-	ReactivateSource(ctx context.Context, id uuid.UUID) (*domain.Source, error)
-}
-
 type Handler struct {
-	svc       SourceAPI
+	svc       *service.Service
 	lifecycle sourceapi.Lifecycle
 }
 
-func NewHandler(svc SourceAPI, lifecycle sourceapi.Lifecycle) *Handler {
+func NewHandler(svc *service.Service, lifecycle sourceapi.Lifecycle) *Handler {
 	return &Handler{svc: svc, lifecycle: lifecycle}
 }
 

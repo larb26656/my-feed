@@ -6,22 +6,24 @@ import (
 	"testing"
 
 	entryhttp "github.com/larb26656/my-feed/backend/internal/modules/entry/adapter/http"
+	"github.com/larb26656/my-feed/backend/internal/modules/entry/repository"
+	"github.com/larb26656/my-feed/backend/internal/modules/entry/service"
 	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
 	"github.com/larb26656/my-feed/backend/internal/testkit"
 	"github.com/stretchr/testify/require"
 )
 
 // A focused stub forces an infrastructure failure without corrupting SQLite.
-type unavailableSavedCount struct{ entryhttp.EntryAPI }
+type failingSavedCountRepo struct{ repository.Repository }
 
-func (unavailableSavedCount) CountSavedEntries(context.Context) (int, error) {
+func (failingSavedCountRepo) CountSavedEntries(context.Context) (int, error) {
 	return 0, errors.New("private database details")
 }
 
 func TestStorageFailuresReturnAnInternalErrorWithoutLeakingDatabaseDetails(t *testing.T) {
 	// Arrange
 	router := httpx.NewRouter()
-	entryhttp.NewHandler(unavailableSavedCount{}).RegisterRoutes(router.Group("/entries"))
+	entryhttp.NewHandler(service.New(failingSavedCountRepo{}, nil)).RegisterRoutes(router.Group("/entries"))
 
 	// Act: request the saved count while storage is unavailable.
 	response := testkit.Request(t, router, "GET", "/entries/saved-count", nil, 500)

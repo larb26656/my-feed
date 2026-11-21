@@ -17,7 +17,6 @@ components:
   service: { in: 'modules/*/service/**' }
   adapter: { in: 'modules/*/adapter/**' }
   bootstrap: { in: bootstrap }
-  source-lifecycle: { in: 'sourcelifecycle/service/**' }
   testkit: { in: ['testkit', 'testkit/**'] }
 
 deps:
@@ -35,7 +34,5 @@ deps:
     mayDependOn: [adapter, api, domain, repository, service, platform]
   bootstrap:
     anyProjectDeps: true
-  source-lifecycle:
-    mayDependOn: [api, platform]
   testkit:
     anyProjectDeps: true

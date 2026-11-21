@@ -34,7 +34,7 @@ Wire the implementation in bootstrap. Reuse the provider's existing service when
 
 ## Cross-module use case
 
-Place cross-module orchestration in `internal/{usecase}/service`. When repository operations across modules must succeed together, bind their ports to the same transaction.
+Place cross-module orchestration in `internal/modules/{usecase}/service`. Depend on participating modules only through their `api` contracts; bootstrap wires the concrete services. When repository operations across modules must succeed together, bind their ports to the same transaction.
 
 ```go
 err := s.db.WithinTransaction(ctx, func(ctx context.Context, tx database.Transaction) error {
