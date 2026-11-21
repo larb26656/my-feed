@@ -243,11 +243,13 @@ func TestSQLiteOnlineBackupRestoresAPIState(t *testing.T) {
 	})
 	require.Equal(t, http.StatusCreated, createEntry.Code)
 	var entry struct {
-		ID string `json:"id"`
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
 	}
 	require.NoError(t, json.Unmarshal(createEntry.Body.Bytes(), &entry))
-	require.Equal(t, http.StatusOK, requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/"+entry.ID+"/read", map[string]any{}).Code)
-	require.Equal(t, http.StatusOK, requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/"+entry.ID+"/save", map[string]any{}).Code)
+	require.Equal(t, http.StatusOK, requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/"+entry.Data.ID+"/read", map[string]any{}).Code)
+	require.Equal(t, http.StatusOK, requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/"+entry.Data.ID+"/save", map[string]any{}).Code)
 	createJob := requestJSON(t, app.Router, http.MethodPost, "/api/v1/fetch-jobs/", map[string]any{"sourceId": source.ID})
 	require.Equal(t, http.StatusCreated, createJob.Code)
 	var job struct {
@@ -278,7 +280,7 @@ func TestSQLiteOnlineBackupRestoresAPIState(t *testing.T) {
 	getSource := requestJSON(t, app.Router, http.MethodGet, "/api/v1/sources/"+source.ID, nil)
 	require.Equal(t, http.StatusOK, getSource.Code)
 	require.Contains(t, getSource.Body.String(), "Backup RSS")
-	getEntry := requestJSON(t, app.Router, http.MethodGet, "/api/v1/entries/"+entry.ID, nil)
+	getEntry := requestJSON(t, app.Router, http.MethodGet, "/api/v1/entries/"+entry.Data.ID, nil)
 	require.Equal(t, http.StatusOK, getEntry.Code)
 	require.Contains(t, getEntry.Body.String(), `"readAt":"`)
 	require.Contains(t, getEntry.Body.String(), `"savedAt":"`)
@@ -341,10 +343,9 @@ func TestEntryListCursorEnvelopeAndOrdering(t *testing.T) {
 			ID    string `json:"id"`
 			Title string `json:"title"`
 		} `json:"data"`
-		Page struct {
-			NextCursor *string `json:"nextCursor"`
-			HasNext    bool    `json:"hasNext"`
-		} `json:"page"`
+		Meta struct {
+			NextCursor string `json:"nextCursor"`
+		} `json:"meta"`
 	}
 	firstResponse := requestJSON(t, app.Router, http.MethodGet, "/api/v1/entries/?pageSize=2", nil)
 	require.Equal(t, http.StatusOK, firstResponse.Code)
@@ -352,18 +353,18 @@ func TestEntryListCursorEnvelopeAndOrdering(t *testing.T) {
 	require.NoError(t, json.Unmarshal(firstResponse.Body.Bytes(), &first))
 	require.Len(t, first.Data, 2)
 	require.Equal(t, "undated", first.Data[0].Title)
-	require.True(t, first.Page.HasNext)
-	require.NotNil(t, first.Page.NextCursor)
+
+	require.NotEmpty(t, first.Meta.NextCursor)
 	require.NotContains(t, firstResponse.Body.String(), "totalCount")
-	secondResponse := requestJSON(t, app.Router, http.MethodGet, "/api/v1/entries/?pageSize=2&cursor="+url.QueryEscape(*first.Page.NextCursor), nil)
+	secondResponse := requestJSON(t, app.Router, http.MethodGet, "/api/v1/entries/?pageSize=2&cursor="+url.QueryEscape(first.Meta.NextCursor), nil)
 	var second page
 	require.NoError(t, json.Unmarshal(secondResponse.Body.Bytes(), &second))
 	require.Len(t, second.Data, 2)
 	require.Greater(t, first.Data[1].ID, second.Data[0].ID)
 	require.Equal(t, "older", second.Data[1].Title)
-	require.False(t, second.Page.HasNext)
-	require.Nil(t, second.Page.NextCursor)
-	require.Contains(t, secondResponse.Body.String(), `"nextCursor":null`)
+
+	require.Empty(t, second.Meta.NextCursor)
+	require.NotContains(t, secondResponse.Body.String(), `"nextCursor"`)
 }
 
 func TestEntryReadAndSavedMutationsPersistInFilteredLists(t *testing.T) {
@@ -382,7 +383,9 @@ func TestEntryReadAndSavedMutationsPersistInFilteredLists(t *testing.T) {
 	created := requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/save-link", map[string]any{"title": "State test", "link": "https://example.test/state"})
 	require.Equal(t, http.StatusCreated, created.Code)
 	var entry struct {
-		ID string `json:"id"`
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
 	}
 	require.NoError(t, json.Unmarshal(created.Body.Bytes(), &entry))
 	list := func(criteria string) []string {
@@ -403,26 +406,26 @@ func TestEntryReadAndSavedMutationsPersistInFilteredLists(t *testing.T) {
 	}
 	mutate := func(action string) {
 		t.Helper()
-		response := requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/"+entry.ID+"/"+action, nil)
+		response := requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/"+entry.Data.ID+"/"+action, nil)
 		require.Equal(t, http.StatusOK, response.Code, response.Body.String())
 	}
-	require.Contains(t, list("unread=true"), entry.ID)
-	require.NotContains(t, list("savedOnly=true"), entry.ID)
+	require.Contains(t, list("unread=true"), entry.Data.ID)
+	require.NotContains(t, list("savedOnly=true"), entry.Data.ID)
 	mutate("save")
-	require.Contains(t, list("unread=true&savedOnly=true"), entry.ID)
+	require.Contains(t, list("unread=true&savedOnly=true"), entry.Data.ID)
 	mutate("read")
-	require.NotContains(t, list("unread=true"), entry.ID)
-	require.Contains(t, list("savedOnly=true"), entry.ID)
+	require.NotContains(t, list("unread=true"), entry.Data.ID)
+	require.Contains(t, list("savedOnly=true"), entry.Data.ID)
 	app.Close()
 	app, err = NewWithConfig(ctx, cfg)
 	require.NoError(t, err)
-	require.NotContains(t, list("unread=true"), entry.ID)
-	require.Contains(t, list("savedOnly=true"), entry.ID)
+	require.NotContains(t, list("unread=true"), entry.Data.ID)
+	require.Contains(t, list("savedOnly=true"), entry.Data.ID)
 	mutate("clear-read")
-	require.Contains(t, list("unread=true&savedOnly=true"), entry.ID)
+	require.Contains(t, list("unread=true&savedOnly=true"), entry.Data.ID)
 	mutate("clear-save")
-	require.Contains(t, list("unread=true"), entry.ID)
-	require.NotContains(t, list("savedOnly=true"), entry.ID)
+	require.Contains(t, list("unread=true"), entry.Data.ID)
+	require.NotContains(t, list("savedOnly=true"), entry.Data.ID)
 }
 
 func TestEntryListFiltersAndCursor(t *testing.T) {
@@ -442,10 +445,12 @@ func TestEntryListFiltersAndCursor(t *testing.T) {
 		response := requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/save-link", map[string]any{"title": title, "link": "https://example.test/" + title})
 		require.Equal(t, http.StatusCreated, response.Code)
 		var entry struct {
-			ID string `json:"id"`
+			Data struct {
+				ID string `json:"id"`
+			} `json:"data"`
 		}
 		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &entry))
-		ids = append(ids, entry.ID)
+		ids = append(ids, entry.Data.ID)
 	}
 	require.Equal(t, http.StatusOK, requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/"+ids[1]+"/read", nil).Code)
 	response := requestJSON(t, app.Router, http.MethodGet, "/api/v1/entries/?unread=true", nil)
@@ -469,18 +474,20 @@ func TestEntryListFiltersAndCursor(t *testing.T) {
 		res := requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/", map[string]any{"sourceId": source.ID, "title": title, "link": "https://example.test/" + title})
 		require.Equal(t, http.StatusCreated, res.Code)
 		var e struct {
-			ID string `json:"id"`
+			Data struct {
+				ID string `json:"id"`
+			} `json:"data"`
 		}
 		require.NoError(t, json.Unmarshal(res.Body.Bytes(), &e))
-		require.Equal(t, http.StatusOK, requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/"+e.ID+"/save", nil).Code)
+		require.Equal(t, http.StatusOK, requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/"+e.Data.ID+"/save", nil).Code)
 	}
 	type listPage struct {
 		Data []struct {
 			ID string `json:"id"`
 		} `json:"data"`
-		Page struct {
-			NextCursor *string `json:"nextCursor"`
-		} `json:"page"`
+		Meta struct {
+			NextCursor string `json:"nextCursor"`
+		} `json:"meta"`
 	}
 	get := func(query string) listPage {
 		res := requestJSON(t, app.Router, http.MethodGet, "/api/v1/entries/?"+query, nil)
@@ -495,12 +502,12 @@ func TestEntryListFiltersAndCursor(t *testing.T) {
 	require.Empty(t, get("sourceId=00000000-0000-0000-0000-000000000000").Data)
 	first := get("sourceId=" + source.ID + "&savedOnly=true&pageSize=1")
 	require.Len(t, first.Data, 1)
-	require.NotNil(t, first.Page.NextCursor)
-	second := get("sourceId=" + source.ID + "&savedOnly=true&pageSize=1&cursor=" + url.QueryEscape(*first.Page.NextCursor))
+	require.NotEmpty(t, first.Meta.NextCursor)
+	second := get("sourceId=" + source.ID + "&savedOnly=true&pageSize=1&cursor=" + url.QueryEscape(first.Meta.NextCursor))
 	require.Len(t, second.Data, 1)
 	require.NotEqual(t, first.Data[0].ID, second.Data[0].ID)
-	require.Nil(t, second.Page.NextCursor)
-	for _, query := range []string{"sourceId=bad", "cursor=bad", "unread=maybe", "savedOnly=maybe", "cursor=" + url.QueryEscape(*first.Page.NextCursor)} {
+	require.Empty(t, second.Meta.NextCursor)
+	for _, query := range []string{"sourceId=bad", "cursor=bad", "unread=maybe", "savedOnly=maybe", "cursor=" + url.QueryEscape(first.Meta.NextCursor)} {
 		res := requestJSON(t, app.Router, http.MethodGet, "/api/v1/entries/?"+query, nil)
 		require.Equal(t, http.StatusBadRequest, res.Code, query)
 	}
@@ -778,10 +785,12 @@ func TestSavedCountEndpointTracksSavedEntriesAcrossPages(t *testing.T) {
 		response := requestJSON(t, app.Router, http.MethodGet, "/api/v1/entries/saved-count", nil)
 		require.Equal(t, http.StatusOK, response.Code, response.Body.String())
 		var result struct {
-			Count int `json:"count"`
+			Data struct {
+				Count int `json:"count"`
+			} `json:"data"`
 		}
 		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &result))
-		return result.Count
+		return result.Data.Count
 	}
 	require.Equal(t, 0, count())
 
@@ -792,11 +801,13 @@ func TestSavedCountEndpointTracksSavedEntriesAcrossPages(t *testing.T) {
 		})
 		require.Equal(t, http.StatusCreated, created.Code)
 		var entry struct {
-			ID string `json:"id"`
+			Data struct {
+				ID string `json:"id"`
+			} `json:"data"`
 		}
 		require.NoError(t, json.Unmarshal(created.Body.Bytes(), &entry))
-		entryIDs[i] = entry.ID
-		require.Equal(t, http.StatusOK, requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/"+entry.ID+"/save", nil).Code)
+		entryIDs[i] = entry.Data.ID
+		require.Equal(t, http.StatusOK, requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/"+entry.Data.ID+"/save", nil).Code)
 	}
 	require.Equal(t, 21, count())
 	page := requestJSON(t, app.Router, http.MethodGet, "/api/v1/entries/?savedOnly=true", nil)
@@ -805,7 +816,7 @@ func TestSavedCountEndpointTracksSavedEntriesAcrossPages(t *testing.T) {
 		Data []json.RawMessage `json:"data"`
 	}
 	require.NoError(t, json.Unmarshal(page.Body.Bytes(), &result))
-	require.Len(t, result.Data, 20)
+	require.Len(t, result.Data, 10)
 	require.Equal(t, http.StatusOK, requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/"+entryIDs[0]+"/clear-save", nil).Code)
 	require.Equal(t, 20, count())
 	require.NoError(t, app.Pool.Close())

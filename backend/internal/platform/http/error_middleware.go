@@ -19,7 +19,7 @@ func ErrorMiddleware() gin.HandlerFunc {
 		err := c.Errors.Last().Err
 		var appErr *apperr.AppError
 		if !errors.As(err, &appErr) {
-			WriteError(c.Writer, err)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, Fail("INTERNAL_SERVER_ERROR", "Internal server error"))
 			return
 		}
 

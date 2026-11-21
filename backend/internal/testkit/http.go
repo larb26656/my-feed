@@ -3,6 +3,7 @@ package testkit
 import (
 	"bytes"
 	"encoding/json"
+	"mime"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -27,7 +28,9 @@ func Request(t testing.TB, handler http.Handler, method, path string, body any, 
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	require.Equal(t, status, response.Code, "%s %s: %s", method, path, response.Body.String())
-	require.Equal(t, "application/json", response.Header().Get("Content-Type"))
+	mediaType, _, err := mime.ParseMediaType(response.Header().Get("Content-Type"))
+	require.NoError(t, err)
+	require.Equal(t, "application/json", mediaType)
 	return response
 }
 

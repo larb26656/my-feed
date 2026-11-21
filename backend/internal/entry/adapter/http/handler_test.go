@@ -3,6 +3,7 @@ package http_test
 import (
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"sort"
 	"testing"
@@ -34,7 +35,7 @@ func TestIngestingANewArticleReturnsItsIdentityAndMetadata(t *testing.T) {
 	article := map[string]string{"sourceId": sourceID, "title": "News", "link": "https://example.test/article"}
 
 	// Act
-	created := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", article, 201))
+	created := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", article, 201))
 
 	// Assert
 	require.NotEmpty(t, created.ID)
@@ -50,11 +51,11 @@ func TestIngestingTheSameArticleDoesNotCreateADuplicate(t *testing.T) {
 	router := api.New(t)
 	sourceID := rssSource(t, router)
 	article := map[string]string{"sourceId": sourceID, "title": "News", "link": "https://example.test/article"}
-	first := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", article, 201))
+	first := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", article, 201))
 
 	// Act
-	repeated := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", article, 200))
-	page := testkit.Decode[httpx.CursorResponse[entry]](t, testkit.Request(t, router, "GET", "/api/v1/entries/", nil, 200))
+	repeated := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", article, 200))
+	page := decodePage(t, testkit.Request(t, router, "GET", "/api/v1/entries/", nil, 200))
 
 	// Assert
 	require.Equal(t, first.ID, repeated.ID)
@@ -68,15 +69,15 @@ func TestReingestionPersistsRefreshedMetadata(t *testing.T) {
 	router := api.New(t)
 	sourceID := rssSource(t, router)
 	article := map[string]any{"sourceId": sourceID, "title": "Original", "link": "https://example.test/article"}
-	first := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", article, 201))
+	first := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", article, 201))
 	article["title"] = "Updated headline"
 	article["description"] = "Updated summary"
 	article["thumbnail"] = "https://example.test/photo.png"
 	article["publishedAt"] = "2025-01-02T03:04:05Z"
 
 	// Act
-	refreshed := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", article, 200))
-	got := testkit.Decode[entry](t, testkit.Request(t, router, "GET", "/api/v1/entries/"+first.ID, nil, 200))
+	refreshed := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", article, 200))
+	got := decodeSuccess[entry](t, testkit.Request(t, router, "GET", "/api/v1/entries/"+first.ID, nil, 200))
 
 	// Assert
 	require.Equal(t, first.ID, refreshed.ID)
@@ -95,17 +96,17 @@ func TestReingestionPreservesReadAndSavedChoices(t *testing.T) {
 	router := api.New(t)
 	sourceID := rssSource(t, router)
 	article := map[string]string{"sourceId": sourceID, "title": "Original", "link": "https://example.test/article"}
-	first := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", article, 201))
+	first := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", article, 201))
 	path := "/api/v1/entries/" + first.ID
-	read := testkit.Decode[entry](t, testkit.Request(t, router, "POST", path+"/read", nil, 200))
-	saved := testkit.Decode[entry](t, testkit.Request(t, router, "POST", path+"/save", nil, 200))
+	read := decodeSuccess[entry](t, testkit.Request(t, router, "POST", path+"/read", nil, 200))
+	saved := decodeSuccess[entry](t, testkit.Request(t, router, "POST", path+"/save", nil, 200))
 	require.NotNil(t, read.ReadAt)
 	require.NotNil(t, saved.SavedAt)
 	article["title"] = "Updated headline"
 
 	// Act
 	testkit.Request(t, router, "POST", "/api/v1/entries/", article, 200)
-	got := testkit.Decode[entry](t, testkit.Request(t, router, "GET", path, nil, 200))
+	got := decodeSuccess[entry](t, testkit.Request(t, router, "GET", path, nil, 200))
 
 	// Assert
 	require.Equal(t, read.ReadAt, got.ReadAt)
@@ -120,21 +121,23 @@ func TestSavingALinkAssignsTheSystemManualSource(t *testing.T) {
 	require.Equal(t, "manual", sources[0].Type)
 
 	// Act
-	saved := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]string{"title": "Bookmark", "link": "https://example.test/article"}, 201))
+	saved := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]string{"title": "Bookmark", "link": "https://example.test/article", "publishedAt": "2025-01-02T10:04:05.123+07:00"}, 201))
 
 	// Assert
 	require.Equal(t, sources[0].ID, saved.SourceID)
+	require.NotNil(t, saved.PublishedAt)
+	require.Equal(t, "2025-01-02T03:04:05.123Z", *saved.PublishedAt)
 }
 
 func TestSavingTheSameLinkRefreshesTheExistingBookmark(t *testing.T) {
 	// Arrange
 	router := api.New(t)
 	article := map[string]string{"title": "Original", "link": "https://example.test/article"}
-	first := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", article, 201))
+	first := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", article, 201))
 	article["title"] = "Updated bookmark"
 
 	// Act
-	refreshed := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", article, 201))
+	refreshed := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", article, 201))
 
 	// Assert
 	require.Equal(t, first.ID, refreshed.ID)
@@ -146,11 +149,11 @@ func TestTheSameLinkUnderManualAndRSSSourcesHasSeparateIdentities(t *testing.T) 
 	router := api.New(t)
 	sourceID := rssSource(t, router)
 	article := map[string]string{"title": "Bookmark", "link": "https://example.test/shared"}
-	manual := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", article, 201))
+	manual := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", article, 201))
 	article["sourceId"] = sourceID
 
 	// Act
-	rss := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", article, 201))
+	rss := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", article, 201))
 
 	// Assert
 	require.NotEqual(t, manual.ID, rss.ID)
@@ -161,10 +164,10 @@ func TestTheSameLinkUnderManualAndRSSSourcesHasSeparateIdentities(t *testing.T) 
 func TestSavingAnUnreadArticleLeavesItUnread(t *testing.T) {
 	// Arrange
 	router := api.New(t)
-	article := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]string{"title": "Article", "link": "https://example.test/a"}, 201))
+	article := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]string{"title": "Article", "link": "https://example.test/a"}, 201))
 
 	// Act
-	saved := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/"+article.ID+"/save", nil, 200))
+	saved := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/"+article.ID+"/save", nil, 200))
 
 	// Assert
 	require.NotNil(t, saved.SavedAt)
@@ -174,13 +177,13 @@ func TestSavingAnUnreadArticleLeavesItUnread(t *testing.T) {
 func TestMarkingASavedArticleReadPreservesItsSavedChoice(t *testing.T) {
 	// Arrange
 	router := api.New(t)
-	article := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]string{"title": "Article", "link": "https://example.test/a"}, 201))
+	article := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]string{"title": "Article", "link": "https://example.test/a"}, 201))
 	path := "/api/v1/entries/" + article.ID
-	saved := testkit.Decode[entry](t, testkit.Request(t, router, "POST", path+"/save", nil, 200))
+	saved := decodeSuccess[entry](t, testkit.Request(t, router, "POST", path+"/save", nil, 200))
 	require.NotNil(t, saved.SavedAt)
 
 	// Act
-	read := testkit.Decode[entry](t, testkit.Request(t, router, "POST", path+"/read", nil, 200))
+	read := decodeSuccess[entry](t, testkit.Request(t, router, "POST", path+"/read", nil, 200))
 
 	// Assert
 	require.NotNil(t, read.ReadAt)
@@ -190,15 +193,15 @@ func TestMarkingASavedArticleReadPreservesItsSavedChoice(t *testing.T) {
 func TestClearingReadPreservesTheSavedChoice(t *testing.T) {
 	// Arrange
 	router := api.New(t)
-	article := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]string{"title": "Article", "link": "https://example.test/a"}, 201))
+	article := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]string{"title": "Article", "link": "https://example.test/a"}, 201))
 	path := "/api/v1/entries/" + article.ID
 	testkit.Request(t, router, "POST", path+"/read", nil, 200)
-	saved := testkit.Decode[entry](t, testkit.Request(t, router, "POST", path+"/save", nil, 200))
+	saved := decodeSuccess[entry](t, testkit.Request(t, router, "POST", path+"/save", nil, 200))
 	require.NotNil(t, saved.ReadAt)
 	require.NotNil(t, saved.SavedAt)
 
 	// Act
-	unread := testkit.Decode[entry](t, testkit.Request(t, router, "POST", path+"/clear-read", nil, 200))
+	unread := decodeSuccess[entry](t, testkit.Request(t, router, "POST", path+"/clear-read", nil, 200))
 
 	// Assert
 	require.Nil(t, unread.ReadAt)
@@ -208,15 +211,15 @@ func TestClearingReadPreservesTheSavedChoice(t *testing.T) {
 func TestClearingSavedPreservesTheReadChoice(t *testing.T) {
 	// Arrange
 	router := api.New(t)
-	article := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]string{"title": "Article", "link": "https://example.test/a"}, 201))
+	article := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]string{"title": "Article", "link": "https://example.test/a"}, 201))
 	path := "/api/v1/entries/" + article.ID
 	testkit.Request(t, router, "POST", path+"/save", nil, 200)
-	read := testkit.Decode[entry](t, testkit.Request(t, router, "POST", path+"/read", nil, 200))
+	read := decodeSuccess[entry](t, testkit.Request(t, router, "POST", path+"/read", nil, 200))
 	require.NotNil(t, read.ReadAt)
 	require.NotNil(t, read.SavedAt)
 
 	// Act
-	cleared := testkit.Decode[entry](t, testkit.Request(t, router, "POST", path+"/clear-save", nil, 200))
+	cleared := decodeSuccess[entry](t, testkit.Request(t, router, "POST", path+"/clear-save", nil, 200))
 
 	// Assert
 	require.Nil(t, cleared.SavedAt)
@@ -236,7 +239,7 @@ func TestSavedCountIncludesOnlyCurrentlySavedArticles(t *testing.T) {
 			// Arrange
 			router := api.New(t)
 			if scenario.hasArticle {
-				article := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]string{"title": "Article", "link": "https://example.test/a"}, 201))
+				article := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]string{"title": "Article", "link": "https://example.test/a"}, 201))
 				path := "/api/v1/entries/" + article.ID
 				if scenario.save {
 					testkit.Request(t, router, "POST", path+"/save", nil, 200)
@@ -247,7 +250,7 @@ func TestSavedCountIncludesOnlyCurrentlySavedArticles(t *testing.T) {
 			}
 
 			// Act
-			count := testkit.Decode[struct{ Count int }](t, testkit.Request(t, router, "GET", "/api/v1/entries/saved-count", nil, 200))
+			count := decodeSuccess[struct{ Count int }](t, testkit.Request(t, router, "GET", "/api/v1/entries/saved-count", nil, 200))
 
 			// Assert
 			require.Equal(t, scenario.count, count.Count)
@@ -261,13 +264,13 @@ func TestEntriesWithTheSamePublicationTimeAreSortedByDescendingID(t *testing.T) 
 	sourceID := rssSource(t, router)
 	var ids []string
 	for i := 0; i < 3; i++ {
-		article := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sourceID, "title": "News", "link": fmt.Sprintf("https://example.test/%d", i), "publishedAt": "2025-01-01T00:00:00Z"}, 201))
+		article := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sourceID, "title": "News", "link": fmt.Sprintf("https://example.test/%d", i), "publishedAt": "2025-01-01T00:00:00Z"}, 201))
 		ids = append(ids, article.ID)
 	}
 	sort.Sort(sort.Reverse(sort.StringSlice(ids)))
 
 	// Act
-	page := testkit.Decode[httpx.CursorResponse[entry]](t, testkit.Request(t, router, "GET", "/api/v1/entries/", nil, 200))
+	page := decodePage(t, testkit.Request(t, router, "GET", "/api/v1/entries/", nil, 200))
 
 	// Assert
 	require.Len(t, page.Data, 3)
@@ -280,21 +283,19 @@ func TestPaginationContinuesPastTiedTimestampsWithoutRepeatingOrSkippingArticles
 	sourceID := rssSource(t, router)
 	var ids []string
 	for i := 0; i < 3; i++ {
-		article := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sourceID, "title": "News", "link": fmt.Sprintf("https://example.test/%d", i), "publishedAt": "2025-01-01T00:00:00Z"}, 201))
+		article := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sourceID, "title": "News", "link": fmt.Sprintf("https://example.test/%d", i), "publishedAt": "2025-01-01T00:00:00Z"}, 201))
 		ids = append(ids, article.ID)
 	}
-	first := testkit.Decode[httpx.CursorResponse[entry]](t, testkit.Request(t, router, "GET", "/api/v1/entries/?pageSize=2", nil, 200))
+	first := decodePage(t, testkit.Request(t, router, "GET", "/api/v1/entries/?pageSize=2", nil, 200))
 	require.Len(t, first.Data, 2)
-	require.True(t, first.Page.HasNext)
-	require.NotNil(t, first.Page.NextCursor)
+	require.NotEmpty(t, first.Meta.NextCursor)
 
 	// Act
-	second := testkit.Decode[httpx.CursorResponse[entry]](t, testkit.Request(t, router, "GET", "/api/v1/entries/?pageSize=2&cursor="+url.QueryEscape(*first.Page.NextCursor), nil, 200))
+	second := decodePage(t, testkit.Request(t, router, "GET", "/api/v1/entries/?pageSize=2&cursor="+url.QueryEscape(first.Meta.NextCursor), nil, 200))
 
 	// Assert
 	require.Len(t, second.Data, 1)
-	require.False(t, second.Page.HasNext)
-	require.Nil(t, second.Page.NextCursor)
+	require.Empty(t, second.Meta.NextCursor)
 	require.ElementsMatch(t, ids, []string{first.Data[0].ID, first.Data[1].ID, second.Data[0].ID})
 }
 
@@ -302,19 +303,19 @@ func TestANewerArrivalDoesNotShiftTheNextPage(t *testing.T) {
 	// Arrange
 	router := api.New(t)
 	sourceID := rssSource(t, router)
-	older := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sourceID, "title": "Older", "link": "https://example.test/older", "publishedAt": "2024-01-01T00:00:00Z"}, 201))
+	older := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sourceID, "title": "Older", "link": "https://example.test/older", "publishedAt": "2024-01-01T00:00:00Z"}, 201))
 	testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sourceID, "title": "Newer", "link": "https://example.test/newer", "publishedAt": "2025-01-01T00:00:00Z"}, 201)
-	first := testkit.Decode[httpx.CursorResponse[entry]](t, testkit.Request(t, router, "GET", "/api/v1/entries/?pageSize=1", nil, 200))
-	require.NotNil(t, first.Page.NextCursor)
+	first := decodePage(t, testkit.Request(t, router, "GET", "/api/v1/entries/?pageSize=1", nil, 200))
+	require.NotEmpty(t, first.Meta.NextCursor)
 	testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sourceID, "title": "Breaking", "link": "https://example.test/breaking", "publishedAt": "2026-01-01T00:00:00Z"}, 201)
 
 	// Act
-	second := testkit.Decode[httpx.CursorResponse[entry]](t, testkit.Request(t, router, "GET", "/api/v1/entries/?pageSize=1&cursor="+url.QueryEscape(*first.Page.NextCursor), nil, 200))
+	second := decodePage(t, testkit.Request(t, router, "GET", "/api/v1/entries/?pageSize=1&cursor="+url.QueryEscape(first.Meta.NextCursor), nil, 200))
 
 	// Assert
 	require.Len(t, second.Data, 1)
 	require.Equal(t, older.ID, second.Data[0].ID)
-	require.False(t, second.Page.HasNext)
+	require.Empty(t, second.Meta.NextCursor)
 }
 
 func TestACursorCannotBeReusedWithDifferentFilters(t *testing.T) {
@@ -323,15 +324,15 @@ func TestACursorCannotBeReusedWithDifferentFilters(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]string{"title": "Article", "link": fmt.Sprintf("https://example.test/%d", i)}, 201)
 	}
-	first := testkit.Decode[httpx.CursorResponse[entry]](t, testkit.Request(t, router, "GET", "/api/v1/entries/?pageSize=1", nil, 200))
-	require.NotNil(t, first.Page.NextCursor)
+	first := decodePage(t, testkit.Request(t, router, "GET", "/api/v1/entries/?pageSize=1", nil, 200))
+	require.NotEmpty(t, first.Meta.NextCursor)
 
 	// Act
-	failure := testkit.Decode[httpx.ErrorBody](t, testkit.Request(t, router, "GET", "/api/v1/entries/?savedOnly=true&cursor="+url.QueryEscape(*first.Page.NextCursor), nil, 400))
+	failure := decodeFailure(t, testkit.Request(t, router, "GET", "/api/v1/entries/?savedOnly=true&cursor="+url.QueryEscape(first.Meta.NextCursor), nil, 400))
 
 	// Assert
 	require.Equal(t, "validation", failure.Code)
-	require.Equal(t, "cursor does not match criteria", failure.Error)
+	require.Equal(t, "cursor does not match criteria", failure.Message)
 }
 
 func TestInvalidEntryRequestsReturnUsefulBusinessErrors(t *testing.T) {
@@ -342,31 +343,43 @@ func TestInvalidEntryRequestsReturnUsefulBusinessErrors(t *testing.T) {
 		status                   int
 		code, message            string
 	}{
-		{"malformed JSON", "POST", "/api/v1/entries/", "{", 400, "validation", "invalid json body"},
-		{"unknown field", "POST", "/api/v1/entries/save-link", `{"title":"A","link":"https://example.test/a","extra":true}`, 400, "validation", "invalid json body"},
-		{"invalid source ID", "POST", "/api/v1/entries/", `{"sourceId":"bad"}`, 400, "validation", "invalid source id"},
-		{"invalid publication time", "POST", "/api/v1/entries/save-link", `{"publishedAt":"yesterday"}`, 400, "validation", "invalid publishedAt"},
-		{"missing source", "POST", "/api/v1/entries/", fmt.Sprintf(`{"sourceId":%q,"title":"A","link":"https://example.test/a"}`, missing), 404, "not_found", "source not found"},
+		{"malformed JSON", "POST", "/api/v1/entries/", "{", 400, "validation", "Invalid JSON body"},
+		{"invalid source ID", "POST", "/api/v1/entries/", `{"sourceId":"bad"}`, 400, "validation", "Invalid JSON body"},
+		{"omitted source ID", "POST", "/api/v1/entries/", `{"title":"News","link":"https://example.test/a"}`, 400, "validation", "Validation failed"},
+		{"nil UUID", "POST", "/api/v1/entries/", `{"sourceId":"00000000-0000-0000-0000-000000000000","title":"News","link":"https://example.test/a"}`, 400, "validation", "Validation failed"},
+		{"missing title and link", "POST", "/api/v1/entries/", fmt.Sprintf(`{"sourceId":%q}`, missing), 400, "validation", "Validation failed"},
+		{"invalid publication time", "POST", "/api/v1/entries/save-link", `{"title":"News","link":"https://example.test/a","publishedAt":"yesterday"}`, 400, "validation", "Invalid JSON body"},
+		{"missing source", "POST", "/api/v1/entries/", fmt.Sprintf(`{"sourceId":%q,"title":"A","link":"https://example.test/a"}`, missing), 404, "NOT_FOUND", "source not found"},
 		{"invalid entry ID", "GET", "/api/v1/entries/bad", "", 400, "validation", "invalid entry id"},
-		{"missing entry", "GET", "/api/v1/entries/" + missing, "", 404, "ENTRY_NOT_FOUND", "entry not found"},
+		{"missing entry", "GET", "/api/v1/entries/" + missing, "", 404, "NOT_FOUND", "entry not found"},
 		{"invalid cursor", "GET", "/api/v1/entries/?cursor=bad", "", 400, "validation", "invalid cursor"},
-		{"invalid page size", "GET", "/api/v1/entries/?pageSize=many", "", 400, "validation", "invalid pageSize"},
-		{"invalid unread filter", "GET", "/api/v1/entries/?unread=yes", "", 400, "validation", "invalid unread"},
-		{"invalid saved filter", "GET", "/api/v1/entries/?savedOnly=yes", "", 400, "validation", "invalid savedOnly"},
-		{"invalid source filter", "GET", "/api/v1/entries/?sourceId=bad", "", 400, "validation", "invalid source id"},
+		{"invalid page size", "GET", "/api/v1/entries/?pageSize=many", "", 400, "validation", "Invalid Entry query"},
+		{"invalid unread filter", "GET", "/api/v1/entries/?unread=yes", "", 400, "validation", "Invalid Entry query"},
+		{"invalid saved filter", "GET", "/api/v1/entries/?savedOnly=yes", "", 400, "validation", "Invalid Entry query"},
+		{"invalid source filter", "GET", "/api/v1/entries/?sourceId=bad", "", 400, "validation", "Invalid Entry query"},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
 			// Arrange
 			router := api.New(t)
 
 			// Act: submit the request that should be rejected.
-			failure := testkit.Decode[httpx.ErrorBody](t, testkit.Request(t, router, scenario.method, scenario.path, scenario.body, scenario.status))
+			failure := decodeFailure(t, testkit.Request(t, router, scenario.method, scenario.path, scenario.body, scenario.status))
 
 			// Assert
 			require.Equal(t, scenario.code, failure.Code)
-			require.Equal(t, scenario.message, failure.Error)
+			require.Equal(t, scenario.message, failure.Message)
 		})
 	}
+}
+
+func TestSaveLinkReturnsValidationDetails(t *testing.T) {
+	router := api.New(t)
+	response := testkit.Request(t, router, "POST", "/api/v1/entries/save-link",
+		map[string]string{"title": "Example"}, http.StatusBadRequest)
+	failure := decodeFailure(t, response)
+	require.Equal(t, "validation", failure.Code)
+	require.Contains(t, response.Body.String(), `"rule":"required"`)
+	require.Contains(t, response.Body.String(), `"detail":{"fields":`)
 }
 
 func TestReaderActionsOnMissingArticlesReturnNotFound(t *testing.T) {
@@ -378,10 +391,10 @@ func TestReaderActionsOnMissingArticlesReturnNotFound(t *testing.T) {
 			router := api.New(t)
 
 			// Act: submit the request that should be rejected.
-			failure := testkit.Decode[httpx.ErrorBody](t, testkit.Request(t, router, "POST", "/api/v1/entries/"+missing+"/"+action, nil, 404))
+			failure := decodeFailure(t, testkit.Request(t, router, "POST", "/api/v1/entries/"+missing+"/"+action, nil, 404))
 
 			// Assert
-			require.Equal(t, "ENTRY_NOT_FOUND", failure.Code)
+			require.Equal(t, "NOT_FOUND", failure.Code)
 		})
 	}
 }
@@ -393,11 +406,11 @@ func TestIngestionRejectsManualSources(t *testing.T) {
 	require.Len(t, sources, 1)
 
 	// Act
-	failure := testkit.Decode[httpx.ErrorBody](t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sources[0].ID, "title": "News", "link": "https://example.test/a"}, 400))
+	failure := decodeFailure(t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sources[0].ID, "title": "News", "link": "https://example.test/a"}, 400))
 
 	// Assert
 	require.Equal(t, "validation", failure.Code)
-	require.Equal(t, "ingest can only record entries into rss sources", failure.Error)
+	require.Equal(t, "ingest can only record Entries into fetchable Sources", failure.Message)
 }
 
 func TestIngestionRejectsBlankMetadata(t *testing.T) {
@@ -410,7 +423,7 @@ func TestIngestionRejectsBlankMetadata(t *testing.T) {
 			sourceID := rssSource(t, router)
 
 			// Act
-			failure := testkit.Decode[httpx.ErrorBody](t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sourceID, "title": scenario.title, "link": scenario.link}, 400))
+			failure := decodeFailure(t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sourceID, "title": scenario.title, "link": scenario.link}, 400))
 
 			// Assert
 			require.Equal(t, "validation", failure.Code)
@@ -425,22 +438,22 @@ func TestIngestionRejectsPausedRSSSources(t *testing.T) {
 	testkit.Request(t, router, "POST", "/api/v1/sources/"+sourceID+"/deactivate", nil, 200)
 
 	// Act
-	failure := testkit.Decode[httpx.ErrorBody](t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sourceID, "title": "News", "link": "https://example.test/a"}, 422))
+	failure := decodeFailure(t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sourceID, "title": "News", "link": "https://example.test/a"}, 409))
 
 	// Assert
-	require.Equal(t, "failed_precondition", failure.Code)
-	require.Equal(t, "cannot ingest into a deactivated source", failure.Error)
+	require.Equal(t, "SOURCE_DEACTIVATED", failure.Code)
+	require.Equal(t, "cannot ingest into a deactivated source", failure.Message)
 }
 
 func TestPausingASourceDoesNotHideItsExistingArticles(t *testing.T) {
 	// Arrange
 	router := api.New(t)
 	sourceID := rssSource(t, router)
-	article := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sourceID, "title": "News", "link": "https://example.test/a"}, 201))
+	article := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sourceID, "title": "News", "link": "https://example.test/a"}, 201))
 	testkit.Request(t, router, "POST", "/api/v1/sources/"+sourceID+"/deactivate", nil, 200)
 
 	// Act
-	page := testkit.Decode[httpx.CursorResponse[entry]](t, testkit.Request(t, router, "GET", "/api/v1/entries/", nil, 200))
+	page := decodePage(t, testkit.Request(t, router, "GET", "/api/v1/entries/", nil, 200))
 
 	// Assert
 	require.Len(t, page.Data, 1)
@@ -451,11 +464,11 @@ func TestSourceFilterReturnsOnlyArticlesFromThatSource(t *testing.T) {
 	// Arrange
 	router := api.New(t)
 	sourceID := rssSource(t, router)
-	rss := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sourceID, "title": "News", "link": "https://example.test/rss-article"}, 201))
+	rss := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sourceID, "title": "News", "link": "https://example.test/rss-article"}, 201))
 	testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]string{"title": "Bookmark", "link": "https://example.test/manual"}, 201)
 
 	// Act
-	page := testkit.Decode[httpx.CursorResponse[entry]](t, testkit.Request(t, router, "GET", "/api/v1/entries/?sourceId="+sourceID, nil, 200))
+	page := decodePage(t, testkit.Request(t, router, "GET", "/api/v1/entries/?sourceId="+sourceID, nil, 200))
 
 	// Assert
 	require.Len(t, page.Data, 1)
@@ -468,18 +481,18 @@ func TestUnreadAndSavedFiltersCanBeCombinedWithASourceFilter(t *testing.T) {
 	sourceID := rssSource(t, router)
 	var articles []entry
 	for i := 0; i < 3; i++ {
-		article := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sourceID, "title": "News", "link": fmt.Sprintf("https://example.test/%d", i)}, 201))
+		article := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sourceID, "title": "News", "link": fmt.Sprintf("https://example.test/%d", i)}, 201))
 		articles = append(articles, article)
 	}
 	for _, article := range articles[:2] {
 		testkit.Request(t, router, "POST", "/api/v1/entries/"+article.ID+"/save", nil, 200)
 	}
 	testkit.Request(t, router, "POST", "/api/v1/entries/"+articles[0].ID+"/read", nil, 200)
-	manual := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]string{"title": "Bookmark", "link": "https://example.test/manual"}, 201))
+	manual := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]string{"title": "Bookmark", "link": "https://example.test/manual"}, 201))
 	testkit.Request(t, router, "POST", "/api/v1/entries/"+manual.ID+"/save", nil, 200)
 
 	// Act
-	page := testkit.Decode[httpx.CursorResponse[entry]](t, testkit.Request(t, router, "GET", "/api/v1/entries/?sourceId="+sourceID+"&unread=true&savedOnly=true", nil, 200))
+	page := decodePage(t, testkit.Request(t, router, "GET", "/api/v1/entries/?sourceId="+sourceID+"&unread=true&savedOnly=true", nil, 200))
 
 	// Assert
 	require.Len(t, page.Data, 1)
@@ -490,15 +503,15 @@ func TestSavedFilterIncludesBookmarksAcrossSources(t *testing.T) {
 	// Arrange
 	router := api.New(t)
 	sourceID := rssSource(t, router)
-	rss := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sourceID, "title": "News", "link": "https://example.test/rss-article"}, 201))
-	manual := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]string{"title": "Bookmark", "link": "https://example.test/manual"}, 201))
+	rss := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sourceID, "title": "News", "link": "https://example.test/rss-article"}, 201))
+	manual := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]string{"title": "Bookmark", "link": "https://example.test/manual"}, 201))
 	for _, article := range []entry{rss, manual} {
 		testkit.Request(t, router, "POST", "/api/v1/entries/"+article.ID+"/save", nil, 200)
 	}
 	testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]string{"title": "Unsaved", "link": "https://example.test/unsaved"}, 201)
 
 	// Act
-	page := testkit.Decode[httpx.CursorResponse[entry]](t, testkit.Request(t, router, "GET", "/api/v1/entries/?savedOnly=true", nil, 200))
+	page := decodePage(t, testkit.Request(t, router, "GET", "/api/v1/entries/?savedOnly=true", nil, 200))
 
 	// Assert
 	require.Len(t, page.Data, 2)
@@ -511,32 +524,28 @@ func TestFilteringByAnUnknownSourceReturnsAnEmptyArray(t *testing.T) {
 	testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]string{"title": "Article", "link": "https://example.test/a"}, 201)
 
 	// Act
-	page := testkit.Decode[httpx.CursorResponse[entry]](t, testkit.Request(t, router, "GET", "/api/v1/entries/?sourceId="+uuid.NewString(), nil, 200))
+	page := decodePage(t, testkit.Request(t, router, "GET", "/api/v1/entries/?sourceId="+uuid.NewString(), nil, 200))
 
 	// Assert
 	require.NotNil(t, page.Data, "empty results must serialize as an array")
 	require.Empty(t, page.Data)
-	require.False(t, page.Page.HasNext)
+	require.Empty(t, page.Meta.NextCursor)
 }
 
-func TestOmittedOrNonpositivePageSizeUsesTwentyArticles(t *testing.T) {
-	for _, scenario := range []struct{ name, query string }{
-		{"omitted", ""}, {"zero", "?pageSize=0"}, {"negative", "?pageSize=-1"},
-	} {
-		t.Run(scenario.name, func(t *testing.T) {
-			// Arrange
-			router := api.New(t)
-			for i := 0; i < 21; i++ {
-				testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]string{"title": "Article", "link": fmt.Sprintf("https://example.test/%d", i)}, 201)
-			}
+func TestEntryPageUsesSharedPageSizeDefaultsAndBounds(t *testing.T) {
+	router := api.New(t)
+	for i := 0; i < 11; i++ {
+		testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]string{"title": "Article", "link": fmt.Sprintf("https://example.test/%d", i)}, 201)
+	}
 
-			// Act
-			page := testkit.Decode[httpx.CursorResponse[entry]](t, testkit.Request(t, router, "GET", "/api/v1/entries/"+scenario.query, nil, 200))
+	page := decodePage(t, testkit.Request(t, router, "GET", "/api/v1/entries/", nil, 200))
+	require.Len(t, page.Data, 10)
+	require.Equal(t, 10, page.Meta.PageSize)
+	require.NotEmpty(t, page.Meta.NextCursor)
 
-			// Assert
-			require.Len(t, page.Data, 20)
-			require.True(t, page.Page.HasNext)
-		})
+	for _, size := range []string{"0", "-1", "101"} {
+		failure := decodeFailure(t, testkit.Request(t, router, "GET", "/api/v1/entries/?pageSize="+size, nil, 400))
+		require.Equal(t, "validation", failure.Code)
 	}
 }
 
@@ -544,16 +553,44 @@ func TestEntriesWithoutPublicationDatesUseTheirCreationDateForOrdering(t *testin
 	// Arrange
 	router := api.New(t)
 	sourceID := rssSource(t, router)
-	published := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{
+	published := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{
 		"sourceId": sourceID, "title": "Older news", "link": "https://example.test/old", "publishedAt": "2000-01-01T00:00:00Z",
 	}, 201))
-	undated := testkit.Decode[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]string{"title": "Just added", "link": "https://example.test/new"}, 201))
+	undated := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]string{"title": "Just added", "link": "https://example.test/new"}, 201))
 
 	// Act: list articles.
-	page := testkit.Decode[httpx.CursorResponse[entry]](t, testkit.Request(t, router, "GET", "/api/v1/entries/", nil, 200))
+	page := decodePage(t, testkit.Request(t, router, "GET", "/api/v1/entries/", nil, 200))
 
 	// Assert
 	require.Len(t, page.Data, 2)
 	require.Equal(t, undated.ID, page.Data[0].ID)
 	require.Equal(t, published.ID, page.Data[1].ID)
+}
+
+func decodeSuccess[T any](t *testing.T, response *httptest.ResponseRecorder) T {
+	t.Helper()
+	body := testkit.Decode[httpx.SuccessResponse[T]](t, response)
+	require.True(t, body.Success)
+	return body.Data
+}
+
+type entryPage struct {
+	Success bool
+	Data    []entry
+	Meta    httpx.CursorMeta
+}
+
+func decodePage(t *testing.T, response *httptest.ResponseRecorder) entryPage {
+	t.Helper()
+	body := testkit.Decode[entryPage](t, response)
+	require.True(t, body.Success)
+	require.Positive(t, body.Meta.PageSize)
+	return body
+}
+
+func decodeFailure(t *testing.T, response *httptest.ResponseRecorder) httpx.ErrorBody2 {
+	t.Helper()
+	body := testkit.Decode[httpx.ErrorResponse](t, response)
+	require.False(t, body.Success)
+	return body.Error
 }

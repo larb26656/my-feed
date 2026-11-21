@@ -112,7 +112,7 @@ func scanEntry(row scanner) (*domain.Entry, error) {
 	err := row.Scan(&id, &sourceID, &e.Title, &e.Link, &e.Description, &thumbnail, &publishedAt, &createdAt, &updatedAt, &readAt, &savedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, domain.ErrEntryNotFound.New("entry not found")
+			return nil, apperr.ResourceNotFound.Wrap(err, "entry not found")
 		}
 		return nil, err
 	}

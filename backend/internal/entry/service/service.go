@@ -2,9 +2,8 @@ package service
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/larb26656/my-feed/backend/internal/entry/domain"
 	"github.com/larb26656/my-feed/backend/internal/entry/repository"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
+	"github.com/larb26656/my-feed/backend/internal/platform/cursor"
 )
 
 // SourceType is the Entry module's view of a Source's type (not imported from source/domain).
@@ -60,7 +60,7 @@ type SaveLinkInput struct {
 func (s *Service) SaveLink(ctx context.Context, in SaveLinkInput) (*domain.Entry, error) {
 	src, err := s.sources.GetManual(ctx)
 	if err != nil {
-		return nil, err
+		return nil, sourceLookupError(err)
 	}
 	result, err := s.upsertEntry(ctx, src.ID, entryMeta{
 		Title:       in.Title,
@@ -75,7 +75,7 @@ func (s *Service) SaveLink(ctx context.Context, in SaveLinkInput) (*domain.Entry
 	return result.Entry, nil
 }
 
-// IngestEntryInput is the worker/ingest write path into an RSS Source by id.
+// IngestEntryInput is the ingest write path into a fetchable Source by id.
 type IngestEntryInput struct {
 	SourceID    uuid.UUID
 	Title       string
@@ -92,18 +92,18 @@ type IngestEntryResult struct {
 	Created bool
 }
 
-// IngestEntry records an Entry into an active RSS Source.
+// IngestEntry records an Entry into an active fetchable Source.
 // Rejects manual, missing, and deactivated Sources.
 func (s *Service) IngestEntry(ctx context.Context, in IngestEntryInput) (*IngestEntryResult, error) {
 	src, err := s.sources.Get(ctx, in.SourceID)
 	if err != nil {
-		return nil, err
+		return nil, sourceLookupError(err)
 	}
 	if src.Type != SourceTypeRSS && src.Type != SourceTypeYouTube {
-		return nil, apperr.Validation("ingest can only record entries into rss sources")
+		return nil, apperr.InvalidInput.New("ingest can only record Entries into fetchable Sources")
 	}
 	if !src.Active {
-		return nil, apperr.FailedPrecondition("cannot ingest into a deactivated source")
+		return nil, domain.ErrSourceDeactivated.New("cannot ingest into a deactivated source")
 	}
 	return s.upsertEntry(ctx, src.ID, entryMeta{
 		Title:       in.Title,
@@ -215,8 +215,11 @@ func (s *Service) ListEntries(ctx context.Context, in ListEntriesInput) (*ListEn
 	if len(rows) > pageSize {
 		result.Entries = rows[:pageSize]
 		last := result.Entries[pageSize-1]
-		cursor := encodeEntryCursor(last.SortAt(), last.ID, in.Criteria)
-		result.NextCursor = &cursor
+		nextCursor, err := encodeEntryCursor(last.SortAt(), last.ID, in.Criteria)
+		if err != nil {
+			return nil, fmt.Errorf("encode Entry cursor: %w", err)
+		}
+		result.NextCursor = &nextCursor
 	}
 	return result, nil
 }
@@ -233,22 +236,17 @@ type entryCursorPayload struct {
 	SavedOnly bool       `json:"savedOnly"`
 }
 
-func encodeEntryCursor(sortAt time.Time, id uuid.UUID, criteria repository.EntryListCriteria) string {
-	raw, _ := json.Marshal(entryCursorPayload{SortAt: sortAt.UTC(), ID: id, SourceID: criteria.SourceID, Unread: criteria.Unread, SavedOnly: criteria.SavedOnly})
-	return base64.RawURLEncoding.EncodeToString(raw)
+func encodeEntryCursor(sortAt time.Time, id uuid.UUID, criteria repository.EntryListCriteria) (string, error) {
+	return cursor.Encode(entryCursorPayload{SortAt: sortAt.UTC(), ID: id, SourceID: criteria.SourceID, Unread: criteria.Unread, SavedOnly: criteria.SavedOnly})
 }
 
-func decodeEntryCursor(cursor string, criteria repository.EntryListCriteria) (*repository.EntryListCursor, error) {
-	raw, err := base64.RawURLEncoding.DecodeString(cursor)
-	if err != nil {
-		return nil, apperr.Validation("invalid cursor")
-	}
+func decodeEntryCursor(token string, criteria repository.EntryListCriteria) (*repository.EntryListCursor, error) {
 	var payload entryCursorPayload
-	if err := json.Unmarshal(raw, &payload); err != nil || payload.SortAt.IsZero() || payload.ID == uuid.Nil {
-		return nil, apperr.Validation("invalid cursor")
+	if err := cursor.Decode(token, &payload); err != nil || payload.SortAt.IsZero() || payload.ID == uuid.Nil {
+		return nil, apperr.InvalidInput.New("invalid cursor")
 	}
 	if (payload.SourceID == nil) != (criteria.SourceID == nil) || (payload.SourceID != nil && *payload.SourceID != *criteria.SourceID) || payload.Unread != criteria.Unread || payload.SavedOnly != criteria.SavedOnly {
-		return nil, apperr.Validation("cursor does not match criteria")
+		return nil, apperr.InvalidInput.New("cursor does not match criteria")
 	}
 	return &repository.EntryListCursor{SortAt: payload.SortAt.UTC(), ID: payload.ID}, nil
 }
@@ -290,4 +288,12 @@ func isNotFound(err error) bool {
 func isConflict(err error) bool {
 	var ae *apperr.Error
 	return errors.As(err, &ae) && ae.Code == apperr.CodeConflict
+}
+
+func sourceLookupError(err error) error {
+	var legacy *apperr.Error
+	if errors.As(err, &legacy) && legacy.Code == apperr.CodeNotFound {
+		return apperr.ResourceNotFound.Wrap(err, "source not found")
+	}
+	return err
 }

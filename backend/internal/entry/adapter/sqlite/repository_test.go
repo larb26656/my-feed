@@ -210,5 +210,5 @@ func TestSQLiteReturnsNotFoundForAMissingEntry(t *testing.T) {
 	var failure *apperr.AppError
 	require.ErrorAs(t, err, &failure)
 	require.Equal(t, apperr.KindNotFound, failure.Kind)
-	require.Equal(t, "ENTRY_NOT_FOUND", failure.Code)
+	require.Equal(t, "NOT_FOUND", failure.Code)
 }

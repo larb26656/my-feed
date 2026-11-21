@@ -25,10 +25,10 @@ func TestStorageFailuresReturnAnInternalErrorWithoutLeakingDatabaseDetails(t *te
 
 	// Act: request the saved count while storage is unavailable.
 	response := testkit.Request(t, router, "GET", "/entries/saved-count", nil, 500)
-	failure := testkit.Decode[httpx.ErrorBody](t, response)
+	failure := decodeFailure(t, response)
 
 	// Assert
-	require.Equal(t, "internal", failure.Code)
-	require.Equal(t, "internal server error", failure.Error)
+	require.Equal(t, "INTERNAL_SERVER_ERROR", failure.Code)
+	require.Equal(t, "Internal server error", failure.Message)
 	require.NotContains(t, response.Body.String(), "private database details")
 }

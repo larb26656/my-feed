@@ -2,8 +2,7 @@ package service
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/larb26656/my-feed/backend/internal/fetch/domain"
 	"github.com/larb26656/my-feed/backend/internal/fetch/repository"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
+	"github.com/larb26656/my-feed/backend/internal/platform/cursor"
 )
 
 // DefaultRetryBackoff is the fixed delay between attempts on the same Fetch Job.
@@ -168,7 +168,10 @@ func (s *Service) ListFetchJobs(ctx context.Context, in ListFetchJobsInput) (*Li
 	if len(rows) > pageSize {
 		result.Jobs = rows[:pageSize]
 		last := result.Jobs[pageSize-1]
-		token := encodeFetchJobCursor(last.CreatedAt, last.ID, in.Criteria)
+		token, err := encodeFetchJobCursor(last.CreatedAt, last.ID, in.Criteria)
+		if err != nil {
+			return nil, fmt.Errorf("encode Fetch Job cursor: %w", err)
+		}
 		result.NextCursor = &token
 	}
 	return result, nil
@@ -181,18 +184,13 @@ type fetchJobCursorPayload struct {
 	Status    *domain.Status `json:"status"`
 }
 
-func encodeFetchJobCursor(createdAt time.Time, id uuid.UUID, criteria repository.FetchJobListCriteria) string {
-	raw, _ := json.Marshal(fetchJobCursorPayload{CreatedAt: createdAt.UTC(), ID: id, SourceID: criteria.SourceID, Status: criteria.Status})
-	return base64.RawURLEncoding.EncodeToString(raw)
+func encodeFetchJobCursor(createdAt time.Time, id uuid.UUID, criteria repository.FetchJobListCriteria) (string, error) {
+	return cursor.Encode(fetchJobCursorPayload{CreatedAt: createdAt.UTC(), ID: id, SourceID: criteria.SourceID, Status: criteria.Status})
 }
 
-func decodeFetchJobCursor(cursor string, criteria repository.FetchJobListCriteria) (*repository.FetchJobListCursor, error) {
-	raw, err := base64.RawURLEncoding.DecodeString(cursor)
-	if err != nil {
-		return nil, apperr.Validation("invalid cursor")
-	}
+func decodeFetchJobCursor(token string, criteria repository.FetchJobListCriteria) (*repository.FetchJobListCursor, error) {
 	var payload fetchJobCursorPayload
-	if err := json.Unmarshal(raw, &payload); err != nil || payload.CreatedAt.IsZero() || payload.ID == uuid.Nil {
+	if err := cursor.Decode(token, &payload); err != nil || payload.CreatedAt.IsZero() || payload.ID == uuid.Nil {
 		return nil, apperr.Validation("invalid cursor")
 	}
 	if (payload.SourceID == nil) != (criteria.SourceID == nil) || (payload.SourceID != nil && *payload.SourceID != *criteria.SourceID) || (payload.Status == nil) != (criteria.Status == nil) || (payload.Status != nil && *payload.Status != *criteria.Status) {
