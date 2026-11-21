@@ -43,7 +43,7 @@ func TestProductionRouterHealthAndMiddleware(t *testing.T) {
 
 		// Assert
 		require.Equal(t, http.StatusOK, w.Code)
-		require.Equal(t, "ok", w.Body.String())
+		require.JSONEq(t, `{"status":"ok"}`, w.Body.String())
 	})
 	t.Run("request id is propagated without a response header", func(t *testing.T) {
 		// Arrange
