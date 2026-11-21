@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
+	"github.com/larb26656/my-feed/backend/internal/platform/http/middleware"
 	"github.com/stretchr/testify/require"
 )
 
@@ -40,7 +41,7 @@ func TestBindJSONRejectsMalformedJSON(t *testing.T) {
 
 	// Act
 	router := gin.New()
-	router.Use(httpx.ErrorMiddleware())
+	router.Use(middleware.ErrorMiddleware())
 	router.POST("/", func(c *gin.Context) {
 		var dst bindSample
 		if !httpx.BindJSON(c, &dst) {
@@ -62,7 +63,7 @@ func TestBindJSONRejectsMissingRequiredField(t *testing.T) {
 
 	// Act
 	router := gin.New()
-	router.Use(httpx.ErrorMiddleware())
+	router.Use(middleware.ErrorMiddleware())
 	router.POST("/", func(c *gin.Context) {
 		var dst bindSample
 		if !httpx.BindJSON(c, &dst) {
