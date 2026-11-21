@@ -21,6 +21,17 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("/:id", h.getJob)
 }
 
+// @Summary Create Fetch Job
+// @Tags Fetch Jobs
+// @Produce json
+// @Accept json
+// @Param request body createFetchJobRequest true "Request body"
+// @Success 201 {object} httpx.SuccessResponse[fetchJobResponse]
+// @Failure 400 {object} httpx.ErrorResponse
+// @Failure 404 {object} httpx.ErrorResponse
+// @Failure 409 {object} httpx.ErrorResponse
+// @Failure 500 {object} httpx.ErrorResponse
+// @Router /api/v1/fetch-jobs [post]
 func (h *Handler) createManual(c *gin.Context) {
 	var req createFetchJobRequest
 	if !httpx.BindJSON(c, &req) {
@@ -34,6 +45,16 @@ func (h *Handler) createManual(c *gin.Context) {
 	c.JSON(http.StatusCreated, httpx.Success(toFetchJobResponse(job)))
 }
 
+// @Summary Get Fetch Job
+// @Tags Fetch Jobs
+// @Produce json
+// @Param id path string true "Resource ID" format(uuid)
+// @Success 200 {object} httpx.SuccessResponse[fetchJobResponse]
+// @Failure 400 {object} httpx.ErrorResponse
+// @Failure 404 {object} httpx.ErrorResponse
+// @Failure 409 {object} httpx.ErrorResponse
+// @Failure 500 {object} httpx.ErrorResponse
+// @Router /api/v1/fetch-jobs/{id} [get]
 func (h *Handler) getJob(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -48,6 +69,19 @@ func (h *Handler) getJob(c *gin.Context) {
 	c.JSON(http.StatusOK, httpx.Success(toFetchJobResponse(job)))
 }
 
+// @Summary List Fetch Jobs
+// @Tags Fetch Jobs
+// @Produce json
+// @Param cursor query string false "Continuation cursor"
+// @Param pageSize query int false "Page size" minimum(1) maximum(100) default(10)
+// @Param sourceId query string false "Source ID" format(uuid)
+// @Param status query string false "Fetch Job status" Enums(pending,running,succeeded,failed)
+// @Success 200 {object} CursorResponse
+// @Failure 400 {object} httpx.ErrorResponse
+// @Failure 404 {object} httpx.ErrorResponse
+// @Failure 409 {object} httpx.ErrorResponse
+// @Failure 500 {object} httpx.ErrorResponse
+// @Router /api/v1/fetch-jobs [get]
 func (h *Handler) listJobs(c *gin.Context) {
 	req := listFetchJobsQuery{CursorPageOption: httpx.NewCursorPageOption()}
 	if err := c.ShouldBindQuery(&req); err != nil {

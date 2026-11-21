@@ -2,9 +2,11 @@ package bootstrap
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -119,4 +121,43 @@ func TestProductionRouterHealthAndMiddleware(t *testing.T) {
 		require.Equal(t, http.ErrAbortHandler, recovered)
 		require.Empty(t, w.Body.String())
 	})
+}
+
+func TestOpenAPIDocumentation(t *testing.T) {
+	router := newRouterTestApp(t)
+	spec := httptest.NewRecorder()
+	router.ServeHTTP(spec, httptest.NewRequest("GET", "/openapi.json", nil))
+	require.Equal(t, http.StatusOK, spec.Code)
+	require.Contains(t, spec.Body.String(), `"/api/v1/sources"`)
+	require.Contains(t, spec.Body.String(), `"/healthz"`)
+	require.NotContains(t, spec.Body.String(), `/api/prototype`)
+	require.Contains(t, spec.Body.String(), `"null"`)
+	docs := httptest.NewRecorder()
+	router.ServeHTTP(docs, httptest.NewRequest("GET", "/docs", nil))
+	require.Equal(t, http.StatusOK, docs.Code)
+	require.Contains(t, docs.Body.String(), "/openapi.json")
+}
+
+func TestOpenAPICoversRegisteredRoutes(t *testing.T) {
+	router := newRouterTestApp(t)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/openapi.json", nil))
+	var doc struct {
+		OpenAPI string                                `json:"openapi"`
+		Paths   map[string]map[string]json.RawMessage `json:"paths"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &doc))
+	require.Equal(t, "3.1.0", doc.OpenAPI)
+	parameter := regexp.MustCompile(`:([a-zA-Z0-9_]+)`)
+	for _, route := range router.Routes() {
+		if route.Path != "/healthz" && !strings.HasPrefix(route.Path, "/api/v1/") {
+			continue
+		}
+		path := strings.TrimSuffix(route.Path, "/")
+		path = parameter.ReplaceAllString(path, `{$1}`)
+		operations, ok := doc.Paths[path]
+		require.Truef(t, ok, "missing path %s", path)
+		_, ok = operations[strings.ToLower(route.Method)]
+		require.Truef(t, ok, "missing operation %s %s", route.Method, path)
+	}
 }

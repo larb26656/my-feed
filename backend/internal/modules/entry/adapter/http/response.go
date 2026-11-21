@@ -3,6 +3,8 @@ package http
 import (
 	"time"
 
+	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
+
 	"github.com/larb26656/my-feed/backend/internal/modules/entry/domain"
 )
 
@@ -38,4 +40,11 @@ func toEntryResponse(e *domain.Entry) entryResponse {
 		ReadAt:      e.ReadAt,
 		SavedAt:     e.SavedAt,
 	}
+}
+
+// CursorResponse describes the list envelope emitted by httpx.Cursor.
+type CursorResponse struct {
+	Success bool             `json:"success"`
+	Data    []entryResponse  `json:"data"`
+	Meta    httpx.CursorMeta `json:"meta"`
 }
