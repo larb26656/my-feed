@@ -41,13 +41,7 @@ func (s *Service) SaveLink(ctx context.Context, in SaveLinkInput) (*domain.Entry
 	if err != nil {
 		return nil, err
 	}
-	result, err := s.upsertEntry(ctx, src.ID, entryMeta{
-		Title:       in.Title,
-		Link:        in.Link,
-		Description: in.Description,
-		Thumbnail:   in.Thumbnail,
-		PublishedAt: in.PublishedAt,
-	})
+	result, err := s.upsertEntry(ctx, src.ID, entryMeta(in))
 	if err != nil {
 		return nil, err
 	}

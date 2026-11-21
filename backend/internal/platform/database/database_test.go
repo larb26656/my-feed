@@ -27,7 +27,7 @@ func TestNewPoolPersistsDataAndEnablesForeignKeys(t *testing.T) {
 
 	db, err = NewPool(ctx, path)
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { require.NoError(t, db.Close()) }()
 	var count int
 	require.NoError(t, db.QueryRowContext(ctx, `SELECT count(*) FROM child`).Scan(&count))
 	require.Equal(t, 1, count)
@@ -37,7 +37,7 @@ func TestWithinTransactionCommitsAndRollsBack(t *testing.T) {
 	ctx := context.Background()
 	db, err := NewPool(ctx, filepath.Join(t.TempDir(), "my-feed.db"))
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { require.NoError(t, db.Close()) }()
 	_, err = db.ExecContext(ctx, `CREATE TABLE values_table (value INTEGER)`)
 	require.NoError(t, err)
 

@@ -77,7 +77,7 @@ func (r *Repository) ListEntries(ctx context.Context, after *repository.EntryLis
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	out := make([]*domain.Entry, 0, limit)
 	for rows.Next() {
 		e, err := scanEntry(rows)

@@ -58,7 +58,7 @@ type queryUUID struct {
 }
 
 func (id *queryUUID) UnmarshalParam(value string) error {
-	return id.UUID.UnmarshalText([]byte(value))
+	return id.UnmarshalText([]byte(value))
 }
 
 func (req listEntriesQuery) input() service.ListEntriesInput {

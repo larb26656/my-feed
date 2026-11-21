@@ -75,7 +75,7 @@ func (r *Repository) ListSources(ctx context.Context, filter repository.ListSour
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []*domain.Source
 	for rows.Next() {
 		s, err := scanSource(rows)

@@ -12,7 +12,7 @@ type createFetchJobRequest struct {
 }
 type queryUUID struct{ uuid.UUID }
 
-func (id *queryUUID) UnmarshalParam(value string) error { return id.UUID.UnmarshalText([]byte(value)) }
+func (id *queryUUID) UnmarshalParam(value string) error { return id.UnmarshalText([]byte(value)) }
 
 type listFetchJobsQuery struct {
 	httpx.CursorPageOption

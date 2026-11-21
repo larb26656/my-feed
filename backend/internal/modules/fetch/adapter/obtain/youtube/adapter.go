@@ -47,7 +47,7 @@ func (a *Adapter) Obtain(ctx context.Context, source *sourceapi.SourceRef) ([]se
 	if err != nil {
 		return nil, domain.ErrConflict.New(fmt.Sprintf("youtube feed request failed: %v", err))
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
 		return nil, domain.ErrConflict.New(fmt.Sprintf("youtube feed request failed: status %d", res.StatusCode))
 	}

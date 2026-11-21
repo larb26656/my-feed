@@ -293,7 +293,7 @@ func assertSQLiteIntegrity(t *testing.T, path string) {
 	t.Helper()
 	db, err := sql.Open("sqlite", sqliteTestDSN(path))
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { require.NoError(t, db.Close()) }()
 	var result string
 	require.NoError(t, db.QueryRow("PRAGMA integrity_check").Scan(&result))
 	require.Equal(t, "ok", result)
@@ -602,7 +602,7 @@ func TestFetchJobHistoryFiltersAndContinuesWithStableOrdering(t *testing.T) {
 		jobIDs = append(jobIDs, job.ID)
 	}
 	for i, status := range []string{"pending", "running", "succeeded", "failed"} {
-		_, err := app.Pool.DB.Exec(`UPDATE fetch_jobs SET status = ?, created_at = ?, updated_at = ? WHERE id = ?`, status, "2025-01-01T00:00:00Z", "2025-01-02T00:00:00Z", jobIDs[i])
+		_, err := app.Pool.Exec(`UPDATE fetch_jobs SET status = ?, created_at = ?, updated_at = ? WHERE id = ?`, status, "2025-01-01T00:00:00Z", "2025-01-02T00:00:00Z", jobIDs[i])
 		require.NoError(t, err)
 	}
 	type listPage struct {
@@ -688,7 +688,7 @@ func TestFetchJobHistoryOrdersFractionalTimestampsChronologicallyAcrossPages(t *
 		ids = append(ids, job.ID)
 	}
 	for i, stamp := range []string{"2025-01-01T00:00:00.1Z", "2025-01-01T00:00:00.11Z", "2025-01-01T00:00:00.09Z"} {
-		_, err := app.Pool.DB.Exec(`UPDATE fetch_jobs SET created_at = ? WHERE id = ?`, stamp, ids[i])
+		_, err := app.Pool.Exec(`UPDATE fetch_jobs SET created_at = ? WHERE id = ?`, stamp, ids[i])
 		require.NoError(t, err)
 	}
 	type page struct {

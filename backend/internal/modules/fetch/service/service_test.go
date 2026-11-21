@@ -61,8 +61,11 @@ func (f *fakeRepo) ListFetchJobs(_ context.Context, after *repository.FetchJobLi
 		if criteria.SourceID != nil && job.SourceID != *criteria.SourceID || criteria.Status != nil && job.Status != *criteria.Status {
 			continue
 		}
-		if after != nil && !(job.CreatedAt.Before(after.CreatedAt) || job.CreatedAt.Equal(after.CreatedAt) && job.ID.String() < after.ID.String()) {
-			continue
+		if after != nil {
+			order := job.CreatedAt.Compare(after.CreatedAt)
+			if order > 0 || (order == 0 && job.ID.String() >= after.ID.String()) {
+				continue
+			}
 		}
 		out = append(out, cloneJob(job))
 	}

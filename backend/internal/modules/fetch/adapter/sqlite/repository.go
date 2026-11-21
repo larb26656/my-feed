@@ -74,7 +74,7 @@ func (r *Repository) ListFetchJobs(ctx context.Context, after *repository.FetchJ
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	out := make([]*domain.FetchJob, 0)
 	for rows.Next() {
 		job, scanErr := scanFetchJob(rows)
@@ -96,7 +96,7 @@ func (r *Repository) ListClaimableFetchJobs(ctx context.Context, now time.Time) 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	out := make([]*domain.FetchJob, 0)
 	for rows.Next() {
 		job, scanErr := scanFetchJob(rows)

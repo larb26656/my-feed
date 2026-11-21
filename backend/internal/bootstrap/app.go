@@ -2,7 +2,9 @@ package bootstrap
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"reflect"
 	"strings"
@@ -65,8 +67,7 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 
 	// init default source
 	if _, err := sourceService.EnsureSavedLinks(ctx); err != nil {
-		pool.Close()
-		return nil, fmt.Errorf("ensure saved links source: %w", err)
+		return nil, errors.Join(fmt.Errorf("ensure saved links source: %w", err), pool.Close())
 	}
 
 	entryRepo := entrysqlite.NewRepository(pool.DB)
@@ -128,7 +129,9 @@ func newObtainRegistry(client *http.Client) *obtain.Registry {
 
 func (a *App) Close() {
 	if a.Pool != nil {
-		a.Pool.Close()
+		if err := a.Pool.Close(); err != nil {
+			slog.Error("close database pool", "error", err)
+		}
 	}
 }
 
