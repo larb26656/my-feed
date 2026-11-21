@@ -283,8 +283,8 @@ func (s *Service) updateEntry(ctx context.Context, id uuid.UUID, mutate func(*do
 }
 
 func isNotFound(err error) bool {
-	var ae *apperr.Error
-	return errors.As(err, &ae) && ae.Code == apperr.CodeNotFound
+	var ae *apperr.AppError
+	return errors.As(err, &ae) && ae.Kind == apperr.KindNotFound
 }
 
 func isConflict(err error) bool {

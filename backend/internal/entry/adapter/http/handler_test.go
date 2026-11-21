@@ -348,7 +348,7 @@ func TestInvalidEntryRequestsReturnUsefulBusinessErrors(t *testing.T) {
 		{"invalid publication time", "POST", "/api/v1/entries/save-link", `{"publishedAt":"yesterday"}`, 400, "validation", "invalid publishedAt"},
 		{"missing source", "POST", "/api/v1/entries/", fmt.Sprintf(`{"sourceId":%q,"title":"A","link":"https://example.test/a"}`, missing), 404, "not_found", "source not found"},
 		{"invalid entry ID", "GET", "/api/v1/entries/bad", "", 400, "validation", "invalid entry id"},
-		{"missing entry", "GET", "/api/v1/entries/" + missing, "", 404, "not_found", "entry not found"},
+		{"missing entry", "GET", "/api/v1/entries/" + missing, "", 404, "ENTRY_NOT_FOUND", "entry not found"},
 		{"invalid cursor", "GET", "/api/v1/entries/?cursor=bad", "", 400, "validation", "invalid cursor"},
 		{"invalid page size", "GET", "/api/v1/entries/?pageSize=many", "", 400, "validation", "invalid pageSize"},
 		{"invalid unread filter", "GET", "/api/v1/entries/?unread=yes", "", 400, "validation", "invalid unread"},
@@ -381,7 +381,7 @@ func TestReaderActionsOnMissingArticlesReturnNotFound(t *testing.T) {
 			failure := testkit.Decode[httpx.ErrorBody](t, testkit.Request(t, router, "POST", "/api/v1/entries/"+missing+"/"+action, nil, 404))
 
 			// Assert
-			require.Equal(t, "not_found", failure.Code)
+			require.Equal(t, "ENTRY_NOT_FOUND", failure.Code)
 		})
 	}
 }

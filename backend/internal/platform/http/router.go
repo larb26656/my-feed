@@ -55,7 +55,7 @@ func NewRouter() *gin.Engine {
 			}
 		}()
 		c.Next()
-	})
+	}, ErrorMiddleware())
 	r.NoRoute(func(c *gin.Context) { http.NotFound(c.Writer, c.Request) })
 	r.NoMethod(func(c *gin.Context) {
 		methods := strings.Split(c.Writer.Header().Get("Allow"), ", ")

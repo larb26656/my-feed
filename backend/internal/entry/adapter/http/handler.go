@@ -2,11 +2,13 @@ package http
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 
 	"github.com/larb26656/my-feed/backend/internal/entry/domain"
@@ -63,13 +65,12 @@ func (h *Handler) savedCount(c *gin.Context) {
 }
 
 type saveLinkRequest struct {
-	Title       string  `json:"title"`
-	Link        string  `json:"link"`
-	Description string  `json:"description"`
-	Thumbnail   *string `json:"thumbnail"`
-	PublishedAt *string `json:"publishedAt"`
+	Title       string  `json:"title" binding:"required,min=3,max=255"`
+	Link        string  `json:"link" binding:"required,url"`
+	Description string  `json:"description" binding:"max=1000"`
+	Thumbnail   *string `json:"thumbnail" binding:"omitempty,url"`
+	PublishedAt *string `json:"publishedAt" binding:"omitempty,datetime=2006-01-02"`
 }
-
 type ingestEntryRequest struct {
 	SourceID    string  `json:"sourceId"`
 	Title       string  `json:"title"`
@@ -133,29 +134,55 @@ func parseOptionalTime(raw *string) (*time.Time, error) {
 }
 
 func (h *Handler) saveLink(c *gin.Context) {
-	w, r := c.Writer, c.Request
 	var req saveLinkRequest
-	if err := httpx.DecodeJSON(r, &req); err != nil {
-		httpx.WriteError(w, err)
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		var validationErrors validator.ValidationErrors
+
+		if errors.As(err, &validationErrors) {
+			fields := make(map[string]string)
+
+			for _, e := range validationErrors {
+				fields[e.Field()] = e.Tag()
+			}
+
+			c.JSON(http.StatusBadRequest, gin.H{
+				"message": "Validation failed",
+				"errors":  fields,
+			})
+			return
+		}
+
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "Invalid JSON",
+		})
 		return
 	}
-	publishedAt, err := parseOptionalTime(req.PublishedAt)
-	if err != nil {
-		httpx.WriteError(w, err)
-		return
-	}
-	entry, err := h.svc.SaveLink(r.Context(), service.SaveLinkInput{
-		Title:       req.Title,
-		Link:        req.Link,
-		Description: req.Description,
-		Thumbnail:   req.Thumbnail,
-		PublishedAt: publishedAt,
+
+	c.JSON(http.StatusOK, gin.H{
+		"status": "ok",
 	})
-	if err != nil {
-		httpx.WriteError(w, err)
-		return
-	}
-	httpx.WriteJSON(w, http.StatusCreated, toEntryResponse(entry))
+	// if err := httpx.DecodeJSON(r, &req); err != nil {
+	// 	httpx.WriteError(w, err)
+	// 	return
+	// }
+	// publishedAt, err := parseOptionalTime(req.PublishedAt)
+	// if err != nil {
+	// 	httpx.WriteError(w, err)
+	// 	return
+	// }
+	// entry, err := h.svc.SaveLink(r.Context(), service.SaveLinkInput{
+	// 	Title:       req.Title,
+	// 	Link:        req.Link,
+	// 	Description: req.Description,
+	// 	Thumbnail:   req.Thumbnail,
+	// 	PublishedAt: publishedAt,
+	// })
+	// if err != nil {
+	// 	httpx.WriteError(w, err)
+	// 	return
+	// }
+	// httpx.WriteJSON(w, http.StatusCreated, toEntryResponse(entry))
 }
 
 func (h *Handler) ingestEntry(c *gin.Context) {

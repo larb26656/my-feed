@@ -55,7 +55,7 @@ func TestIngestionRecoversWhenAnotherWriterCreatesTheSameArticleFirst(t *testing
 		lookup: func() (*domain.Entry, error) {
 			lookups++
 			if lookups == 1 {
-				return nil, apperr.NotFound("entry not found")
+				return nil, domain.ErrEntryNotFound.New("entry not found")
 			}
 			return winner, nil
 		},
@@ -95,7 +95,7 @@ func TestIngestionPropagatesStorageFailuresInsteadOfReportingSuccess(t *testing.
 					if stage == "refresh" || calls == 2 {
 						return existing, nil
 					}
-					return nil, apperr.NotFound("entry not found")
+					return nil, domain.ErrEntryNotFound.New("entry not found")
 				},
 				create: func(*domain.Entry) (*domain.Entry, error) {
 					if stage == "create" {

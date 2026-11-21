@@ -55,12 +55,12 @@ func TestNewEntryHasAnIdentityAndStartsUnreadAndUnsaved(t *testing.T) {
 
 func TestNewEntryRejectsMissingRequiredFields(t *testing.T) {
 	for _, scenario := range []struct {
-		name, title, link string
-		sourceID          uuid.UUID
+		name, title, link, message string
+		sourceID                   uuid.UUID
 	}{
-		{"blank title", " ", "https://example.test/a", uuid.New()},
-		{"blank link", "News", "", uuid.New()},
-		{"missing source", "News", "https://example.test/a", uuid.Nil},
+		{"blank title", " ", "https://example.test/a", "title is required", uuid.New()},
+		{"blank link", "News", "", "link is required", uuid.New()},
+		{"missing source", "News", "https://example.test/a", "source id is required", uuid.Nil},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
 			// Arrange
@@ -70,9 +70,11 @@ func TestNewEntryRejectsMissingRequiredFields(t *testing.T) {
 			_, err := domain.NewEntry(scenario.sourceID, metadata)
 
 			// Assert
-			var failure *apperr.Error
+			var failure *apperr.AppError
 			require.ErrorAs(t, err, &failure)
-			require.Equal(t, apperr.CodeValidation, failure.Code)
+			require.Equal(t, apperr.KindInvalid, failure.Kind)
+			require.Equal(t, "validation", failure.Code)
+			require.Equal(t, scenario.message, failure.Message)
 		})
 	}
 }
@@ -187,8 +189,8 @@ func TestRefreshMetadataUpdatesMutableFieldsWithoutChangingIdentity(t *testing.T
 }
 
 func TestRefreshMetadataRejectsBlankRequiredFields(t *testing.T) {
-	for _, scenario := range []struct{ name, title, link string }{
-		{"blank title", " ", "https://example.test/a"}, {"blank link", "Updated", ""},
+	for _, scenario := range []struct{ name, title, link, message string }{
+		{"blank title", " ", "https://example.test/a", "title is required"}, {"blank link", "Updated", "", "link is required"},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
 			// Arrange
@@ -199,9 +201,11 @@ func TestRefreshMetadataRejectsBlankRequiredFields(t *testing.T) {
 			err := entry.RefreshMetadata(domain.EntryMetadata{Title: scenario.title, Link: scenario.link})
 
 			// Assert
-			var failure *apperr.Error
+			var failure *apperr.AppError
 			require.ErrorAs(t, err, &failure)
-			require.Equal(t, apperr.CodeValidation, failure.Code)
+			require.Equal(t, apperr.KindInvalid, failure.Kind)
+			require.Equal(t, "validation", failure.Code)
+			require.Equal(t, scenario.message, failure.Message)
 			require.Equal(t, original, *entry, "invalid metadata must not partially update the entry")
 		})
 	}

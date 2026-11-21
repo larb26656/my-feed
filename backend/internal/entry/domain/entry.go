@@ -37,7 +37,7 @@ func NewEntry(sourceID uuid.UUID, meta EntryMetadata) (*Entry, error) {
 		return nil, err
 	}
 	if sourceID == uuid.Nil {
-		return nil, apperr.Validation("source id is required")
+		return nil, apperr.InvalidInput.New("source id is required")
 	}
 	now := time.Now().UTC()
 	return &Entry{
@@ -100,10 +100,10 @@ func normalizeEntryMetadata(meta EntryMetadata) (title, link, description string
 	title = strings.TrimSpace(meta.Title)
 	link = strings.TrimSpace(meta.Link)
 	if title == "" {
-		return "", "", "", apperr.Validation("title is required")
+		return "", "", "", apperr.InvalidInput.New("title is required")
 	}
 	if link == "" {
-		return "", "", "", apperr.Validation("link is required")
+		return "", "", "", apperr.InvalidInput.New("link is required")
 	}
 	return title, link, strings.TrimSpace(meta.Description), nil
 }

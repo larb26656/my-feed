@@ -207,7 +207,8 @@ func TestSQLiteReturnsNotFoundForAMissingEntry(t *testing.T) {
 	_, err := repo.GetEntryByID(context.Background(), uuid.New())
 
 	// Assert
-	var failure *apperr.Error
+	var failure *apperr.AppError
 	require.ErrorAs(t, err, &failure)
-	require.Equal(t, apperr.CodeNotFound, failure.Code)
+	require.Equal(t, apperr.KindNotFound, failure.Kind)
+	require.Equal(t, "ENTRY_NOT_FOUND", failure.Code)
 }

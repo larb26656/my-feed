@@ -75,8 +75,9 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 	r := httpx.NewRouter()
 
 	r.GET("/healthz", func(c *gin.Context) {
-		c.Status(http.StatusOK)
-		_, _ = c.Writer.Write([]byte("ok"))
+		c.JSON(http.StatusOK, gin.H{
+			"status": "ok",
+		})
 	})
 
 	sourcehttp.NewHandler(sourceAPIWithFetch{
