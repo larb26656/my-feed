@@ -52,7 +52,7 @@ func TestSQLiteApplicationSupportsAPIWritesFetchJobsAndReopen(t *testing.T) {
 	var source struct {
 		ID string `json:"id"`
 	}
-	require.NoError(t, json.Unmarshal(createSource.Body.Bytes(), &source))
+	decodeSourceData(t, createSource.Body.Bytes(), &source)
 
 	createEntry := requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/save-link", map[string]any{
 		"title": "Saved article", "link": "https://example.test/article",
@@ -160,7 +160,7 @@ func TestSQLiteApplicationRunsFetchExecutorAlongsideAPIWrites(t *testing.T) {
 	var source struct {
 		ID string `json:"id"`
 	}
-	require.NoError(t, json.Unmarshal(createSource.Body.Bytes(), &source))
+	decodeSourceData(t, createSource.Body.Bytes(), &source)
 	createJob := requestJSON(t, app.Router, http.MethodPost, "/api/v1/fetch-jobs/", map[string]any{"sourceId": source.ID})
 	require.Equal(t, http.StatusCreated, createJob.Code)
 	var job struct {
@@ -237,7 +237,7 @@ func TestSQLiteOnlineBackupRestoresAPIState(t *testing.T) {
 	var source struct {
 		ID string `json:"id"`
 	}
-	require.NoError(t, json.Unmarshal(createSource.Body.Bytes(), &source))
+	decodeSourceData(t, createSource.Body.Bytes(), &source)
 	createEntry := requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/save-link", map[string]any{
 		"title": "Backup entry", "link": "https://example.test/backup-entry",
 	})
@@ -469,7 +469,7 @@ func TestEntryListFiltersAndCursor(t *testing.T) {
 	var source struct {
 		ID string `json:"id"`
 	}
-	require.NoError(t, json.Unmarshal(sourceResponse.Body.Bytes(), &source))
+	decodeSourceData(t, sourceResponse.Body.Bytes(), &source)
 	for _, title := range []string{"one", "two"} {
 		res := requestJSON(t, app.Router, http.MethodPost, "/api/v1/entries/", map[string]any{"sourceId": source.ID, "title": title, "link": "https://example.test/" + title})
 		require.Equal(t, http.StatusCreated, res.Code)
@@ -531,7 +531,7 @@ func TestFetchJobHistoryReturnsCursorEnvelopeAndExistingFields(t *testing.T) {
 	var source struct {
 		ID string `json:"id"`
 	}
-	require.NoError(t, json.Unmarshal(sourceResponse.Body.Bytes(), &source))
+	decodeSourceData(t, sourceResponse.Body.Bytes(), &source)
 	created := requestJSON(t, app.Router, http.MethodPost, "/api/v1/fetch-jobs/", map[string]any{"sourceId": source.ID})
 	require.Equal(t, http.StatusCreated, created.Code, created.Body.String())
 	var job struct {
@@ -591,7 +591,7 @@ func TestFetchJobHistoryFiltersAndContinuesWithStableOrdering(t *testing.T) {
 		var source struct {
 			ID string `json:"id"`
 		}
-		require.NoError(t, json.Unmarshal(sourceResponse.Body.Bytes(), &source))
+		decodeSourceData(t, sourceResponse.Body.Bytes(), &source)
 		sourceIDs = append(sourceIDs, source.ID)
 		created := requestJSON(t, app.Router, http.MethodPost, "/api/v1/fetch-jobs/", map[string]any{"sourceId": source.ID})
 		require.Equal(t, http.StatusCreated, created.Code, created.Body.String())
@@ -680,7 +680,7 @@ func TestFetchJobHistoryOrdersFractionalTimestampsChronologicallyAcrossPages(t *
 		var source struct {
 			ID string `json:"id"`
 		}
-		require.NoError(t, json.Unmarshal(sourceResponse.Body.Bytes(), &source))
+		decodeSourceData(t, sourceResponse.Body.Bytes(), &source)
 		created := requestJSON(t, app.Router, http.MethodPost, "/api/v1/fetch-jobs/", map[string]any{"sourceId": source.ID})
 		var job struct {
 			ID string `json:"id"`
@@ -739,7 +739,7 @@ func TestFetchJobHistoryUsesDefaultAndMaximumPageSizes(t *testing.T) {
 		var source struct {
 			ID string `json:"id"`
 		}
-		require.NoError(t, json.Unmarshal(sourceResponse.Body.Bytes(), &source))
+		decodeSourceData(t, sourceResponse.Body.Bytes(), &source)
 		created := requestJSON(t, app.Router, http.MethodPost, "/api/v1/fetch-jobs/", map[string]any{"sourceId": source.ID})
 		require.Equal(t, http.StatusCreated, created.Code, created.Body.String())
 	}
@@ -856,7 +856,7 @@ func TestSQLiteAtomFetchLifecycle(t *testing.T) {
 			var source struct {
 				ID string `json:"id"`
 			}
-			require.NoError(t, json.Unmarshal(response.Body.Bytes(), &source))
+			decodeSourceData(t, response.Body.Bytes(), &source)
 			app.Close()
 			app, err = NewWithConfig(ctx, cfg)
 			require.NoError(t, err)
@@ -941,4 +941,15 @@ func TestSQLiteAtomFetchLifecycle(t *testing.T) {
 			require.NotNil(t, entries.Data[0].SavedAt)
 		})
 	}
+}
+
+func decodeSourceData(t *testing.T, body []byte, dst any) {
+	t.Helper()
+	var envelope struct {
+		Success bool            `json:"success"`
+		Data    json.RawMessage `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(body, &envelope))
+	require.True(t, envelope.Success)
+	require.NoError(t, json.Unmarshal(envelope.Data, dst))
 }

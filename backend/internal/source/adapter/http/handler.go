@@ -3,7 +3,6 @@ package http
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -44,53 +43,10 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/:id/reactivate", h.reactivateSource)
 }
 
-type createSourceRequest struct {
-	Name             string `json:"name"`
-	Type             string `json:"type"`
-	RSSURL           string `json:"rssUrl"`
-	YouTubeChannelID string `json:"youtubeChannelId"`
-}
-
-type updateSourceRequest struct {
-	Name   string `json:"name"`
-	RSSURL string `json:"rssUrl"`
-}
-
-type sourceResponse struct {
-	ID               string  `json:"id"`
-	Name             string  `json:"name"`
-	Type             string  `json:"type"`
-	RSSURL           *string `json:"rssUrl"`
-	YouTubeChannelID *string `json:"youtubeChannelId,omitempty"`
-	Active           bool    `json:"active"`
-	CreatedAt        string  `json:"createdAt"`
-	UpdatedAt        string  `json:"updatedAt"`
-}
-
-func toSourceResponse(s *domain.Source) sourceResponse {
-	resp := sourceResponse{
-		ID:        s.ID.String(),
-		Name:      s.Name,
-		Type:      string(s.Type),
-		Active:    s.Active,
-		CreatedAt: s.CreatedAt.UTC().Format(time.RFC3339Nano),
-		UpdatedAt: s.UpdatedAt.UTC().Format(time.RFC3339Nano),
-	}
-	if s.YouTubeChannelID != "" {
-		resp.YouTubeChannelID = &s.YouTubeChannelID
-	}
-	if s.RSSURL != "" {
-		url := s.RSSURL
-		resp.RSSURL = &url
-	}
-	return resp
-}
-
 func (h *Handler) createSource(c *gin.Context) {
-	w, r := c.Writer, c.Request
+	r := c.Request
 	var req createSourceRequest
-	if err := httpx.DecodeJSON(r, &req); err != nil {
-		httpx.WriteError(w, err)
+	if !httpx.BindJSON(c, &req) {
 		return
 	}
 	s, err := h.svc.CreateSource(r.Context(), service.CreateSourceInput{
@@ -100,54 +56,57 @@ func (h *Handler) createSource(c *gin.Context) {
 		YouTubeChannelID: req.YouTubeChannelID,
 	})
 	if err != nil {
-		httpx.WriteError(w, err)
+		_ = c.Error(err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusCreated, toSourceResponse(s))
+	c.JSON(http.StatusCreated, httpx.Success(toSourceResponse(s)))
 }
 
 func (h *Handler) listSources(c *gin.Context) {
-	w, r := c.Writer, c.Request
-	includeDeactivated := r.URL.Query().Get("includeDeactivated") == "true"
+	r := c.Request
+	var req listSourcesQuery
+	if err := c.ShouldBindQuery(&req); err != nil {
+		_ = c.Error(apperr.InvalidInput.Wrap(err, "Invalid Source query"))
+		return
+	}
 	list, err := h.svc.ListSources(r.Context(), service.ListSourcesInput{
-		IncludeDeactivated: includeDeactivated,
+		IncludeDeactivated: req.IncludeDeactivated,
 	})
 	if err != nil {
-		httpx.WriteError(w, err)
+		_ = c.Error(err)
 		return
 	}
 	out := make([]sourceResponse, 0, len(list))
 	for _, s := range list {
 		out = append(out, toSourceResponse(s))
 	}
-	httpx.WriteJSON(w, http.StatusOK, out)
+	c.JSON(http.StatusOK, httpx.Success(out))
 }
 
 func (h *Handler) getSource(c *gin.Context) {
-	w, r := c.Writer, c.Request
+	r := c.Request
 	id, err := parseID(c, "invalid source id")
 	if err != nil {
-		httpx.WriteError(w, err)
+		_ = c.Error(err)
 		return
 	}
 	s, err := h.svc.GetSource(r.Context(), id)
 	if err != nil {
-		httpx.WriteError(w, err)
+		_ = c.Error(err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, toSourceResponse(s))
+	c.JSON(http.StatusOK, httpx.Success(toSourceResponse(s)))
 }
 
 func (h *Handler) updateSource(c *gin.Context) {
-	w, r := c.Writer, c.Request
+	r := c.Request
 	id, err := parseID(c, "invalid source id")
 	if err != nil {
-		httpx.WriteError(w, err)
+		_ = c.Error(err)
 		return
 	}
 	var req updateSourceRequest
-	if err := httpx.DecodeJSON(r, &req); err != nil {
-		httpx.WriteError(w, err)
+	if !httpx.BindJSON(c, &req) {
 		return
 	}
 	s, err := h.svc.UpdateSource(r.Context(), id, service.UpdateSourceInput{
@@ -155,46 +114,46 @@ func (h *Handler) updateSource(c *gin.Context) {
 		RSSURL: req.RSSURL,
 	})
 	if err != nil {
-		httpx.WriteError(w, err)
+		_ = c.Error(err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, toSourceResponse(s))
+	c.JSON(http.StatusOK, httpx.Success(toSourceResponse(s)))
 }
 
 func (h *Handler) deactivateSource(c *gin.Context) {
-	w, r := c.Writer, c.Request
+	r := c.Request
 	id, err := parseID(c, "invalid source id")
 	if err != nil {
-		httpx.WriteError(w, err)
+		_ = c.Error(err)
 		return
 	}
 	s, err := h.svc.DeactivateSource(r.Context(), id)
 	if err != nil {
-		httpx.WriteError(w, err)
+		_ = c.Error(err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, toSourceResponse(s))
+	c.JSON(http.StatusOK, httpx.Success(toSourceResponse(s)))
 }
 
 func (h *Handler) reactivateSource(c *gin.Context) {
-	w, r := c.Writer, c.Request
+	r := c.Request
 	id, err := parseID(c, "invalid source id")
 	if err != nil {
-		httpx.WriteError(w, err)
+		_ = c.Error(err)
 		return
 	}
 	s, err := h.svc.ReactivateSource(r.Context(), id)
 	if err != nil {
-		httpx.WriteError(w, err)
+		_ = c.Error(err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, toSourceResponse(s))
+	c.JSON(http.StatusOK, httpx.Success(toSourceResponse(s)))
 }
 
 func parseID(c *gin.Context, invalidMsg string) (uuid.UUID, error) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		return uuid.Nil, apperr.Validation(invalidMsg)
+		return uuid.Nil, apperr.InvalidInput.Wrap(err, invalidMsg)
 	}
 	return id, nil
 }

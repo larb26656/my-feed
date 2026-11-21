@@ -3,6 +3,7 @@ package obtain
 import (
 	"context"
 	"fmt"
+	"github.com/larb26656/my-feed/backend/internal/fetch/domain"
 
 	"github.com/larb26656/my-feed/backend/internal/fetch/service"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
@@ -27,11 +28,11 @@ func (r *Registry) Register(typ service.SourceType, adapter service.Obtain) {
 
 func (r *Registry) Obtain(ctx context.Context, source *service.SourceRef) ([]service.PreparedEntry, error) {
 	if source == nil {
-		return nil, apperr.Validation("source is required")
+		return nil, apperr.InvalidInput.New("source is required")
 	}
 	adapter, ok := r.byType[source.Type]
 	if !ok {
-		return nil, apperr.FailedPrecondition(fmt.Sprintf("no obtain adapter registered for source type %q", source.Type))
+		return nil, domain.ErrConflict.New(fmt.Sprintf("no obtain adapter registered for source type %q", source.Type))
 	}
 	return adapter.Obtain(ctx, source)
 }

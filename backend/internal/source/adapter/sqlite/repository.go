@@ -47,12 +47,12 @@ func (r *Repository) CreateSource(ctx context.Context, s *domain.Source) error {
 		s.ID.String(), s.Name, string(s.Type), rssURL, channelID, s.Active, s.CreatedAt.UTC().UnixNano(), s.UpdatedAt.UTC().UnixNano())
 	if database.IsUniqueConstraintViolation(err) {
 		if s.Type == domain.TypeManual {
-			return apperr.Conflict("manual source already exists")
+			return domain.ErrConflict.Wrap(err, "manual source already exists")
 		}
 		if s.Type == domain.TypeYouTube {
-			return apperr.Conflict("youtube channel already in use")
+			return domain.ErrConflict.Wrap(err, "youtube channel already in use")
 		}
-		return apperr.Conflict("rss url already in use")
+		return domain.ErrConflict.Wrap(err, "rss url already in use")
 	}
 	return err
 }
@@ -95,7 +95,7 @@ func (r *Repository) UpdateSource(ctx context.Context, s *domain.Source) error {
 	result, err := r.q.ExecContext(ctx, `UPDATE sources SET name = ?, type = ?, rss_url = ?, active = ?, updated_at = ? WHERE id = ?`,
 		s.Name, string(s.Type), rssURL, s.Active, s.UpdatedAt.UTC().UnixNano(), s.ID.String())
 	if database.IsUniqueConstraintViolation(err) {
-		return apperr.Conflict("rss url already in use")
+		return domain.ErrConflict.Wrap(err, "rss url already in use")
 	}
 	if err != nil {
 		return err
@@ -105,7 +105,7 @@ func (r *Repository) UpdateSource(ctx context.Context, s *domain.Source) error {
 		return err
 	}
 	if n == 0 {
-		return apperr.NotFound("source not found")
+		return apperr.ResourceNotFound.New("source not found")
 	}
 	return nil
 }
@@ -120,7 +120,7 @@ func scanSource(row scanner) (*domain.Source, error) {
 	var createdAt, updatedAt int64
 	if err := row.Scan(&id, &s.Name, &typ, &rssURL, &channelID, &active, &createdAt, &updatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, apperr.NotFound("source not found")
+			return nil, apperr.ResourceNotFound.Wrap(err, "source not found")
 		}
 		return nil, err
 	}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/larb26656/my-feed/backend/internal/fetch/domain"
 	"io"
 	"net/http"
 	"strings"
@@ -33,37 +34,37 @@ func New(client HTTPClient) *Adapter {
 
 func (a *Adapter) Obtain(ctx context.Context, source *service.SourceRef) ([]service.PreparedEntry, error) {
 	if source == nil {
-		return nil, apperr.Validation("source is required")
+		return nil, apperr.InvalidInput.New("source is required")
 	}
 	feedURL := strings.TrimSpace(source.RSSURL)
 	if feedURL == "" {
-		return nil, apperr.Validation("rss feed url is required")
+		return nil, apperr.InvalidInput.New("rss feed url is required")
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, feedURL, nil)
 	if err != nil {
-		return nil, apperr.Validation("invalid rss feed url")
+		return nil, apperr.InvalidInput.New("invalid rss feed url")
 	}
 	req.Header.Set("Accept", "application/rss+xml, application/atom+xml, application/xml, text/xml, */*")
 
 	res, err := a.client.Do(req)
 	if err != nil {
-		return nil, apperr.FailedPrecondition(fmt.Sprintf("rss feed request failed: %v", err))
+		return nil, domain.ErrConflict.New(fmt.Sprintf("rss feed request failed: %v", err))
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
 		_, _ = io.Copy(io.Discard, res.Body)
-		return nil, apperr.FailedPrecondition(fmt.Sprintf("rss feed request failed: status %d", res.StatusCode))
+		return nil, domain.ErrConflict.New(fmt.Sprintf("rss feed request failed: status %d", res.StatusCode))
 	}
 
 	body, err := io.ReadAll(io.LimitReader(res.Body, 8<<20))
 	if err != nil {
-		return nil, apperr.FailedPrecondition("rss feed body read failed")
+		return nil, domain.ErrConflict.New("rss feed body read failed")
 	}
 	feed, err := gofeed.NewParser().Parse(bytes.NewReader(body))
 	if err != nil {
-		return nil, apperr.Validation("invalid or unsupported feed document")
+		return nil, apperr.InvalidInput.New("invalid or unsupported feed document")
 	}
 	entries := make([]service.PreparedEntry, 0, len(feed.Items))
 	for _, item := range feed.Items {

@@ -46,9 +46,9 @@ func TestSQLiteAllowsOnlyOneManualSource(t *testing.T) {
 	err = repo.CreateSource(context.Background(), duplicate)
 
 	// Assert
-	var failure *apperr.Error
+	var failure *apperr.AppError
 	require.ErrorAs(t, err, &failure)
-	require.Equal(t, apperr.CodeConflict, failure.Code)
+	require.Equal(t, domain.ErrConflict.Code, failure.Code)
 }
 
 func TestSQLiteRejectsDuplicateFeedURLs(t *testing.T) {
@@ -65,9 +65,9 @@ func TestSQLiteRejectsDuplicateFeedURLs(t *testing.T) {
 	err = repo.CreateSource(context.Background(), duplicate)
 
 	// Assert
-	var failure *apperr.Error
+	var failure *apperr.AppError
 	require.ErrorAs(t, err, &failure)
-	require.Equal(t, apperr.CodeConflict, failure.Code)
+	require.Equal(t, domain.ErrConflict.Code, failure.Code)
 }
 
 func TestSQLiteSourceListsRespectTheIncludeDeactivatedFilter(t *testing.T) {
@@ -139,7 +139,7 @@ func TestSQLiteReturnsNotFoundForAMissingSource(t *testing.T) {
 	_, err := repo.GetSourceByID(context.Background(), uuid.New())
 
 	// Assert
-	var failure *apperr.Error
+	var failure *apperr.AppError
 	require.ErrorAs(t, err, &failure)
-	require.Equal(t, apperr.CodeNotFound, failure.Code)
+	require.Equal(t, apperr.ResourceNotFound.Code, failure.Code)
 }

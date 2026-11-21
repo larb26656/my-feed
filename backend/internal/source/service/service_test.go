@@ -52,11 +52,11 @@ func TestEnsuringSavedLinksUsesTheSourceCreatedByAnotherWriter(t *testing.T) {
 		lookup: func() (*domain.Source, error) {
 			lookups++
 			if lookups == 1 {
-				return nil, apperr.NotFound("source not found")
+				return nil, apperr.ResourceNotFound.New("source not found")
 			}
 			return winner, nil
 		},
-		create: func(*domain.Source) error { return apperr.Conflict("another writer won") },
+		create: func(*domain.Source) error { return domain.ErrConflict.New("another writer won") },
 	})
 
 	// Act: ensure the system source.
@@ -81,13 +81,13 @@ func TestEnsuringSavedLinksPropagatesStorageFailures(t *testing.T) {
 					if stage == "lookup" || lookups == 2 {
 						return nil, failure
 					}
-					return nil, apperr.NotFound("source not found")
+					return nil, apperr.ResourceNotFound.New("source not found")
 				},
 				create: func(*domain.Source) error {
 					if stage == "create" {
 						return failure
 					}
-					return apperr.Conflict("another writer won")
+					return domain.ErrConflict.New("another writer won")
 				},
 			})
 

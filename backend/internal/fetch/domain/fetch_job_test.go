@@ -28,9 +28,9 @@ func TestNewFetchJobStartsPending(t *testing.T) {
 func TestNewFetchJobRejectsNilSourceID(t *testing.T) {
 	_, err := domain.NewFetchJob(uuid.Nil)
 	require.Error(t, err)
-	var ae *apperr.Error
+	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeValidation, ae.Code)
+	require.Equal(t, apperr.InvalidInput.Code, ae.Code)
 }
 
 func TestClaimPendingMovesToRunningAndIncrementsAttempt(t *testing.T) {
@@ -53,9 +53,9 @@ func TestClaimRejectsNonPending(t *testing.T) {
 
 	err = job.Claim(time.Now().UTC())
 	require.Error(t, err)
-	var ae *apperr.Error
+	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeFailedPrecondition, ae.Code)
+	require.Equal(t, domain.ErrConflict.Code, ae.Code)
 }
 
 func TestClaimRejectsBeforeNextAttemptAt(t *testing.T) {
@@ -67,9 +67,9 @@ func TestClaimRejectsBeforeNextAttemptAt(t *testing.T) {
 
 	err = job.Claim(now.Add(30 * time.Second))
 	require.Error(t, err)
-	var ae *apperr.Error
+	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeFailedPrecondition, ae.Code)
+	require.Equal(t, domain.ErrConflict.Code, ae.Code)
 	require.Equal(t, domain.StatusPending, job.Status)
 	require.Equal(t, 1, job.Attempt)
 }
@@ -101,9 +101,9 @@ func TestSucceedRejectsNegativeCreated(t *testing.T) {
 
 	err = job.Succeed(-1)
 	require.Error(t, err)
-	var ae *apperr.Error
+	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeValidation, ae.Code)
+	require.Equal(t, apperr.InvalidInput.Code, ae.Code)
 }
 
 func TestSucceedRejectsNonRunning(t *testing.T) {
@@ -112,9 +112,9 @@ func TestSucceedRejectsNonRunning(t *testing.T) {
 
 	err = job.Succeed(1)
 	require.Error(t, err)
-	var ae *apperr.Error
+	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeFailedPrecondition, ae.Code)
+	require.Equal(t, domain.ErrConflict.Code, ae.Code)
 }
 
 func TestFailRunningMovesToFailed(t *testing.T) {
@@ -132,9 +132,9 @@ func TestFailRejectsNonRunning(t *testing.T) {
 
 	err = job.Fail()
 	require.Error(t, err)
-	var ae *apperr.Error
+	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeFailedPrecondition, ae.Code)
+	require.Equal(t, domain.ErrConflict.Code, ae.Code)
 }
 
 func TestFailPendingMovesPendingToFailed(t *testing.T) {
@@ -152,9 +152,9 @@ func TestFailPendingRejectsNonPending(t *testing.T) {
 
 	err = job.FailPending()
 	require.Error(t, err)
-	var ae *apperr.Error
+	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeFailedPrecondition, ae.Code)
+	require.Equal(t, domain.ErrConflict.Code, ae.Code)
 }
 
 func TestScheduleRetryMovesToPendingWithNextAttemptAt(t *testing.T) {
@@ -183,7 +183,7 @@ func TestScheduleRetryRejectsWhenNoAttemptsRemain(t *testing.T) {
 
 	err = job.ScheduleRetry(time.Now().UTC().Add(time.Minute))
 	require.Error(t, err)
-	var ae *apperr.Error
+	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeFailedPrecondition, ae.Code)
+	require.Equal(t, domain.ErrConflict.Code, ae.Code)
 }

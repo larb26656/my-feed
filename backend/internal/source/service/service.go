@@ -31,7 +31,7 @@ func (s *Service) CreateSource(ctx context.Context, in CreateSourceInput) (*doma
 	typ := domain.Type(strings.TrimSpace(in.Type))
 	switch typ {
 	case domain.TypeManual:
-		return nil, apperr.Validation("manual sources cannot be created by the reader")
+		return nil, apperr.InvalidInput.New("manual sources cannot be created by the reader")
 	case domain.TypeYouTube:
 		src, err := domain.NewYouTubeSource(in.Name, in.YouTubeChannelID)
 		if err != nil {
@@ -51,7 +51,7 @@ func (s *Service) CreateSource(ctx context.Context, in CreateSourceInput) (*doma
 		}
 		return src, nil
 	default:
-		return nil, apperr.Validation("source type must be rss or youtube")
+		return nil, apperr.InvalidInput.New("source type must be rss or youtube")
 	}
 }
 
@@ -140,11 +140,11 @@ func (s *Service) EnsureSavedLinks(ctx context.Context) (*domain.Source, error) 
 }
 
 func isNotFound(err error) bool {
-	var ae *apperr.Error
-	return errors.As(err, &ae) && ae.Code == apperr.CodeNotFound
+	var ae *apperr.AppError
+	return errors.As(err, &ae) && ae.Kind == apperr.KindNotFound
 }
 
 func isConflict(err error) bool {
-	var ae *apperr.Error
-	return errors.As(err, &ae) && ae.Code == apperr.CodeConflict
+	var ae *apperr.AppError
+	return errors.As(err, &ae) && ae.Definition == domain.ErrConflict
 }

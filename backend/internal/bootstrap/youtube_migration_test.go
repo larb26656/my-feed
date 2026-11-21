@@ -93,7 +93,7 @@ func TestCreateYouTubeRollsBackIfInitialJobCannotBeQueued(t *testing.T) {
 	response := requestJSON(t, app.Router, http.MethodPost, "/api/v1/sources/", map[string]any{"name": "Channel", "type": "youtube", "youtubeChannelId": "UC1234567890123456789012"})
 	// Assert
 	require.Equal(t, http.StatusInternalServerError, response.Code)
-	require.Contains(t, response.Body.String(), "internal")
+	require.Contains(t, response.Body.String(), "INTERNAL_SERVER_ERROR")
 	require.NotContains(t, response.Body.String(), "queue unavailable")
 	var count int
 	require.NoError(t, app.Pool.QueryRowContext(ctx, `SELECT count(*) FROM sources WHERE type='youtube'`).Scan(&count))

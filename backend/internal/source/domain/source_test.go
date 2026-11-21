@@ -64,9 +64,9 @@ func TestNewRSSSourceRejectsBlankNames(t *testing.T) {
 			_, err := domain.NewRSSSource(scenario.value, feedURL)
 
 			// Assert
-			var failure *apperr.Error
+			var failure *apperr.AppError
 			require.ErrorAs(t, err, &failure)
-			require.Equal(t, apperr.CodeValidation, failure.Code)
+			require.Equal(t, apperr.InvalidInput.Code, failure.Code)
 		})
 	}
 }
@@ -79,9 +79,9 @@ func TestNewRSSSourceRejectsMissingFeedURLs(t *testing.T) {
 	_, err := domain.NewRSSSource(name, feedURL)
 
 	// Assert
-	var failure *apperr.Error
+	var failure *apperr.AppError
 	require.ErrorAs(t, err, &failure)
-	require.Equal(t, apperr.CodeValidation, failure.Code)
+	require.Equal(t, apperr.InvalidInput.Code, failure.Code)
 }
 
 func TestPausingAnRSSSourceUpdatesItsStateAndTimestamp(t *testing.T) {
@@ -109,9 +109,9 @@ func TestManualSourcesCannotBePaused(t *testing.T) {
 	err = source.Deactivate()
 
 	// Assert
-	var failure *apperr.Error
+	var failure *apperr.AppError
 	require.ErrorAs(t, err, &failure)
-	require.Equal(t, apperr.CodeFailedPrecondition, failure.Code)
+	require.Equal(t, domain.ErrManualSourceImmutable.Code, failure.Code)
 	require.True(t, source.Active)
 }
 
@@ -141,9 +141,9 @@ func TestManualSourcesCannotBeResumed(t *testing.T) {
 	err = source.Reactivate()
 
 	// Assert
-	var failure *apperr.Error
+	var failure *apperr.AppError
 	require.ErrorAs(t, err, &failure)
-	require.Equal(t, apperr.CodeFailedPrecondition, failure.Code)
+	require.Equal(t, domain.ErrManualSourceImmutable.Code, failure.Code)
 	require.True(t, source.Active)
 }
 
@@ -179,9 +179,9 @@ func TestInvalidSourceEditsLeaveTheSourceUnchanged(t *testing.T) {
 			err = source.UpdateDetails(scenario.title, scenario.url)
 
 			// Assert
-			var failure *apperr.Error
+			var failure *apperr.AppError
 			require.ErrorAs(t, err, &failure)
-			require.Equal(t, apperr.CodeValidation, failure.Code)
+			require.Equal(t, apperr.InvalidInput.Code, failure.Code)
 			require.Equal(t, original, *source)
 		})
 	}
@@ -197,9 +197,9 @@ func TestManualSourcesCannotBeEdited(t *testing.T) {
 	err = source.UpdateDetails("Bookmarks", "https://example.test/rss")
 
 	// Assert
-	var failure *apperr.Error
+	var failure *apperr.AppError
 	require.ErrorAs(t, err, &failure)
-	require.Equal(t, apperr.CodeFailedPrecondition, failure.Code)
+	require.Equal(t, domain.ErrManualSourceImmutable.Code, failure.Code)
 	require.Equal(t, original, *source)
 }
 
@@ -220,7 +220,7 @@ func TestNewYouTubeSourceRejectsInvalidChannelID(t *testing.T) {
 	// Act
 	_, err := domain.NewYouTubeSource("Channel", channelID)
 	// Assert
-	var failure *apperr.Error
+	var failure *apperr.AppError
 	require.ErrorAs(t, err, &failure)
-	require.Equal(t, apperr.CodeValidation, failure.Code)
+	require.Equal(t, apperr.InvalidInput.Code, failure.Code)
 }

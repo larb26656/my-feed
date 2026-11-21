@@ -2,6 +2,7 @@ package rss_test
 
 import (
 	"context"
+	"github.com/larb26656/my-feed/backend/internal/fetch/domain"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -78,9 +79,9 @@ func TestObtainRejectsMissingFeedURL(t *testing.T) {
 		Type: service.SourceTypeRSS,
 	})
 	require.Error(t, err)
-	var ae *apperr.Error
+	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeValidation, ae.Code)
+	require.Equal(t, apperr.InvalidInput.Code, ae.Code)
 }
 
 func TestObtainSurfacesHTTPFailure(t *testing.T) {
@@ -92,9 +93,9 @@ func TestObtainSurfacesHTTPFailure(t *testing.T) {
 		RSSURL: "https://feeds.example/fixture.xml",
 	})
 	require.Error(t, err)
-	var ae *apperr.Error
+	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeFailedPrecondition, ae.Code)
+	require.Equal(t, domain.ErrConflict.Code, ae.Code)
 }
 
 func TestObtainSurfacesInvalidFeedDocument(t *testing.T) {
@@ -106,9 +107,9 @@ func TestObtainSurfacesInvalidFeedDocument(t *testing.T) {
 		RSSURL: "https://feeds.example/fixture.xml",
 	})
 	require.Error(t, err)
-	var ae *apperr.Error
+	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeValidation, ae.Code)
+	require.Equal(t, apperr.InvalidInput.Code, ae.Code)
 }
 
 func TestObtainAtomEntries(t *testing.T) {

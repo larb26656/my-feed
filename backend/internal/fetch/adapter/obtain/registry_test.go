@@ -2,6 +2,7 @@ package obtain_test
 
 import (
 	"context"
+	"github.com/larb26656/my-feed/backend/internal/fetch/domain"
 	"testing"
 
 	"github.com/google/uuid"
@@ -41,7 +42,7 @@ func TestRegistryRejectsUnregisteredType(t *testing.T) {
 		ID:   uuid.New(),
 		Type: service.SourceTypeManual,
 	})
-	var ae *apperr.Error
+	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeFailedPrecondition, ae.Code)
+	require.Equal(t, domain.ErrConflict.Code, ae.Code)
 }

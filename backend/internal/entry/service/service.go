@@ -32,7 +32,7 @@ type SourceRef struct {
 }
 
 // Sources is the consumer-defined port Entry uses for Source lookups.
-// Missing Source must surface as apperr NotFound. Entry must not import source SQLite.
+// Missing Source must surface as apperr.ResourceNotFound. Entry must not import source SQLite.
 type Sources interface {
 	Get(ctx context.Context, id uuid.UUID) (*SourceRef, error)
 	GetManual(ctx context.Context) (*SourceRef, error)
@@ -60,7 +60,7 @@ type SaveLinkInput struct {
 func (s *Service) SaveLink(ctx context.Context, in SaveLinkInput) (*domain.Entry, error) {
 	src, err := s.sources.GetManual(ctx)
 	if err != nil {
-		return nil, sourceLookupError(err)
+		return nil, err
 	}
 	result, err := s.upsertEntry(ctx, src.ID, entryMeta{
 		Title:       in.Title,
@@ -97,7 +97,7 @@ type IngestEntryResult struct {
 func (s *Service) IngestEntry(ctx context.Context, in IngestEntryInput) (*IngestEntryResult, error) {
 	src, err := s.sources.Get(ctx, in.SourceID)
 	if err != nil {
-		return nil, sourceLookupError(err)
+		return nil, err
 	}
 	if src.Type != SourceTypeRSS && src.Type != SourceTypeYouTube {
 		return nil, apperr.InvalidInput.New("ingest can only record Entries into fetchable Sources")
@@ -288,12 +288,4 @@ func isNotFound(err error) bool {
 func isConflict(err error) bool {
 	var ae *apperr.Error
 	return errors.As(err, &ae) && ae.Code == apperr.CodeConflict
-}
-
-func sourceLookupError(err error) error {
-	var legacy *apperr.Error
-	if errors.As(err, &legacy) && legacy.Code == apperr.CodeNotFound {
-		return apperr.ResourceNotFound.Wrap(err, "source not found")
-	}
-	return err
 }

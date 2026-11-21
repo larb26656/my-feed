@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"github.com/larb26656/my-feed/backend/internal/fetch/domain"
 	"io"
 	"net/http"
 	"net/url"
@@ -33,7 +34,7 @@ var videoPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 
 func (a *Adapter) Obtain(ctx context.Context, source *service.SourceRef) ([]service.PreparedEntry, error) {
 	if source == nil || !channelPattern.MatchString(source.YouTubeChannelID) {
-		return nil, apperr.Validation("invalid youtube channel ID")
+		return nil, apperr.InvalidInput.New("invalid youtube channel ID")
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.youtube.com/feeds/videos.xml?channel_id="+url.QueryEscape(source.YouTubeChannelID), nil)
 	if err != nil {
@@ -41,15 +42,15 @@ func (a *Adapter) Obtain(ctx context.Context, source *service.SourceRef) ([]serv
 	}
 	res, err := a.client.Do(req)
 	if err != nil {
-		return nil, apperr.FailedPrecondition(fmt.Sprintf("youtube feed request failed: %v", err))
+		return nil, domain.ErrConflict.New(fmt.Sprintf("youtube feed request failed: %v", err))
 	}
 	defer res.Body.Close()
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return nil, apperr.FailedPrecondition(fmt.Sprintf("youtube feed request failed: status %d", res.StatusCode))
+		return nil, domain.ErrConflict.New(fmt.Sprintf("youtube feed request failed: status %d", res.StatusCode))
 	}
 	body, err := io.ReadAll(io.LimitReader(res.Body, 8<<20))
 	if err != nil {
-		return nil, apperr.FailedPrecondition("youtube feed body read failed")
+		return nil, domain.ErrConflict.New("youtube feed body read failed")
 	}
 	var feed struct {
 		XMLName xml.Name `xml:"http://www.w3.org/2005/Atom feed"`
@@ -67,7 +68,7 @@ func (a *Adapter) Obtain(ctx context.Context, source *service.SourceRef) ([]serv
 	}
 	decoder := xml.NewDecoder(bytes.NewReader(body))
 	if err := decoder.Decode(&feed); err != nil {
-		return nil, apperr.Validation("invalid youtube atom feed document")
+		return nil, apperr.InvalidInput.New("invalid youtube atom feed document")
 	}
 	for {
 		token, err := decoder.Token()
@@ -75,23 +76,23 @@ func (a *Adapter) Obtain(ctx context.Context, source *service.SourceRef) ([]serv
 			break
 		}
 		if err != nil {
-			return nil, apperr.Validation("invalid youtube atom feed document")
+			return nil, apperr.InvalidInput.New("invalid youtube atom feed document")
 		}
 		switch token := token.(type) {
 		case xml.CharData:
 			if strings.TrimSpace(string(token)) != "" {
-				return nil, apperr.Validation("invalid youtube atom feed document")
+				return nil, apperr.InvalidInput.New("invalid youtube atom feed document")
 			}
 		case xml.Comment, xml.ProcInst, xml.Directive:
 		default:
-			return nil, apperr.Validation("invalid youtube atom feed document")
+			return nil, apperr.InvalidInput.New("invalid youtube atom feed document")
 		}
 	}
 	out := make([]service.PreparedEntry, 0, len(feed.Entries))
 	for _, item := range feed.Entries {
 		id, title := strings.TrimSpace(item.ID), strings.TrimSpace(item.Title)
 		if !videoPattern.MatchString(id) || title == "" {
-			return nil, apperr.Validation("invalid youtube feed entry")
+			return nil, apperr.InvalidInput.New("invalid youtube feed entry")
 		}
 		e := service.PreparedEntry{Title: title, Link: "https://www.youtube.com/watch?v=" + id, Description: strings.TrimSpace(item.Group.Description)}
 		if thumb := strings.TrimSpace(item.Group.Thumbnail.URL); thumb != "" {

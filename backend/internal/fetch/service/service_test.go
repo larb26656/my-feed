@@ -35,7 +35,7 @@ func (f *fakeRepo) CreateFetchJob(_ context.Context, job *domain.FetchJob) error
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if _, ok := f.jobs[job.ID]; ok {
-		return apperr.Conflict("fetch job already exists")
+		return domain.ErrConflict.New("fetch job already exists")
 	}
 	f.jobs[job.ID] = cloneJob(job)
 	return nil
@@ -46,7 +46,7 @@ func (f *fakeRepo) GetFetchJobByID(_ context.Context, id uuid.UUID) (*domain.Fet
 	defer f.mu.Unlock()
 	job, ok := f.jobs[id]
 	if !ok {
-		return nil, apperr.NotFound("fetch job not found")
+		return nil, apperr.ResourceNotFound.New("fetch job not found")
 	}
 	return cloneJob(job), nil
 }
@@ -75,7 +75,7 @@ func (f *fakeRepo) GetUnfinishedFetchJobBySourceID(_ context.Context, sourceID u
 			return cloneJob(job), nil
 		}
 	}
-	return nil, apperr.NotFound("unfinished fetch job not found")
+	return nil, apperr.ResourceNotFound.New("unfinished fetch job not found")
 }
 
 func (f *fakeRepo) ListClaimableFetchJobs(_ context.Context, now time.Time) ([]*domain.FetchJob, error) {
@@ -99,7 +99,7 @@ func (f *fakeRepo) ClaimFetchJob(_ context.Context, id uuid.UUID, now time.Time)
 	defer f.mu.Unlock()
 	stored, ok := f.jobs[id]
 	if !ok {
-		return nil, apperr.NotFound("fetch job not found")
+		return nil, apperr.ResourceNotFound.New("fetch job not found")
 	}
 	job := cloneJob(stored)
 	if err := job.Claim(now); err != nil {
@@ -107,10 +107,10 @@ func (f *fakeRepo) ClaimFetchJob(_ context.Context, id uuid.UUID, now time.Time)
 	}
 	// Conditional claim: only persist when still pending in storage (simulates RowsAffected).
 	if stored.Status != domain.StatusPending {
-		return nil, apperr.FailedPrecondition("fetch job was already claimed or not claimable")
+		return nil, domain.ErrConflict.New("fetch job was already claimed or not claimable")
 	}
 	if !stored.NextAttemptAt.IsZero() && now.Before(stored.NextAttemptAt) {
-		return nil, apperr.FailedPrecondition("fetch job was already claimed or not claimable")
+		return nil, domain.ErrConflict.New("fetch job was already claimed or not claimable")
 	}
 	f.jobs[id] = cloneJob(job)
 	return cloneJob(job), nil
@@ -120,7 +120,7 @@ func (f *fakeRepo) UpdateFetchJob(_ context.Context, job *domain.FetchJob) error
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if _, ok := f.jobs[job.ID]; !ok {
-		return apperr.NotFound("fetch job not found")
+		return apperr.ResourceNotFound.New("fetch job not found")
 	}
 	f.jobs[job.ID] = cloneJob(job)
 	return nil
@@ -156,7 +156,7 @@ func (f *fakeSources) seedActiveFetchable(id uuid.UUID, rssURL string) {
 func (f *fakeSources) Get(_ context.Context, id uuid.UUID) (*service.SourceRef, error) {
 	src, ok := f.byID[id]
 	if !ok {
-		return nil, apperr.NotFound("source not found")
+		return nil, apperr.ResourceNotFound.New("source not found")
 	}
 	return &service.SourceRef{
 		ID:     src.id,
@@ -233,10 +233,10 @@ func (f *fakeIngest) IngestEntry(ctx context.Context, in service.IngestEntryInpu
 			return nil, err
 		}
 		if src.Type != service.SourceTypeRSS {
-			return nil, apperr.Validation("ingest can only record entries into rss sources")
+			return nil, apperr.InvalidInput.New("ingest can only record entries into rss sources")
 		}
 		if !src.Active {
-			return nil, apperr.FailedPrecondition("cannot ingest into a deactivated source")
+			return nil, domain.ErrConflict.New("cannot ingest into a deactivated source")
 		}
 	}
 	created, ok := f.createdByLink[in.Link]
@@ -350,14 +350,14 @@ func TestScheduleRoundExcludesDeactivatedAndManualSources(t *testing.T) {
 
 	_, err = h.repo.GetUnfinishedFetchJobBySourceID(context.Background(), deactivated)
 	require.Error(t, err)
-	var ae *apperr.Error
+	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeNotFound, ae.Code)
+	require.Equal(t, apperr.ResourceNotFound.Code, ae.Code)
 
 	_, err = h.repo.GetUnfinishedFetchJobBySourceID(context.Background(), manual)
 	require.Error(t, err)
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeNotFound, ae.Code)
+	require.Equal(t, apperr.ResourceNotFound.Code, ae.Code)
 }
 
 func TestScheduleIntervalDefaultsToFifteenMinutes(t *testing.T) {
@@ -391,9 +391,9 @@ func TestCreateManualFetchJobRejectsWhenPendingJobExists(t *testing.T) {
 
 	_, err = h.svc.CreateManualFetchJob(context.Background(), sourceID)
 	require.Error(t, err)
-	var ae *apperr.Error
+	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeConflict, ae.Code)
+	require.Equal(t, domain.ErrConflict.Code, ae.Code)
 }
 
 func TestCreateManualFetchJobRejectsWhenRunningJobExists(t *testing.T) {
@@ -408,9 +408,9 @@ func TestCreateManualFetchJobRejectsWhenRunningJobExists(t *testing.T) {
 
 	_, err = h.svc.CreateManualFetchJob(context.Background(), sourceID)
 	require.Error(t, err)
-	var ae *apperr.Error
+	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeConflict, ae.Code)
+	require.Equal(t, domain.ErrConflict.Code, ae.Code)
 }
 
 func TestClaimFetchJobRejectsSecondConcurrentClaim(t *testing.T) {
@@ -427,9 +427,9 @@ func TestClaimFetchJobRejectsSecondConcurrentClaim(t *testing.T) {
 
 	_, err = h.repo.ClaimFetchJob(context.Background(), created.ID, h.clock.Now())
 	require.Error(t, err)
-	var ae *apperr.Error
+	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeFailedPrecondition, ae.Code)
+	require.Equal(t, domain.ErrConflict.Code, ae.Code)
 
 	stored, err := h.repo.GetFetchJobByID(context.Background(), created.ID)
 	require.NoError(t, err)
@@ -450,9 +450,9 @@ func TestExecuteFetchJobRejectsWhenAlreadyClaimed(t *testing.T) {
 
 	_, err = h.svc.ExecuteFetchJob(context.Background(), created.ID)
 	require.Error(t, err)
-	var ae *apperr.Error
+	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeFailedPrecondition, ae.Code)
+	require.Equal(t, domain.ErrConflict.Code, ae.Code)
 }
 
 func TestCreateManualFetchJobAllowedAfterTerminalJob(t *testing.T) {
@@ -478,9 +478,9 @@ func TestCreateManualFetchJobRejectsManualSource(t *testing.T) {
 
 	_, err := h.svc.CreateManualFetchJob(context.Background(), manualID)
 	require.Error(t, err)
-	var ae *apperr.Error
+	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeValidation, ae.Code)
+	require.Equal(t, apperr.InvalidInput.Code, ae.Code)
 }
 
 func TestCreateManualFetchJobRejectsMissingSource(t *testing.T) {
@@ -488,9 +488,9 @@ func TestCreateManualFetchJobRejectsMissingSource(t *testing.T) {
 
 	_, err := h.svc.CreateManualFetchJob(context.Background(), uuid.New())
 	require.Error(t, err)
-	var ae *apperr.Error
+	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeNotFound, ae.Code)
+	require.Equal(t, apperr.ResourceNotFound.Code, ae.Code)
 }
 
 func TestCreateManualFetchJobRejectsDeactivatedSource(t *testing.T) {
@@ -500,9 +500,9 @@ func TestCreateManualFetchJobRejectsDeactivatedSource(t *testing.T) {
 
 	_, err := h.svc.CreateManualFetchJob(context.Background(), sourceID)
 	require.Error(t, err)
-	var ae *apperr.Error
+	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeFailedPrecondition, ae.Code)
+	require.Equal(t, domain.ErrConflict.Code, ae.Code)
 }
 
 func TestHandleSourceDeactivatedFailsPendingJob(t *testing.T) {
@@ -548,9 +548,9 @@ func TestHandleSourceDeactivatedLeavesRunningJobUncancelledButIngestMayFail(t *t
 
 	job, err := h.svc.ExecuteFetchJob(context.Background(), created.ID)
 	require.Error(t, err)
-	var ae *apperr.Error
+	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeFailedPrecondition, ae.Code)
+	require.Equal(t, domain.ErrConflict.Code, ae.Code)
 	require.Equal(t, domain.StatusRunning, statusDuringObtain)
 	// Attempt 1 of 3 → retry scheduled on the same job (not cancelled, not succeeded via bypass).
 	require.Equal(t, domain.StatusPending, job.Status)
@@ -571,9 +571,9 @@ func TestDeactivatedSourceReceivesNoNewFetchJobs(t *testing.T) {
 
 	_, err = h.svc.CreateManualFetchJob(context.Background(), sourceID)
 	require.Error(t, err)
-	var ae *apperr.Error
+	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeFailedPrecondition, ae.Code)
+	require.Equal(t, domain.ErrConflict.Code, ae.Code)
 
 	stored, err := h.repo.GetFetchJobByID(context.Background(), created.ID)
 	require.NoError(t, err)
@@ -842,9 +842,9 @@ func TestExecuteReadyFetchJobsStillEnforcesOneUnfinishedPerSource(t *testing.T) 
 	require.NoError(t, err)
 
 	_, err = h.svc.CreateManualFetchJob(context.Background(), sourceID)
-	var ae *apperr.Error
+	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.CodeConflict, ae.Code)
+	require.Equal(t, domain.ErrConflict.Code, ae.Code)
 
 	stored, err := h.svc.GetFetchJob(context.Background(), first.ID)
 	require.NoError(t, err)

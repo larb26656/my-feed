@@ -25,7 +25,7 @@ func rssSource(t *testing.T, router http.Handler) string {
 	response := testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]any{
 		"name": "Daily news", "type": "rss", "rssUrl": "https://example.test/rss",
 	}, 201)
-	return testkit.Decode[struct{ ID string }](t, response).ID
+	return decodeSuccess[struct{ ID string }](t, response).ID
 }
 
 func TestIngestingANewArticleReturnsItsIdentityAndMetadata(t *testing.T) {
@@ -116,7 +116,7 @@ func TestReingestionPreservesReadAndSavedChoices(t *testing.T) {
 func TestSavingALinkAssignsTheSystemManualSource(t *testing.T) {
 	// Arrange
 	router := api.New(t)
-	sources := testkit.Decode[[]struct{ ID, Type string }](t, testkit.Request(t, router, "GET", "/api/v1/sources/", nil, 200))
+	sources := decodeSuccess[[]struct{ ID, Type string }](t, testkit.Request(t, router, "GET", "/api/v1/sources/", nil, 200))
 	require.Len(t, sources, 1)
 	require.Equal(t, "manual", sources[0].Type)
 
@@ -402,7 +402,7 @@ func TestReaderActionsOnMissingArticlesReturnNotFound(t *testing.T) {
 func TestIngestionRejectsManualSources(t *testing.T) {
 	// Arrange
 	router := api.New(t)
-	sources := testkit.Decode[[]struct{ ID string }](t, testkit.Request(t, router, "GET", "/api/v1/sources/", nil, 200))
+	sources := decodeSuccess[[]struct{ ID string }](t, testkit.Request(t, router, "GET", "/api/v1/sources/", nil, 200))
 	require.Len(t, sources, 1)
 
 	// Act

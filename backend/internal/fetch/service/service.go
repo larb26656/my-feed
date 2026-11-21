@@ -148,7 +148,7 @@ func (s *Service) ListFetchJobs(ctx context.Context, in ListFetchJobsInput) (*Li
 	pageSize := DefaultFetchJobPageSize
 	if in.PageSize != nil {
 		if *in.PageSize < 1 || *in.PageSize > 100 {
-			return nil, apperr.Validation("pageSize must be between 1 and 100")
+			return nil, apperr.InvalidInput.New("pageSize must be between 1 and 100")
 		}
 		pageSize = *in.PageSize
 	}
@@ -191,10 +191,10 @@ func encodeFetchJobCursor(createdAt time.Time, id uuid.UUID, criteria repository
 func decodeFetchJobCursor(token string, criteria repository.FetchJobListCriteria) (*repository.FetchJobListCursor, error) {
 	var payload fetchJobCursorPayload
 	if err := cursor.Decode(token, &payload); err != nil || payload.CreatedAt.IsZero() || payload.ID == uuid.Nil {
-		return nil, apperr.Validation("invalid cursor")
+		return nil, apperr.InvalidInput.New("invalid cursor")
 	}
 	if (payload.SourceID == nil) != (criteria.SourceID == nil) || (payload.SourceID != nil && *payload.SourceID != *criteria.SourceID) || (payload.Status == nil) != (criteria.Status == nil) || (payload.Status != nil && *payload.Status != *criteria.Status) {
-		return nil, apperr.Validation("cursor does not match filters")
+		return nil, apperr.InvalidInput.New("cursor does not match filters")
 	}
 	return &repository.FetchJobListCursor{CreatedAt: payload.CreatedAt.UTC(), ID: payload.ID}, nil
 }
@@ -255,7 +255,7 @@ func (s *Service) ScheduleRound(ctx context.Context) ([]*domain.FetchJob, error)
 			continue
 		}
 		if err != nil {
-			if ae, ok := err.(*apperr.Error); !ok || ae.Code != apperr.CodeNotFound {
+			if ae, ok := err.(*apperr.AppError); !ok || ae.Code != apperr.ResourceNotFound.Code {
 				return created, err
 			}
 		}
@@ -279,18 +279,18 @@ func (s *Service) CreateManualFetchJob(ctx context.Context, sourceID uuid.UUID) 
 		return nil, err
 	}
 	if src.Type != SourceTypeRSS && src.Type != SourceTypeYouTube {
-		return nil, apperr.Validation("fetch jobs can only target fetchable sources")
+		return nil, apperr.InvalidInput.New("fetch jobs can only target fetchable sources")
 	}
 	if !src.Active {
-		return nil, apperr.FailedPrecondition("cannot create a fetch job for a deactivated source")
+		return nil, domain.ErrConflict.New("cannot create a fetch job for a deactivated source")
 	}
 
 	unfinished, err := s.repo.GetUnfinishedFetchJobBySourceID(ctx, sourceID)
 	if err == nil && unfinished != nil {
-		return nil, apperr.Conflict("source already has an unfinished fetch job")
+		return nil, domain.ErrConflict.New("source already has an unfinished fetch job")
 	}
 	if err != nil {
-		if ae, ok := err.(*apperr.Error); !ok || ae.Code != apperr.CodeNotFound {
+		if ae, ok := err.(*apperr.AppError); !ok || ae.Code != apperr.ResourceNotFound.Code {
 			return nil, err
 		}
 	}
@@ -310,7 +310,7 @@ func (s *Service) CreateManualFetchJob(ctx context.Context, sourceID uuid.UUID) 
 func (s *Service) HandleSourceDeactivated(ctx context.Context, sourceID uuid.UUID) error {
 	job, err := s.repo.GetUnfinishedFetchJobBySourceID(ctx, sourceID)
 	if err != nil {
-		if ae, ok := err.(*apperr.Error); ok && ae.Code == apperr.CodeNotFound {
+		if ae, ok := err.(*apperr.AppError); ok && ae.Code == apperr.ResourceNotFound.Code {
 			return nil
 		}
 		return err

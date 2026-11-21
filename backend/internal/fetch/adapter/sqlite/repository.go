@@ -41,7 +41,7 @@ func (r *Repository) CreateFetchJob(ctx context.Context, job *domain.FetchJob) e
 		job.MaxAttempts, job.EntriesCreated, nullableTime(job.NextAttemptAt), formatTime(job.CreatedAt), formatTime(job.UpdatedAt))
 	if err != nil {
 		if database.IsUniqueConstraintViolation(err, "fetch_jobs.source_id") {
-			return apperr.Conflict("source already has an unfinished fetch job")
+			return domain.ErrConflict.Wrap(err, "source already has an unfinished fetch job")
 		}
 		return err
 	}
@@ -127,7 +127,7 @@ func (r *Repository) ClaimFetchJob(ctx context.Context, id uuid.UUID, now time.T
 		if getErr != nil {
 			return nil, getErr
 		}
-		return nil, apperr.FailedPrecondition("fetch job was already claimed or not claimable")
+		return nil, domain.ErrConflict.New("fetch job was already claimed or not claimable")
 	}
 	return r.GetFetchJobByID(ctx, id)
 }
@@ -138,7 +138,7 @@ func (r *Repository) UpdateFetchJob(ctx context.Context, job *domain.FetchJob) e
 		job.EntriesCreated, nullableTime(job.NextAttemptAt), formatTime(job.UpdatedAt), job.ID.String())
 	if err != nil {
 		if database.IsUniqueConstraintViolation(err, "fetch_jobs.source_id") {
-			return apperr.Conflict("source already has an unfinished fetch job")
+			return domain.ErrConflict.Wrap(err, "source already has an unfinished fetch job")
 		}
 		return err
 	}
@@ -147,7 +147,7 @@ func (r *Repository) UpdateFetchJob(ctx context.Context, job *domain.FetchJob) e
 		return err
 	}
 	if changed == 0 {
-		return apperr.NotFound("fetch job not found")
+		return apperr.ResourceNotFound.New("fetch job not found")
 	}
 	return nil
 }
@@ -172,7 +172,7 @@ func scanFetchJob(row scannable) (*domain.FetchJob, error) {
 	var nextAttemptAt sql.NullString
 	err := row.Scan(&id, &sourceID, &status, &job.Attempt, &job.MaxAttempts, &job.EntriesCreated, &nextAttemptAt, &createdAt, &updatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, apperr.NotFound("fetch job not found")
+		return nil, apperr.ResourceNotFound.Wrap(err, "fetch job not found")
 	}
 	if err != nil {
 		return nil, err
