@@ -12,9 +12,9 @@ import (
 	entryapi "github.com/larb26656/my-feed/backend/internal/modules/entry/api"
 	"github.com/larb26656/my-feed/backend/internal/modules/entry/domain"
 	"github.com/larb26656/my-feed/backend/internal/modules/entry/repository"
+	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	"github.com/larb26656/my-feed/backend/internal/platform/cursor"
-	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
 )
 
 type Service struct {

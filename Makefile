@@ -1,4 +1,6 @@
-.PHONY: help backend frontend build test test-unit check-arch tidy up down migrate migrate-status migrate-down
+.PHONY: help backend frontend build test test-unit check-arch fmt fmt-check lint tidy up down migrate migrate-status migrate-down
+
+GOFUMPT := go run mvdan.cc/gofumpt@v0.9.2
 
 help:
 	@echo "make up              - build and start API with persistent SQLite (docker compose)"
@@ -12,6 +14,9 @@ help:
 	@echo "make test            - run all Go tests"
 	@echo "make test-unit       - unit tests (no Docker)"
 	@echo "make check-arch      - verify Go module and layer dependencies"
+	@echo "make fmt             - format backend Go code"
+	@echo "make fmt-check       - check backend Go formatting"
+	@echo "make lint            - run standard Go linters on the backend"
 	@echo "make tidy            - go mod tidy"
 
 up:
@@ -47,6 +52,16 @@ test:
 check-arch:
 	cd backend && GOTOOLCHAIN=$$(go env GOVERSION) go run github.com/MouXiaoJun/gomodulith/cmd/gomodulith@v0.7.1 verify --no-cache ./internal/modules/...
 	cd backend && GOTOOLCHAIN=$$(go env GOVERSION) go run github.com/fe3dback/go-arch-lint@v1.19.1 check
+
+fmt:
+	cd backend && $(GOFUMPT) -w .
+
+fmt-check:
+	@cd backend && files=$$($(GOFUMPT) -l .) && \
+		if [ -n "$$files" ]; then printf '%s\n' "$$files"; exit 1; fi
+
+lint:
+	cd backend && GOTOOLCHAIN=$$(go env GOVERSION) go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.11.4 run --no-config --default=standard ./...
 
 tidy:
 	cd backend && go mod tidy

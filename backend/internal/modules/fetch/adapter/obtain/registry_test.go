@@ -10,8 +10,8 @@ import (
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/adapter/obtain"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/domain"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/service"
-	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
+	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 )
 
 type stubObtain struct {

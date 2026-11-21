@@ -26,12 +26,12 @@ import (
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/adapter/runtime"
 	fetchsqlite "github.com/larb26656/my-feed/backend/internal/modules/fetch/adapter/sqlite"
 	fetchsvc "github.com/larb26656/my-feed/backend/internal/modules/fetch/service"
-	"github.com/larb26656/my-feed/backend/internal/platform/database"
-	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
 	sourcehttp "github.com/larb26656/my-feed/backend/internal/modules/source/adapter/http"
 	sourcesqlite "github.com/larb26656/my-feed/backend/internal/modules/source/adapter/sqlite"
 	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
 	sourcesvc "github.com/larb26656/my-feed/backend/internal/modules/source/service"
+	"github.com/larb26656/my-feed/backend/internal/platform/database"
+	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
 	sourcelifecycle "github.com/larb26656/my-feed/backend/internal/sourcelifecycle/service"
 )
 

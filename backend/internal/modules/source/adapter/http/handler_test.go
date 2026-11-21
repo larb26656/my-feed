@@ -372,6 +372,7 @@ func decodeSuccess[T any](t *testing.T, response *httptest.ResponseRecorder) T {
 	require.True(t, result.Success)
 	return result.Data
 }
+
 func decodeFailure(t *testing.T, response *httptest.ResponseRecorder) httpx.ErrorBody {
 	t.Helper()
 	result := testkit.Decode[httpx.ErrorResponse](t, response)

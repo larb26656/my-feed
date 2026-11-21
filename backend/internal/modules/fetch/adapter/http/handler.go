@@ -1,12 +1,13 @@
 package http
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/service"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
-	"net/http"
 )
 
 type Handler struct{ svc *service.Service }
@@ -19,6 +20,7 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("", h.listJobs)
 	r.GET("/:id", h.getJob)
 }
+
 func (h *Handler) createManual(c *gin.Context) {
 	var req createFetchJobRequest
 	if !httpx.BindJSON(c, &req) {
@@ -31,6 +33,7 @@ func (h *Handler) createManual(c *gin.Context) {
 	}
 	c.JSON(http.StatusCreated, httpx.Success(toFetchJobResponse(job)))
 }
+
 func (h *Handler) getJob(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -44,6 +47,7 @@ func (h *Handler) getJob(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, httpx.Success(toFetchJobResponse(job)))
 }
+
 func (h *Handler) listJobs(c *gin.Context) {
 	req := listFetchJobsQuery{CursorPageOption: httpx.NewCursorPageOption()}
 	if err := c.ShouldBindQuery(&req); err != nil {

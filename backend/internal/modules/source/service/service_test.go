@@ -5,11 +5,11 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	sourcesqlite "github.com/larb26656/my-feed/backend/internal/modules/source/adapter/sqlite"
 	"github.com/larb26656/my-feed/backend/internal/modules/source/domain"
 	"github.com/larb26656/my-feed/backend/internal/modules/source/repository"
 	"github.com/larb26656/my-feed/backend/internal/modules/source/service"
+	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	"github.com/larb26656/my-feed/backend/internal/testkit"
 	"github.com/stretchr/testify/require"
 )

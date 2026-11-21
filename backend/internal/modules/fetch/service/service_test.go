@@ -14,9 +14,9 @@ import (
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/domain"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/repository"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/service"
+	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	"github.com/larb26656/my-feed/backend/internal/platform/database"
-	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
 )
 
 type fakeRepo struct {

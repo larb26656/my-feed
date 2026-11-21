@@ -9,8 +9,10 @@ import (
 	"github.com/google/uuid"
 )
 
-type requestIDKey struct{}
-type abortHandlerKey struct{}
+type (
+	requestIDKey    struct{}
+	abortHandlerKey struct{}
+)
 
 // RequestID returns the request identifier propagated to application services.
 func RequestID(ctx context.Context) string {

@@ -14,8 +14,8 @@ import (
 
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/domain"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/service"
-	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
+	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 )
 
 type HTTPClient interface {
@@ -30,8 +30,10 @@ func New(c HTTPClient) *Adapter {
 	return &Adapter{c}
 }
 
-var channelPattern = regexp.MustCompile(`^UC[A-Za-z0-9_-]{22}$`)
-var videoPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+var (
+	channelPattern = regexp.MustCompile(`^UC[A-Za-z0-9_-]{22}$`)
+	videoPattern   = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+)
 
 func (a *Adapter) Obtain(ctx context.Context, source *sourceapi.SourceRef) ([]service.PreparedEntry, error) {
 	if source == nil || !channelPattern.MatchString(source.YouTubeChannelID) {

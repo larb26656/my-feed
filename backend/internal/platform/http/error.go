@@ -1,7 +1,7 @@
 package httpx
 
 type ErrorResponse struct {
-	Success bool       `json:"success"`
+	Success bool      `json:"success"`
 	Error   ErrorBody `json:"error"`
 }
 

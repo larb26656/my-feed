@@ -12,10 +12,10 @@ import (
 	fetchapi "github.com/larb26656/my-feed/backend/internal/modules/fetch/api"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/domain"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/repository"
+	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	"github.com/larb26656/my-feed/backend/internal/platform/cursor"
 	"github.com/larb26656/my-feed/backend/internal/platform/database"
-	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
 )
 
 // DefaultRetryBackoff is the fixed delay between attempts on the same Fetch Job.

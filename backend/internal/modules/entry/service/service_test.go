@@ -10,8 +10,8 @@ import (
 	"github.com/larb26656/my-feed/backend/internal/modules/entry/domain"
 	"github.com/larb26656/my-feed/backend/internal/modules/entry/repository"
 	"github.com/larb26656/my-feed/backend/internal/modules/entry/service"
-	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
+	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,9 +27,11 @@ type upsertRepo struct {
 func (r upsertRepo) GetEntryBySourceAndLink(context.Context, uuid.UUID, string) (*domain.Entry, error) {
 	return r.lookup()
 }
+
 func (r upsertRepo) CreateEntry(_ context.Context, e *domain.Entry) (*domain.Entry, error) {
 	return r.create(e)
 }
+
 func (r upsertRepo) UpdateEntry(_ context.Context, e *domain.Entry) (*domain.Entry, error) {
 	return r.update(e)
 }

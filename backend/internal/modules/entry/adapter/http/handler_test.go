@@ -232,8 +232,10 @@ func TestSavedCountIncludesOnlyCurrentlySavedArticles(t *testing.T) {
 		hasArticle, save, clear bool
 		count                   int
 	}{
-		{name: "empty library", count: 0}, {name: "unsaved article", hasArticle: true, count: 0},
-		{name: "saved article", hasArticle: true, save: true, count: 1}, {name: "cleared bookmark", hasArticle: true, save: true, clear: true, count: 0},
+		{name: "empty library", count: 0},
+		{name: "unsaved article", hasArticle: true, count: 0},
+		{name: "saved article", hasArticle: true, save: true, count: 1},
+		{name: "cleared bookmark", hasArticle: true, save: true, clear: true, count: 0},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
 			// Arrange

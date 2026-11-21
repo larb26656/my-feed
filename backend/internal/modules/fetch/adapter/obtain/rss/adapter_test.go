@@ -16,8 +16,8 @@ import (
 
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/adapter/obtain/rss"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/domain"
-	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
+	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 )
 
 type fixtureTransport struct {
@@ -236,7 +236,6 @@ func TestObtainAtomImageEnclosureFallback(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestObtainAtomFormattedTitles(t *testing.T) {

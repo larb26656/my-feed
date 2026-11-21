@@ -1,9 +1,10 @@
 package http
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/domain"
-	"time"
 )
 
 type fetchJobResponse struct {

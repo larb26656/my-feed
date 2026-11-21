@@ -7,9 +7,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
 	"github.com/larb26656/my-feed/backend/internal/modules/source/domain"
 	"github.com/larb26656/my-feed/backend/internal/modules/source/service"
+	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,6 +18,7 @@ type failingSourceAPI struct{ SourceAPI }
 func (failingSourceAPI) ListSources(context.Context, service.ListSourcesInput) ([]*domain.Source, error) {
 	return nil, errors.New("private database failure")
 }
+
 func TestListErrorsUseCentralEnvelope(t *testing.T) {
 	router := httpx.NewRouter()
 	NewHandler(failingSourceAPI{}, nil).RegisterRoutes(router.Group("/sources"))

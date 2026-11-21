@@ -22,6 +22,7 @@ func (client) Do(r *http.Request) (*http.Response, error) {
 	}
 	return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`<feed xmlns="http://www.w3.org/2005/Atom" xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/"><entry><yt:videoId>abc123</yt:videoId><title>Video</title><published>2024-01-02T03:04:05Z</published><media:group><media:description>Description</media:description><media:thumbnail url="https://example.com/thumb.jpg"/></media:group></entry></feed>`))}, nil
 }
+
 func TestObtainChannelEntries(t *testing.T) {
 	// Arrange
 	adapter := youtube.New(client{})
@@ -49,6 +50,7 @@ func (c responseClient) Do(*http.Request) (*http.Response, error) {
 	}
 	return &http.Response{StatusCode: c.status, Body: io.NopCloser(strings.NewReader(c.body))}, nil
 }
+
 func TestObtainRecognizesEmptyAndRejectsInvalidDocuments(t *testing.T) {
 	for _, tc := range []struct {
 		name, body string

@@ -9,10 +9,10 @@ import (
 	entryhttp "github.com/larb26656/my-feed/backend/internal/modules/entry/adapter/http"
 	entrysqlite "github.com/larb26656/my-feed/backend/internal/modules/entry/adapter/sqlite"
 	entrysvc "github.com/larb26656/my-feed/backend/internal/modules/entry/service"
-	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
 	sourcehttp "github.com/larb26656/my-feed/backend/internal/modules/source/adapter/http"
 	sourcesqlite "github.com/larb26656/my-feed/backend/internal/modules/source/adapter/sqlite"
 	sourcesvc "github.com/larb26656/my-feed/backend/internal/modules/source/service"
+	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
 	"github.com/larb26656/my-feed/backend/internal/testkit"
 	"github.com/stretchr/testify/require"
 )

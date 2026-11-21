@@ -6,8 +6,8 @@ import (
 
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/domain"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/service"
-	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
+	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 )
 
 // Registry dispatches obtain adapters by Source Type. It implements service.Obtain.
