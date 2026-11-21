@@ -18,7 +18,11 @@ export function FeedFilters({
 						key={item}
 						variant={filter === item ? "secondary" : "ghost"}
 						size="sm"
-						className={filter === item ? "bg-primary/15 text-primary hover:bg-primary/20" : ""}
+						className={
+							filter === item
+								? "bg-primary/15 text-primary hover:bg-primary/20"
+								: ""
+						}
 						aria-pressed={filter === item}
 						onClick={() => setFilter(item)}
 					>

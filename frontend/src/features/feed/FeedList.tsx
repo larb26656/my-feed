@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import { buttonVariants } from "#/components/ui/button";
 import { NoDataState } from "#/components/NoDataState";
+import { buttonVariants } from "#/components/ui/button";
 import { FeedItem } from "./FeedItem";
 import type { Entry, Source } from "./types";
 export function FeedList({

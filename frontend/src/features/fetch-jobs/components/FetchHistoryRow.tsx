@@ -1,4 +1,4 @@
-import { CheckCircle2, CircleAlert, ChevronRight } from "lucide-react";
+import { CheckCircle2, ChevronRight, CircleAlert } from "lucide-react";
 import type { Source } from "#/features/feed/types";
 import { formatDate } from "#/lib/date";
 import type { FetchJob } from "../types";

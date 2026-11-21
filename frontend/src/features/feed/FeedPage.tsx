@@ -28,7 +28,12 @@ export function FeedPage({
 	const visible = query.data?.pages.flatMap((page) => page.data) ?? [];
 	useEffect(() => {
 		const target = loadMoreRef.current;
-		if (!target || !query.hasNextPage || query.isFetchingNextPage || query.isFetchNextPageError) {
+		if (
+			!target ||
+			!query.hasNextPage ||
+			query.isFetchingNextPage ||
+			query.isFetchNextPageError
+		) {
 			return;
 		}
 
@@ -40,7 +45,12 @@ export function FeedPage({
 		);
 		observer.observe(target);
 		return () => observer.disconnect();
-	}, [query.fetchNextPage, query.hasNextPage, query.isFetchingNextPage, query.isFetchNextPageError]);
+	}, [
+		query.fetchNextPage,
+		query.hasNextPage,
+		query.isFetchingNextPage,
+		query.isFetchNextPageError,
+	]);
 	return (
 		<section>
 			{sourceId && (
@@ -59,10 +69,7 @@ export function FeedPage({
 				{allSources.find((source) => source.id === sourceId)?.name ??
 					(savedOnly ? "Saved" : "My Feed")}
 			</h1>
-			<FeedFilters
-				filter={filter}
-				setFilter={setFilter}
-			/>
+			<FeedFilters filter={filter} setFilter={setFilter} />
 			{query.isLoading ? (
 				<FeedSkeleton />
 			) : query.isError ? (
@@ -83,12 +90,17 @@ export function FeedPage({
 			)}
 			{mutation.isError && <p role="alert">Could not update the entry</p>}
 			{query.hasNextPage && (
-				<div ref={loadMoreRef} className="flex min-h-12 items-center justify-center">
-					{query.isFetchingNextPage && <p role="status">Loading...</p>}
+				<div
+					ref={loadMoreRef}
+					className="flex min-h-12 items-center justify-center"
+				>
+					{query.isFetchingNextPage && <output>Loading...</output>}
 					{query.isFetchNextPageError && (
 						<div className="flex items-center gap-3">
 							<p role="alert">Could not load more entries</p>
-							<Button onClick={() => void query.fetchNextPage()}>Try again</Button>
+							<Button onClick={() => void query.fetchNextPage()}>
+								Try again
+							</Button>
 						</div>
 					)}
 				</div>
