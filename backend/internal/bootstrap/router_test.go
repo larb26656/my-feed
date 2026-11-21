@@ -131,6 +131,7 @@ func TestOpenAPIDocumentation(t *testing.T) {
 	require.Contains(t, spec.Body.String(), `"/api/v1/sources"`)
 	require.Contains(t, spec.Body.String(), `"/healthz"`)
 	require.NotContains(t, spec.Body.String(), `/api/prototype`)
+	require.Contains(t, spec.Body.String(), `"null"`)
 	docs := httptest.NewRecorder()
 	router.ServeHTTP(docs, httptest.NewRequest("GET", "/docs", nil))
 	require.Equal(t, http.StatusOK, docs.Code)

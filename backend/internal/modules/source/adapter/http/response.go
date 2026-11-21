@@ -12,7 +12,7 @@ type sourceResponse struct {
 	ID               uuid.UUID `json:"id"`
 	Name             string    `json:"name"`
 	Type             string    `json:"type"`
-	RSSURL           *string   `json:"rssUrl"`
+	RSSURL           *string   `json:"rssUrl" extensions:"x-nullable"`
 	YouTubeChannelID *string   `json:"youtubeChannelId,omitempty"`
 	Active           bool      `json:"active"`
 	CreatedAt        time.Time `json:"createdAt"`
