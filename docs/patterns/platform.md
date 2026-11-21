@@ -1,12 +1,12 @@
 # Platform (Shared Kernel)
 
-แพ็กเกจกลางที่ทุก module ใช้ร่วมได้ — **บางและไม่มี business rule ของโดเมนใดโดเมนหนึ่ง**
+Shared packages available to every module — **small and free of domain-specific business rules**.
 
 ```
 internal/platform/
   apperr/       # typed application errors
   database/     # SQLite database/sql connection + WithinTransaction
-  http/         # DecodeJSON, WriteJSON, WriteError
+  http/         # Gin binding, response envelopes, error middleware, pagination
 ```
 
 ## `apperr`
@@ -15,21 +15,21 @@ See the [application error pattern](./errors.md) for shared and module-specific 
 
 ## `database`
 
-- `NewPool(ctx, databasePath)` — เปิด SQLite file, ping, ตั้ง busy timeout และ foreign keys
-- `WithinTransaction(ctx, fn)` — begin → fn → commit; error หรือ panic path ผ่าน rollback ด้วย `defer`
-- Cross-module use case เป็นผู้เรียก `WithinTransaction` แล้วส่ง `tx` เข้า `WithTx`
+- `NewPool(ctx, databasePath)` — opens a SQLite file, pings it, and configures the busy timeout and foreign keys.
+- `WithinTransaction(ctx, fn)` — begins a transaction, runs `fn`, and commits; errors and panics trigger a deferred rollback.
+- A cross-module use case calls `WithinTransaction` and passes `tx` to `WithTx`.
 
 ## `http` (package `httpx`)
 
-- ไม่ผูกกับ module
-- `WriteError` ใช้ `errors.As` หา `*apperr.Error`
-- ไม่ log รายละเอียดที่นี่ถ้ายังไม่มี requirement — เก็บให้บาง
+- Independent of any module.
+- `ErrorMiddleware` uses `errors.As` to find an `*apperr.AppError` and map it to an HTTP error response.
+- Do not log details here without a requirement; keep this package small.
 
 ## Bootstrap vs platform
 
 | `platform` | `bootstrap` |
 |------------|-------------|
-| primitive ใช้ซ้ำได้ | ประกอบกราฟ dependency ของแอปนี้ |
-| ไม่รู้จัก Product/Order | สร้าง repo/service/handler และ mount routes |
+| Reusable primitives | Assembles this application's dependency graph |
+| Has no knowledge of Product or Order | Creates repositories, services, and handlers, and mounts routes |
 
-`cmd/api/main.go` เหลือแค่ signal context + เรียก `bootstrap.Run`
+`cmd/api/main.go` only sets up the signal context and calls `bootstrap.Run`.
