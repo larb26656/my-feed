@@ -4,11 +4,19 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"reflect"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
 	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
 
+	prototypehttp "github.com/larb26656/my-feed/backend/internal/apiprototype/adapter/http"
+	"github.com/larb26656/my-feed/backend/internal/apiprototype/adapter/memory"
+	prototypesvc "github.com/larb26656/my-feed/backend/internal/apiprototype/service"
 	entryhttp "github.com/larb26656/my-feed/backend/internal/entry/adapter/http"
 	entrysqlite "github.com/larb26656/my-feed/backend/internal/entry/adapter/sqlite"
 	entrysvc "github.com/larb26656/my-feed/backend/internal/entry/service"
@@ -29,6 +37,8 @@ type App struct {
 	Pool   *database.Pool
 	Router *gin.Engine
 }
+
+var configurePrototypeValidator sync.Once
 
 func New(ctx context.Context) (*App, error) {
 	cfg, err := LoadConfig()
@@ -72,6 +82,18 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 		cfg.Fetch.ExecutorPoll,
 	).Start(ctx)
 
+	configurePrototypeValidator.Do(func() {
+		if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+			v.RegisterTagNameFunc(func(field reflect.StructField) string {
+				name := strings.SplitN(field.Tag.Get("json"), ",", 2)[0]
+				if name == "-" {
+					return ""
+				}
+				return name
+			})
+		}
+	})
+
 	r := httpx.NewRouter()
 
 	r.GET("/healthz", func(c *gin.Context) {
@@ -89,6 +111,7 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 	}).RegisterRoutes(r.Group("/api/v1/sources"))
 	entryhttp.NewHandler(entryService).RegisterRoutes(r.Group("/api/v1/entries"))
 	fetchhttp.NewHandler(fetchService).RegisterRoutes(r.Group("/api/v1/fetch-jobs"))
+	prototypehttp.New(prototypesvc.New(memory.New())).RegisterRoutes(r.Group("/api/prototype"))
 
 	return &App{Pool: pool, Router: r}, nil
 }

@@ -1,0 +1,16 @@
+meta {
+  name: List bookmarks
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{prototypeBaseUrl}}/api/prototype/bookmarks
+  body: none
+  auth: none
+}
+
+params:query {
+  pageSize: 1
+  ~cursor: {{prototypeCursor}}
+}

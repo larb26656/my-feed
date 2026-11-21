@@ -1,0 +1,21 @@
+meta {
+  name: Invalid bookmark
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{prototypeBaseUrl}}/api/prototype/bookmarks
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "url": "not-a-url"
+  }
+}

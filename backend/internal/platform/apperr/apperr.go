@@ -20,6 +20,7 @@ type Definition struct {
 }
 
 var InvalidInput = Definition{Kind: KindInvalid, Code: "validation"}
+var ResourceNotFound = Definition{Kind: KindNotFound, Code: "NOT_FOUND"}
 
 type AppError struct {
 	Definition
@@ -34,6 +35,11 @@ func (e *AppError) Error() string {
 
 func (e *AppError) Unwrap() error {
 	return e.Cause
+}
+
+func (e *AppError) WithDetail(detail any) *AppError {
+	e.Detail = detail
+	return e
 }
 
 func (d Definition) New(message string) *AppError {

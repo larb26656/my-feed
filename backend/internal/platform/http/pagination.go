@@ -1,5 +1,19 @@
 package httpx
 
+type PageOption struct {
+	Page     int `form:"page" binding:"min=1"`
+	PageSize int `form:"pageSize" binding:"min=1,max=100"`
+}
+
+func NewPageOption() PageOption { return PageOption{Page: 1, PageSize: 10} }
+
+type CursorPageOption struct {
+	Cursor   string `form:"cursor"`
+	PageSize int    `form:"pageSize" binding:"min=1,max=100"`
+}
+
+func NewCursorPageOption() CursorPageOption { return CursorPageOption{PageSize: 10} }
+
 type PageMeta struct {
 	Page       int   `json:"page"`
 	PageSize   int   `json:"pageSize"`
