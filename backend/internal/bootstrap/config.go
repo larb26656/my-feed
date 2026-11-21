@@ -20,6 +20,7 @@ const (
 type Config struct {
 	DatabasePath string
 	HTTPAddr     string
+	WebRoot      string
 	// APIKey is an optional shared Bearer secret for /api/v1 and /mcp.
 	// Empty disables the API-key auth path; JWT login remains required.
 	APIKey string
@@ -56,6 +57,7 @@ func LoadConfig() (Config, error) {
 	return Config{
 		DatabasePath: envString("DATABASE_PATH", defaultDatabasePath),
 		HTTPAddr:     envString("HTTP_ADDR", defaultHTTPAddr),
+		WebRoot:      os.Getenv("WEB_ROOT"),
 		APIKey:       os.Getenv("MY_FEED_API_KEY"),
 		Auth: AuthConfig{
 			Username:   username,

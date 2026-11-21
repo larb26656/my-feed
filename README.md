@@ -23,15 +23,23 @@ A self-hosted reader that brings RSS Sources and links you collect into one plac
 
 Run commands from the repository root. You need Node.js compatible with Vite 8 (20.19+ or 22.12+), pnpm, and Docker Compose for the backend option below. Local backend development requires Go 1.25.7 or newer and Make.
 
-Start the backend with Docker Compose:
+If upgrading from the former `backend/docker-compose.yml`, stop the old Compose project first (its default project name was `backend`):
+
+```bash
+docker compose -p backend down
+```
+
+This keeps the existing database in `backend/data`.
+
+Start the application with Docker Compose:
 
 ```bash
 make backend:up
 ```
 
-This builds the API, applies Goose migrations, and exposes it on port 8080. SQLite data persists in `backend/data/my-feed.db` on the host.
+Set `MY_FEED_PASSWORD` and `MY_FEED_JWT_SECRET` in your shell or a root `.env` file first. Compose builds one image containing the frontend and backend, applies Goose migrations, and exposes the app at **http://localhost:8080/**. SQLite data persists in `backend/data/my-feed.db` on the host.
 
-Install and start the frontend in another terminal:
+For frontend development with hot reload, start Vite separately:
 
 ```bash
 cd frontend
@@ -54,12 +62,13 @@ Both commands default to `backend/data/my-feed.db`. Stop the API with Ctrl-C. St
 
 ## Configuration
 
-The backend reads environment variables; defaults are listed in [backend/.env.example](backend/.env.example). For local `make backend:dev`, copy that file to `backend/.env` — the Makefile loads it before starting the API. You can also export overrides in your shell. For Docker, configure the service environment in [backend/docker-compose.yml](backend/docker-compose.yml).
+The backend reads environment variables; defaults are listed in [backend/.env.example](backend/.env.example). For local `make backend:dev`, copy that file to `backend/.env` — the Makefile loads it before starting the API. You can also export overrides in your shell. For Docker, configure the service environment in [docker-compose.yml](docker-compose.yml).
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `DATABASE_PATH` | `data/my-feed.db` | SQLite path relative to the backend working directory; Compose uses `/data/my-feed.db` |
-| `HTTP_ADDR` | `:8080` | API listen address |
+| `HTTP_ADDR` | `:8080` | HTTP listen address |
+| `WEB_ROOT` | _(empty)_ | Frontend build directory; the release image sets `/app/web` |
 | `MY_FEED_USERNAME` | _(required)_ | Reader login username |
 | `MY_FEED_PASSWORD` | _(required)_ | Reader login password |
 | `MY_FEED_JWT_SECRET` | _(required)_ | HS256 secret for access JWTs |
@@ -92,7 +101,7 @@ To enable the repository's Git hooks, install [Lefthook](https://lefthook.dev/in
 | Run frontend tests | `cd frontend && pnpm test` |
 | Check frontend lint and formatting | `cd frontend && pnpm check` |
 
-`make backend:build` writes `backend/bin/server`. The frontend build writes `frontend/dist`; serve it with SPA route fallback and route API requests to the backend. Docker Compose currently runs the API only.
+`make backend:build` writes `backend/bin/server`. The frontend build writes `frontend/dist`. The release image serves it with SPA route fallback from the Go server.
 
 ## Architecture
 
@@ -108,7 +117,7 @@ my-feed/
 └── docs/              # Architecture decisions, patterns, and agent guidance
 ```
 
-The backend uses Chi, SQLite, and Goose. Fetch scheduling and execution run inside the API process; no separate worker or message broker is required. Each deployment supports **one backend instance** with its database on a **local filesystem**.
+The backend uses Gin, SQLite, and Goose. Fetch scheduling and execution run inside the API process; no separate worker or message broker is required. Each deployment supports **one backend instance** with its database on a **local filesystem**.
 
 API resources live under `/api/v1/sources`, `/api/v1/entries`, and `/api/v1/fetch-jobs`. See the [Bruno collection](bruno/my-feed/README.md) for request examples.
 

@@ -19,10 +19,10 @@ help:
 	@echo "make tidy            - go mod tidy"
 
 up:
-	mkdir -p data && docker compose up -d --build
+	mkdir -p data && docker compose -f ../docker-compose.yml up -d --build
 
 down:
-	docker compose down
+	docker compose -f ../docker-compose.yml down
 
 migrate:
 	./scripts/migrate.sh up

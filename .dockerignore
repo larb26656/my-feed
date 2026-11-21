@@ -1,0 +1,10 @@
+.git
+.scratch
+.env
+**/.env
+**/.env.*
+backend/data
+backend/bin
+frontend/node_modules
+frontend/dist
+frontend/.tanstack

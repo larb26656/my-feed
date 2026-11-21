@@ -115,6 +115,7 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 	})
 
 	r := httpx.NewRouter()
+	httpx.ServeWeb(r, cfg.WebRoot)
 	apidocs.Register(r)
 
 	r.GET("/healthz", health)
