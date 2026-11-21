@@ -46,7 +46,18 @@ export async function login(username: string, password: string): Promise<void> {
 	setTokens(data.access_token, data.refresh_token);
 }
 
-export async function refreshSession(): Promise<boolean> {
+let refreshInFlight: Promise<boolean> | null = null;
+
+export function refreshSession(): Promise<boolean> {
+	if (!refreshInFlight) {
+		refreshInFlight = performRefresh().finally(() => {
+			refreshInFlight = null;
+		});
+	}
+	return refreshInFlight;
+}
+
+async function performRefresh(): Promise<boolean> {
 	const refreshToken = getRefreshToken();
 	if (!refreshToken) {
 		return false;

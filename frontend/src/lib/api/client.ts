@@ -93,23 +93,17 @@ export async function api<TData, TMeta = undefined>(
 	init?: RequestInit,
 	retried = false,
 ): Promise<ApiResult<TData, TMeta>> {
-	const response = await fetch(`${baseURL()}${path}`, withAuthHeaders(init));
-	let body: unknown;
-	try {
-		body = await response.json();
-	} catch {
-		throw new ApiError(
-			"UNKNOWN",
-			`Request failed (${response.status})`,
-			response.status,
-		);
-	}
-
+	const requestInit = withAuthHeaders(init);
+	const requestToken = new Headers(requestInit.headers).get("Authorization");
+	const response = await fetch(`${baseURL()}${path}`, requestInit);
 	if (
 		response.status === 401 &&
 		!retried &&
 		!isAuthPath(path) &&
-		(await refreshSession())
+		((getAccessToken() &&
+			requestToken !==
+				new Headers(withAuthHeaders(init).headers).get("Authorization")) ||
+			(await refreshSession()))
 	) {
 		return api(path, init, true);
 	}
@@ -122,6 +116,17 @@ export async function api<TData, TMeta = undefined>(
 		) {
 			window.location.assign("/login");
 		}
+	}
+
+	let body: unknown;
+	try {
+		body = await response.json();
+	} catch {
+		throw new ApiError(
+			"UNKNOWN",
+			`Request failed (${response.status})`,
+			response.status,
+		);
 	}
 
 	if (

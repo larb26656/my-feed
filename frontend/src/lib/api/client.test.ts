@@ -156,3 +156,40 @@ test("throws ApiError from a fail envelope", async () => {
 		detail: { field: "link" },
 	});
 });
+
+test("concurrent expired requests share one refresh and both retry", async () => {
+	setTokens("stale-access", "refresh-token");
+	let refreshCalls = 0;
+	const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+		if (String(url).includes("/auth/refresh")) {
+			refreshCalls += 1;
+			await new Promise((resolve) => setTimeout(resolve, 10));
+			return {
+				ok: true,
+				status: 200,
+				json: async () => ({
+					success: true,
+					data: {
+						access_token: "new-access",
+						refresh_token: "new-refresh",
+						expires_in: 900,
+						token_type: "Bearer",
+					},
+				}),
+			};
+		}
+		if (
+			new Headers(init?.headers).get("Authorization") === "Bearer stale-access"
+		) {
+			return { ok: false, status: 401, json: async () => ({ success: false }) };
+		}
+		return {
+			ok: true,
+			status: 200,
+			json: async () => ({ success: true, data: [] }),
+		};
+	});
+	vi.stubGlobal("fetch", fetchMock);
+	await Promise.all([api("/entries/"), api("/sources/")]);
+	expect(refreshCalls).toBe(1);
+});
