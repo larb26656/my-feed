@@ -65,10 +65,12 @@ tidy:
 
 # Generate the OpenAPI document from HTTP handler annotations and Go DTOs.
 openapi:
+	go mod download
 	go run github.com/swaggo/swag/v2/cmd/swag@v2.0.0-rc6 init --v3.1 -g cmd/api/main.go --parseInternal --parseDependencyLevel 1 -o internal/platform/apidocs --outputTypes json
 	python3 scripts/openapi-nullable.py internal/platform/apidocs/swagger.json
 
 check-openapi:
+	@go mod download
 	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT; \
 	go run github.com/swaggo/swag/v2/cmd/swag@v2.0.0-rc6 init --v3.1 -g cmd/api/main.go --parseInternal --parseDependencyLevel 1 -o "$$tmp" --outputTypes json --quiet && \
 	python3 scripts/openapi-nullable.py "$$tmp/swagger.json" && \
