@@ -20,7 +20,7 @@ func (failingSourceAPI) ListSources(context.Context, service.ListSourcesInput) (
 }
 func TestListErrorsUseCentralEnvelope(t *testing.T) {
 	router := httpx.NewRouter()
-	NewHandler(failingSourceAPI{}).RegisterRoutes(router.Group("/sources"))
+	NewHandler(failingSourceAPI{}, nil).RegisterRoutes(router.Group("/sources"))
 	for _, tc := range []struct {
 		path   string
 		status int

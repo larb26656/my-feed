@@ -1,4 +1,4 @@
-package bootstrap
+package service_test
 
 import (
 	"context"
@@ -16,6 +16,7 @@ import (
 	sourcedomain "github.com/larb26656/my-feed/backend/internal/source/domain"
 	sourcerepo "github.com/larb26656/my-feed/backend/internal/source/repository"
 	sourcesvc "github.com/larb26656/my-feed/backend/internal/source/service"
+	sourcelifecycle "github.com/larb26656/my-feed/backend/internal/sourcelifecycle/service"
 )
 
 type transactionTestTransactor struct {
@@ -78,13 +79,7 @@ func TestDeactivateSourceUpdatesSourceAndPendingFetchJobInOneTransaction(t *test
 	sourceRepo := &transactionTestSourceRepo{source: source}
 	fetchRepository := &transactionTestFetchRepo{job: job}
 	fetchService := fetchsvc.New(fetchRepository, nil, nil, nil, nil, time.Minute, time.Minute)
-	api := sourceAPIWithFetch{
-		db:         db,
-		sourceRepo: sourceRepo,
-		fetchRepo:  fetchRepository,
-		inner:      sourcesvc.New(sourceRepo),
-		fetch:      fetchService,
-	}
+	api := sourcelifecycle.New(db, sourcesvc.New(sourceRepo), fetchService)
 
 	_, err = api.DeactivateSource(ctx, source.ID)
 	require.NoError(t, err)
@@ -120,13 +115,7 @@ func TestDeactivateSourcePropagatesFetchJobFailureThroughTransaction(t *testing.
 	sourceRepo := &transactionTestSourceRepo{source: source}
 	failure := errors.New("fetch job update failed")
 	fetchRepository := &failingTransactionTestFetchRepo{transactionTestFetchRepo: &transactionTestFetchRepo{job: job}, err: failure}
-	api := sourceAPIWithFetch{
-		db:         db,
-		sourceRepo: sourceRepo,
-		fetchRepo:  fetchRepository,
-		inner:      sourcesvc.New(sourceRepo),
-		fetch:      fetchsvc.New(fetchRepository, nil, nil, nil, nil, time.Minute, time.Minute),
-	}
+	api := sourcelifecycle.New(db, sourcesvc.New(sourceRepo), fetchsvc.New(fetchRepository, nil, nil, nil, nil, time.Minute, time.Minute))
 
 	_, err = api.DeactivateSource(ctx, source.ID)
 	require.ErrorIs(t, err, failure)

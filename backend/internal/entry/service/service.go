@@ -14,37 +14,15 @@ import (
 	"github.com/larb26656/my-feed/backend/internal/entry/repository"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	"github.com/larb26656/my-feed/backend/internal/platform/cursor"
+	sourceapi "github.com/larb26656/my-feed/backend/internal/source/api"
 )
-
-// SourceType is the Entry module's view of a Source's type (not imported from source/domain).
-type SourceType string
-
-const (
-	SourceTypeRSS     SourceType = "rss"
-	SourceTypeYouTube SourceType = "youtube"
-	SourceTypeManual  SourceType = "manual"
-)
-
-// SourceRef is the Entry module's lookup view of a Source for write-path rules.
-type SourceRef struct {
-	ID     uuid.UUID
-	Type   SourceType
-	Active bool
-}
-
-// Sources is the consumer-defined port Entry uses for Source lookups.
-// Missing Source must surface as apperr.ResourceNotFound. Entry must not import source SQLite.
-type Sources interface {
-	Get(ctx context.Context, id uuid.UUID) (*SourceRef, error)
-	GetManual(ctx context.Context) (*SourceRef, error)
-}
 
 type Service struct {
 	repo    repository.Repository
-	sources Sources
+	sources sourceapi.EntryReader
 }
 
-func New(repo repository.Repository, sources Sources) *Service {
+func New(repo repository.Repository, sources sourceapi.EntryReader) *Service {
 	return &Service{repo: repo, sources: sources}
 }
 
@@ -92,7 +70,7 @@ func (s *Service) IngestEntry(ctx context.Context, in IngestEntryInput) (*Ingest
 	if err != nil {
 		return nil, err
 	}
-	if src.Type != SourceTypeRSS && src.Type != SourceTypeYouTube {
+	if src.Type != sourceapi.SourceTypeRSS && src.Type != sourceapi.SourceTypeYouTube {
 		return nil, apperr.InvalidInput.New("ingest can only record Entries into fetchable Sources")
 	}
 	if !src.Active {

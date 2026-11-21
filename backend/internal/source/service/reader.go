@@ -9,10 +9,21 @@ import (
 	"github.com/larb26656/my-feed/backend/internal/source/domain"
 )
 
-var _ sourceapi.Reader = (*Service)(nil)
+var (
+	_ sourceapi.Reader      = (*Service)(nil)
+	_ sourceapi.EntryReader = (*Service)(nil)
+)
 
 func (s *Service) Get(ctx context.Context, id uuid.UUID) (*sourceapi.SourceRef, error) {
 	src, err := s.GetSource(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return toSourceRef(src), nil
+}
+
+func (s *Service) GetManual(ctx context.Context) (*sourceapi.SourceRef, error) {
+	src, err := s.repo.GetManualSource(ctx)
 	if err != nil {
 		return nil, err
 	}

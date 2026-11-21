@@ -15,7 +15,7 @@ const (
 	SourceTypeManual  SourceType = "manual"
 )
 
-// SourceRef is the Source data needed to schedule and execute Fetch Jobs.
+// SourceRef is the Source data exposed to other modules.
 type SourceRef struct {
 	ID               uuid.UUID
 	Type             SourceType
@@ -29,4 +29,10 @@ type Reader interface {
 	Get(ctx context.Context, id uuid.UUID) (*SourceRef, error)
 	// ListActiveFetchable returns active fetchable Sources (excludes manual and deactivated).
 	ListActiveFetchable(ctx context.Context) ([]SourceRef, error)
+}
+
+// EntryReader provides Source lookups for Entry writes.
+type EntryReader interface {
+	Get(ctx context.Context, id uuid.UUID) (*SourceRef, error)
+	GetManual(ctx context.Context) (*SourceRef, error)
 }

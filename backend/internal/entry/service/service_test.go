@@ -11,6 +11,7 @@ import (
 	"github.com/larb26656/my-feed/backend/internal/entry/repository"
 	"github.com/larb26656/my-feed/backend/internal/entry/service"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
+	sourceapi "github.com/larb26656/my-feed/backend/internal/source/api"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,12 +35,12 @@ func (r upsertRepo) UpdateEntry(_ context.Context, e *domain.Entry) (*domain.Ent
 }
 
 type rssLookup struct {
-	service.Sources
+	sourceapi.EntryReader
 	id uuid.UUID
 }
 
-func (s rssLookup) Get(context.Context, uuid.UUID) (*service.SourceRef, error) {
-	return &service.SourceRef{ID: s.id, Type: service.SourceTypeRSS, Active: true}, nil
+func (s rssLookup) Get(context.Context, uuid.UUID) (*sourceapi.SourceRef, error) {
+	return &sourceapi.SourceRef{ID: s.id, Type: sourceapi.SourceTypeRSS, Active: true}, nil
 }
 
 func TestIngestionRecoversWhenAnotherWriterCreatesTheSameArticleFirst(t *testing.T) {
@@ -59,7 +60,9 @@ func TestIngestionRecoversWhenAnotherWriterCreatesTheSameArticleFirst(t *testing
 			}
 			return winner, nil
 		},
-		create: func(*domain.Entry) (*domain.Entry, error) { return nil, apperr.ResourceConflict.New("another writer won") },
+		create: func(*domain.Entry) (*domain.Entry, error) {
+			return nil, apperr.ResourceConflict.New("another writer won")
+		},
 		update: func(e *domain.Entry) (*domain.Entry, error) { require.Equal(t, winner.ID, e.ID); return e, nil },
 	}
 

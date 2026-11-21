@@ -9,10 +9,12 @@ import (
 	"github.com/google/uuid"
 
 	entryapi "github.com/larb26656/my-feed/backend/internal/entry/api"
+	fetchapi "github.com/larb26656/my-feed/backend/internal/fetch/api"
 	"github.com/larb26656/my-feed/backend/internal/fetch/domain"
 	"github.com/larb26656/my-feed/backend/internal/fetch/repository"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	"github.com/larb26656/my-feed/backend/internal/platform/cursor"
+	"github.com/larb26656/my-feed/backend/internal/platform/database"
 	sourceapi "github.com/larb26656/my-feed/backend/internal/source/api"
 )
 
@@ -156,10 +158,11 @@ func decodeFetchJobCursor(token string, criteria repository.FetchJobListCriteria
 	return &repository.FetchJobListCursor{CreatedAt: payload.CreatedAt.UTC(), ID: payload.ID}, nil
 }
 
-// WithRepository returns a shallow copy that persists through repo (e.g. a transaction).
-func (s *Service) WithRepository(repo repository.Repository) *Service {
+var _ fetchapi.TransactionalSourceLifecycle = (*Service)(nil)
+
+func (s *Service) WithTx(tx database.Transaction) fetchapi.SourceLifecycle {
 	cp := *s
-	cp.repo = repo
+	cp.repo = s.repo.WithTx(tx)
 	return &cp
 }
 
@@ -252,6 +255,16 @@ func (s *Service) CreateManualFetchJob(ctx context.Context, sourceID uuid.UUID) 
 		}
 	}
 
+	return s.createFetchJob(ctx, sourceID)
+}
+
+// QueueInitialJob queues the first Fetch Job for a newly created Source.
+func (s *Service) QueueInitialJob(ctx context.Context, sourceID uuid.UUID) error {
+	_, err := s.createFetchJob(ctx, sourceID)
+	return err
+}
+
+func (s *Service) createFetchJob(ctx context.Context, sourceID uuid.UUID) (*domain.FetchJob, error) {
 	job, err := domain.NewFetchJob(sourceID)
 	if err != nil {
 		return nil, err

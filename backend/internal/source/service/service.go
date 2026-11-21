@@ -8,6 +8,8 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
+	"github.com/larb26656/my-feed/backend/internal/platform/database"
+	sourceapi "github.com/larb26656/my-feed/backend/internal/source/api"
 	"github.com/larb26656/my-feed/backend/internal/source/domain"
 	"github.com/larb26656/my-feed/backend/internal/source/repository"
 )
@@ -20,12 +22,13 @@ func New(repo repository.Repository) *Service {
 	return &Service{repo: repo}
 }
 
-type CreateSourceInput struct {
-	Name             string
-	Type             string
-	RSSURL           string
-	YouTubeChannelID string
+var _ sourceapi.TransactionalLifecycle = (*Service)(nil)
+
+func (s *Service) WithTx(tx database.Transaction) sourceapi.Lifecycle {
+	return New(s.repo.WithTx(tx))
 }
+
+type CreateSourceInput = sourceapi.CreateSourceInput
 
 func (s *Service) CreateSource(ctx context.Context, in CreateSourceInput) (*domain.Source, error) {
 	typ := domain.Type(strings.TrimSpace(in.Type))

@@ -9,27 +9,26 @@ import (
 
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
+	sourceapi "github.com/larb26656/my-feed/backend/internal/source/api"
 	"github.com/larb26656/my-feed/backend/internal/source/domain"
 	"github.com/larb26656/my-feed/backend/internal/source/service"
 )
 
-// SourceAPI is the application surface the HTTP adapter needs.
-// Kept as an interface so bootstrap can wrap cross-module hooks (e.g. fetch on deactivate).
+// SourceAPI exposes operations that only need the Source service.
 type SourceAPI interface {
-	CreateSource(ctx context.Context, in service.CreateSourceInput) (*domain.Source, error)
 	ListSources(ctx context.Context, in service.ListSourcesInput) ([]*domain.Source, error)
 	GetSource(ctx context.Context, id uuid.UUID) (*domain.Source, error)
 	UpdateSource(ctx context.Context, id uuid.UUID, in service.UpdateSourceInput) (*domain.Source, error)
-	DeactivateSource(ctx context.Context, id uuid.UUID) (*domain.Source, error)
 	ReactivateSource(ctx context.Context, id uuid.UUID) (*domain.Source, error)
 }
 
 type Handler struct {
-	svc SourceAPI
+	svc       SourceAPI
+	lifecycle sourceapi.Lifecycle
 }
 
-func NewHandler(svc SourceAPI) *Handler {
-	return &Handler{svc: svc}
+func NewHandler(svc SourceAPI, lifecycle sourceapi.Lifecycle) *Handler {
+	return &Handler{svc: svc, lifecycle: lifecycle}
 }
 
 func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
@@ -49,7 +48,7 @@ func (h *Handler) createSource(c *gin.Context) {
 	if !httpx.BindJSON(c, &req) {
 		return
 	}
-	s, err := h.svc.CreateSource(r.Context(), service.CreateSourceInput{
+	s, err := h.lifecycle.CreateSource(r.Context(), sourceapi.CreateSourceInput{
 		Name:             req.Name,
 		Type:             req.Type,
 		RSSURL:           req.RSSURL,
@@ -127,7 +126,7 @@ func (h *Handler) deactivateSource(c *gin.Context) {
 		_ = c.Error(err)
 		return
 	}
-	s, err := h.svc.DeactivateSource(r.Context(), id)
+	s, err := h.lifecycle.DeactivateSource(r.Context(), id)
 	if err != nil {
 		_ = c.Error(err)
 		return

@@ -32,7 +32,12 @@ import (
 	sourcesqlite "github.com/larb26656/my-feed/backend/internal/source/adapter/sqlite"
 	sourceapi "github.com/larb26656/my-feed/backend/internal/source/api"
 	sourcesvc "github.com/larb26656/my-feed/backend/internal/source/service"
+	sourcelifecycle "github.com/larb26656/my-feed/backend/internal/sourcelifecycle/service"
 )
+
+type realClock struct{}
+
+func (realClock) Now() time.Time { return time.Now().UTC() }
 
 type App struct {
 	Pool   *database.Pool
@@ -57,13 +62,15 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 
 	sourceRepo := sourcesqlite.NewRepository(pool.DB)
 	sourceService := sourcesvc.New(sourceRepo)
+
+	// init default source
 	if _, err := sourceService.EnsureSavedLinks(ctx); err != nil {
 		pool.Close()
 		return nil, fmt.Errorf("ensure saved links source: %w", err)
 	}
 
 	entryRepo := entrysqlite.NewRepository(pool.DB)
-	entryService := entrysvc.New(entryRepo, sourceLookup{repo: sourceRepo})
+	entryService := entrysvc.New(entryRepo, sourceService)
 
 	obtainRegistry := newObtainRegistry(http.DefaultClient)
 
@@ -103,13 +110,8 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 		})
 	})
 
-	sourcehttp.NewHandler(sourceAPIWithFetch{
-		db:         pool,
-		sourceRepo: sourceRepo,
-		fetchRepo:  fetchRepo,
-		inner:      sourceService,
-		fetch:      fetchService,
-	}).RegisterRoutes(r.Group("/api/v1/sources"))
+	sourceLifecycle := sourcelifecycle.New(pool, sourceService, fetchService)
+	sourcehttp.NewHandler(sourceService, sourceLifecycle).RegisterRoutes(r.Group("/api/v1/sources"))
 	entryhttp.NewHandler(entryService).RegisterRoutes(r.Group("/api/v1/entries"))
 	fetchhttp.NewHandler(fetchService).RegisterRoutes(r.Group("/api/v1/fetch-jobs"))
 	prototypehttp.New(prototypesvc.New(memory.New())).RegisterRoutes(r.Group("/api/prototype"))
