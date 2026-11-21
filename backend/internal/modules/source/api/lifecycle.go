@@ -11,6 +11,7 @@ import (
 
 // Source is the public snapshot returned by lifecycle operations.
 type Source struct {
+	ProfileImageID   string
 	ID               uuid.UUID
 	Name             string
 	Type             SourceType

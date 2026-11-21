@@ -17,7 +17,7 @@ afterEach(() => {
 	vi.unstubAllGlobals();
 });
 
-test("combines Source, Saved and unread while retaining names of deactivated Sources", async () => {
+test("combines Source and Saved while retaining names of deactivated Sources", async () => {
 	const calls: string[] = [];
 	vi.stubGlobal(
 		"fetch",
@@ -68,16 +68,13 @@ test("combines Source, Saved and unread while retaining names of deactivated Sou
 		</QueryClientProvider>,
 	);
 	expect(await screen.findAllByText("Deactivated Source")).toHaveLength(2);
-	const user = userEvent.setup();
-	await user.click(screen.getByRole("button", { name: "Unread" }));
 	await waitFor(() =>
 		expect(
 			calls.some((url) => {
 				const params = new URL(url, "http://localhost").searchParams;
 				return (
 					params.get("sourceId") === "inactive" &&
-					params.get("savedOnly") === "true" &&
-					params.get("unread") === "true"
+					params.get("savedOnly") === "true"
 				);
 			}),
 		).toBe(true),

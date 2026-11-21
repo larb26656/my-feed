@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+	cleanup,
+	screen,
+	render as testingRender,
+	within,
+} from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 import { DesktopSidebar } from "./DesktopSidebar";
@@ -57,6 +63,13 @@ vi.mock("#/stores/theme", () => ({
 		select: (state: { theme: string; toggleTheme: () => void }) => unknown,
 	) => select({ theme: "light", toggleTheme: () => undefined }),
 }));
+
+function render(ui: React.ReactElement) {
+	const client = new QueryClient();
+	return testingRender(
+		<QueryClientProvider client={client}>{ui}</QueryClientProvider>,
+	);
+}
 
 afterEach(() => {
 	cleanup();

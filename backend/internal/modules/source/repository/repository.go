@@ -28,5 +28,6 @@ type Repository interface {
 	ListSources(ctx context.Context, filter ListSourcesFilter) ([]*domain.Source, error)
 	ListSourcesPage(ctx context.Context, query SourcePageQuery) ([]*domain.Source, int64, error)
 	UpdateSource(ctx context.Context, s *domain.Source) error
+	SetProfileImage(ctx context.Context, id uuid.UUID, imageID string) error
 	WithTx(tx database.Transaction) Repository
 }

@@ -1,10 +1,16 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "#/components/ui/button";
-import { FormField } from "#/components/ui/form-field";
+import {
+	Field,
+	FieldError,
+	FieldGroup,
+	FieldLabel,
+} from "#/components/ui/field";
+import { Input } from "#/components/ui/input";
 import { login, refreshSession } from "#/lib/auth/session";
 import { getAccessToken, getRefreshToken } from "#/lib/auth/tokens";
 
@@ -59,36 +65,68 @@ function LoginPage() {
 						Use the credentials configured for this instance
 					</p>
 				</div>
-				<form
-					className="space-y-4"
-					onSubmit={form.handleSubmit(submit)}
-					noValidate
-				>
-					<FormField
-						id="username"
-						label="Username"
-						error={form.formState.errors.username?.message}
-						registration={form.register("username")}
-					/>
-					<FormField
-						id="password"
-						label="Password"
-						type="password"
-						error={form.formState.errors.password?.message}
-						registration={form.register("password")}
-					/>
-					{submitError ? (
-						<p className="text-sm text-destructive" role="alert">
-							{submitError}
-						</p>
-					) : null}
-					<Button
-						type="submit"
-						className="w-full"
-						disabled={form.formState.isSubmitting}
-					>
-						{form.formState.isSubmitting ? "Signing in…" : "Sign in"}
-					</Button>
+				<form onSubmit={form.handleSubmit(submit)} noValidate>
+					<FieldGroup>
+						<Controller
+							name="username"
+							control={form.control}
+							render={({ field, fieldState }) => (
+								<Field data-invalid={fieldState.invalid}>
+									<FieldLabel htmlFor="username">Username</FieldLabel>
+									<Input
+										{...field}
+										id="username"
+										aria-invalid={fieldState.invalid}
+										aria-describedby={
+											fieldState.invalid ? "username-error" : undefined
+										}
+									/>
+									{fieldState.invalid && (
+										<FieldError
+											id="username-error"
+											errors={[fieldState.error]}
+										/>
+									)}
+								</Field>
+							)}
+						/>
+						<Controller
+							name="password"
+							control={form.control}
+							render={({ field, fieldState }) => (
+								<Field data-invalid={fieldState.invalid}>
+									<FieldLabel htmlFor="password">Password</FieldLabel>
+									<Input
+										{...field}
+										id="password"
+										type="password"
+										aria-invalid={fieldState.invalid}
+										aria-describedby={
+											fieldState.invalid ? "password-error" : undefined
+										}
+									/>
+									{fieldState.invalid && (
+										<FieldError
+											id="password-error"
+											errors={[fieldState.error]}
+										/>
+									)}
+								</Field>
+							)}
+						/>
+						{submitError ? (
+							<p className="text-sm text-destructive" role="alert">
+								{submitError}
+							</p>
+						) : null}
+						<Button
+							type="submit"
+							className="w-full"
+							disabled={form.formState.isSubmitting}
+						>
+							{form.formState.isSubmitting ? "Signing in…" : "Sign in"}
+						</Button>
+					</FieldGroup>
 				</form>
 			</section>
 		</main>

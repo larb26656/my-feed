@@ -277,7 +277,7 @@ test("paginates Active Sources with the shared DataTable controls", async () => 
 	renderPage();
 	const user = userEvent.setup();
 	await screen.findByRole("table", { name: "active sources" });
-	expect(screen.getByRole("link", { name: "Source 1" })).toBeTruthy();
+	expect(await screen.findByRole("link", { name: "Source 1" })).toBeTruthy();
 	expect(screen.getByRole("link", { name: "Source 10" })).toBeTruthy();
 	expect(screen.queryByRole("link", { name: "Source 11" })).toBeNull();
 	expect(screen.getByText("Page 1 of 2")).toBeTruthy();

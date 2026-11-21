@@ -188,3 +188,13 @@ func newTestApp(t *testing.T, apiKey string) *bootstrap.App {
 	require.NoError(t, err)
 	return app
 }
+
+func TestProfileImageRoutesRequireAuthentication(t *testing.T) {
+	app := newTestApp(t, "test-secret")
+	defer app.Close()
+	for _, method := range []string{http.MethodGet, http.MethodPut, http.MethodDelete} {
+		w := httptest.NewRecorder()
+		app.Router.ServeHTTP(w, httptest.NewRequest(method, "/api/v1/sources/00000000-0000-0000-0000-000000000001/profile-image", nil))
+		require.Equal(t, http.StatusUnauthorized, w.Code)
+	}
+}

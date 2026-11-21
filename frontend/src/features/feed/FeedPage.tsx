@@ -11,7 +11,6 @@ import { FeedFilters } from "./FeedFilters";
 import { FeedList } from "./FeedList";
 import { FeedSkeleton } from "./FeedSkeleton";
 import { useFeedState } from "./FeedState";
-import type { FeedFilter } from "./types";
 export function FeedPage({
 	sourceId,
 	savedOnly = false,
@@ -19,7 +18,6 @@ export function FeedPage({
 	sourceId?: string;
 	savedOnly?: boolean;
 }) {
-	const [filter, setFilter] = useState<FeedFilter>("All");
 	const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 	const { allSources, sourcesLoading, sourcesError } = useFeedState();
 	const source = allSources.find((item) => item.id === sourceId);
@@ -27,7 +25,7 @@ export function FeedPage({
 	const query = useEntries({
 		sourceId,
 		savedOnly,
-		unread: filter === "Unread",
+		unread: false,
 		sortDirection,
 	});
 	const mutation = useToggleEntry();
@@ -95,7 +93,8 @@ export function FeedPage({
 							<>
 								<SourceAvatar
 									name={source.name}
-									image={source.image}
+									imageId={source.profileImageId}
+									sourceId={source.id}
 									size={64}
 								/>
 								<div className="min-w-0 flex-1">
@@ -148,8 +147,6 @@ export function FeedPage({
 				<h1 className="sr-only">{savedOnly ? "Saved" : "My Feed"}</h1>
 			)}
 			<FeedFilters
-				filter={filter}
-				setFilter={setFilter}
 				sortDirection={sortDirection}
 				setSortDirection={setSortDirection}
 			/>

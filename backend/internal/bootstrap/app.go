@@ -29,6 +29,7 @@ import (
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/adapter/runtime"
 	fetchsqlite "github.com/larb26656/my-feed/backend/internal/modules/fetch/adapter/sqlite"
 	fetchsvc "github.com/larb26656/my-feed/backend/internal/modules/fetch/service"
+	filestorage "github.com/larb26656/my-feed/backend/internal/modules/file/service"
 	sourcehttp "github.com/larb26656/my-feed/backend/internal/modules/source/adapter/http"
 	sourcesqlite "github.com/larb26656/my-feed/backend/internal/modules/source/adapter/sqlite"
 	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
@@ -67,6 +68,7 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 
 	sourceRepo := sourcesqlite.NewRepository(pool.DB)
 	sourceService := sourcesvc.New(sourceRepo)
+	sourceService.SetFileStorage(filestorage.New(cfg.UploadsDir))
 
 	// init default source
 	if _, err := sourceService.EnsureSavedLinks(ctx); err != nil {

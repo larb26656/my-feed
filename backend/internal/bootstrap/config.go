@@ -19,6 +19,7 @@ const (
 // Config holds process settings loaded from the environment.
 type Config struct {
 	DatabasePath string
+	UploadsDir   string
 	HTTPAddr     string
 	WebRoot      string
 	// APIKey is an optional shared Bearer secret for /api/v1 and /mcp.
@@ -55,6 +56,7 @@ func LoadConfig() (Config, error) {
 	}
 
 	return Config{
+		UploadsDir:   envString("UPLOADS_DIR", "data/uploads"),
 		DatabasePath: envString("DATABASE_PATH", defaultDatabasePath),
 		HTTPAddr:     envString("HTTP_ADDR", defaultHTTPAddr),
 		WebRoot:      os.Getenv("WEB_ROOT"),

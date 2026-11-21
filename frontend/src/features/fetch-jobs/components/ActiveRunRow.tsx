@@ -22,7 +22,8 @@ export function ActiveRunRow({
 		<article className="flex min-w-0 items-start gap-4 py-4">
 			<SourceAvatar
 				name={source?.name ?? "Unknown source"}
-				image={source?.image}
+				imageId={source?.profileImageId}
+				sourceId={source?.id}
 				size={40}
 			/>
 			<div className="min-w-0 flex-1">

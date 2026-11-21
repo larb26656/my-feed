@@ -13,8 +13,18 @@ export function useSources() {
 	return useQuery({
 		queryKey: sourceKeys.all,
 		queryFn: async () => {
-			const { data } = await api<Source[]>("/sources/?pageSize=100");
-			return data;
+			const sources: Source[] = [];
+			let page = 1;
+			let totalPages = 1;
+			do {
+				const result = await api<Source[], PageMeta>(
+					`/sources/?pageSize=100&page=${page}`,
+				);
+				sources.push(...result.data);
+				totalPages = result.meta?.totalPages ?? 1;
+				page++;
+			} while (page <= totalPages);
+			return sources;
 		},
 	});
 }

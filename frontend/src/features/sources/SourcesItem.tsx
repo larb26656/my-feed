@@ -1,4 +1,4 @@
-import { Ellipsis, Pencil, Power } from "lucide-react";
+import { Camera, Ellipsis, Pencil, Power } from "lucide-react";
 import { useState } from "react";
 import { Button } from "#/components/ui/button";
 import type { Source } from "#/features/feed/types";
@@ -8,6 +8,7 @@ type SourcesItemProps = {
 	activationPending: boolean;
 	activationSourceId?: string;
 	onEdit: (source: Source) => void;
+	onImage: (source: Source) => void;
 	onToggleActive: (source: Source) => void;
 };
 
@@ -16,6 +17,7 @@ export function SourcesItem({
 	activationPending,
 	activationSourceId,
 	onEdit,
+	onImage,
 	onToggleActive,
 }: SourcesItemProps) {
 	const [menuOpen, setMenuOpen] = useState(false);
@@ -51,6 +53,18 @@ export function SourcesItem({
 					>
 						<Pencil size={14} />
 						Edit source
+					</button>
+					<button
+						type="button"
+						role="menuitem"
+						className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-muted"
+						onClick={() => {
+							setMenuOpen(false);
+							onImage(source);
+						}}
+					>
+						<Camera size={14} aria-hidden="true" />
+						Change profile image
 					</button>
 					<button
 						type="button"

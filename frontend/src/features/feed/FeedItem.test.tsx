@@ -1,5 +1,10 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+	cleanup,
+	screen,
+	render as testingRender,
+} from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { FeedItem } from "./FeedItem";
 import type { Entry } from "./types";
@@ -18,6 +23,13 @@ vi.mock("@tanstack/react-router", () => ({
 		</a>
 	),
 }));
+
+function render(ui: React.ReactElement) {
+	const client = new QueryClient();
+	return testingRender(
+		<QueryClientProvider client={client}>{ui}</QueryClientProvider>,
+	);
+}
 
 afterEach(cleanup);
 

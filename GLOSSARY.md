@@ -16,6 +16,10 @@ _Avoid_: subscription, channel, soft delete
 The kind of Source, which determines how Entries arrive and what configuration it needs (`rss`, `manual`, or `youtube`, which follows one YouTube channel). The `rss` type accepts both RSS and Atom documents from a URL; the document format does not define a separate Source Type. The type is fixed when the Source is created.
 _Avoid_: source kind, provider, connector
 
+**Source Profile Image**:
+An optional image chosen by the reader to represent a fetchable Source, whether active or deactivated. The manual Source cannot have a Source Profile Image.
+_Avoid_: thumbnail (for a Source)
+
 **Saved**:
 A reader bookmark on an Entry (the time the reader marked it saved). Distinct from recording a new Entry from a link the reader found.
 _Avoid_: read later, save for later, bookmark (as a separate entity)

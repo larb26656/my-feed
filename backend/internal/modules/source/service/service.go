@@ -1,10 +1,18 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"image"
+	_ "image/jpeg"
+	_ "image/png"
+	"log/slog"
 	"strings"
+	"sync"
+
+	fileapi "github.com/larb26656/my-feed/backend/internal/modules/file/api"
 
 	"github.com/google/uuid"
 
@@ -16,17 +24,19 @@ import (
 )
 
 type Service struct {
-	repo repository.Repository
+	repo    repository.Repository
+	files   fileapi.Storage
+	imageMu *sync.Mutex
 }
 
 func New(repo repository.Repository) *Service {
-	return &Service{repo: repo}
+	return &Service{repo: repo, imageMu: &sync.Mutex{}}
 }
 
 var _ sourceapi.TransactionalLifecycle = (*Service)(nil)
 
 func (s *Service) WithTx(tx database.Transaction) sourceapi.Lifecycle {
-	return New(s.repo.WithTx(tx))
+	return &Service{repo: s.repo.WithTx(tx), files: s.files, imageMu: s.imageMu}
 }
 
 type CreateSourceInput = sourceapi.CreateSourceInput
@@ -175,6 +185,7 @@ func isConflict(err error) bool {
 
 func lifecycleSnapshot(src *domain.Source) *sourceapi.Source {
 	return &sourceapi.Source{
+		ProfileImageID:   src.ProfileImageID,
 		ID:               src.ID,
 		Name:             src.Name,
 		Type:             sourceapi.SourceType(src.Type),
@@ -184,4 +195,91 @@ func lifecycleSnapshot(src *domain.Source) *sourceapi.Source {
 		CreatedAt:        src.CreatedAt,
 		UpdatedAt:        src.UpdatedAt,
 	}
+}
+
+// SetFileStorage injects the file module at bootstrap.
+func (s *Service) SetFileStorage(files fileapi.Storage) { s.files = files }
+
+func (s *Service) ReplaceProfileImage(ctx context.Context, id uuid.UUID, data []byte) (*domain.Source, error) {
+	s.imageMu.Lock()
+	defer s.imageMu.Unlock()
+	src, err := s.repo.GetSourceByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("get source for profile image: %w", err)
+	}
+	if err := src.ValidateProfileImageChange(); err != nil {
+		return nil, err
+	}
+	if len(data) == 0 || len(data) > 2*1024*1024 {
+		return nil, apperr.InvalidInput.New("image must be at most 2 MB")
+	}
+	_, format, err := image.Decode(bytes.NewReader(data))
+	if err != nil || (format != "png" && format != "jpeg") {
+		return nil, apperr.InvalidInput.New("image must be a valid JPEG or PNG")
+	}
+	if s.files == nil {
+		return nil, fmt.Errorf("file storage unavailable")
+	}
+	newID, err := s.files.Save(ctx, data)
+	if err != nil {
+		return nil, fmt.Errorf("save profile image: %w", err)
+	}
+	if err := s.repo.SetProfileImage(ctx, id, newID); err != nil {
+		if cleanup := s.files.Delete(ctx, newID); cleanup != nil {
+			slog.Error("cleanup new profile image", "error", cleanup)
+		}
+		return nil, fmt.Errorf("set profile image association: %w", err)
+	}
+	old := src.ProfileImageID
+	_ = src.SetProfileImage(newID)
+	if old != "" {
+		if err := s.files.Delete(ctx, old); err != nil {
+			slog.Error("cleanup old profile image", "error", err)
+		}
+	}
+	return src, nil
+}
+
+func (s *Service) RemoveProfileImage(ctx context.Context, id uuid.UUID) (*domain.Source, error) {
+	s.imageMu.Lock()
+	defer s.imageMu.Unlock()
+	src, err := s.repo.GetSourceByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("get source for profile image: %w", err)
+	}
+	if err := src.ValidateProfileImageChange(); err != nil {
+		return nil, err
+	}
+	old := src.ProfileImageID
+	if old == "" {
+		return src, nil
+	}
+	if err := s.repo.SetProfileImage(ctx, id, ""); err != nil {
+		return nil, fmt.Errorf("remove profile image association: %w", err)
+	}
+	_ = src.SetProfileImage("")
+	if s.files == nil {
+		slog.Error("cleanup old profile image", "error", "file storage unavailable")
+	} else if err := s.files.Delete(ctx, old); err != nil {
+		slog.Error("cleanup old profile image", "error", err)
+	}
+	return src, nil
+}
+
+func (s *Service) GetProfileImage(ctx context.Context, id uuid.UUID) ([]byte, error) {
+	src, err := s.repo.GetSourceByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("get source for profile image: %w", err)
+	}
+	if src.ProfileImageID == "" {
+		return nil, apperr.ResourceNotFound.New("profile image not found")
+	}
+	if s.files == nil {
+		return nil, fmt.Errorf("file storage unavailable")
+	}
+	data, err := s.files.Read(ctx, src.ProfileImageID)
+	if err != nil {
+		return nil, fmt.Errorf("read profile image: %w", err)
+	}
+	return data, nil
 }

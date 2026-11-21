@@ -424,6 +424,12 @@
                     "name": {
                         "type": "string"
                     },
+                    "profileImageId": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "rssUrl": {
                         "type": [
                             "string",
@@ -2000,6 +2006,121 @@
                     }
                 },
                 "summary": "Deactivate Source",
+                "tags": [
+                    "Sources"
+                ]
+            }
+        },
+        "/api/v1/sources/{id}/profile-image": {
+            "delete": {
+                "parameters": [
+                    {
+                        "description": "Source ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_source_adapter_http_sourceResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "summary": "Remove Source profile image",
+                "tags": [
+                    "Sources"
+                ]
+            },
+            "get": {
+                "parameters": [
+                    {
+                        "description": "Source ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "image/jpeg": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "image/png": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "description": "Image bytes"
+                    }
+                },
+                "summary": "Get Source profile image",
+                "tags": [
+                    "Sources"
+                ]
+            },
+            "put": {
+                "parameters": [
+                    {
+                        "description": "Source ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "items": {
+                                    "type": "integer"
+                                },
+                                "title": "image",
+                                "type": "array"
+                            }
+                        },
+                        "application/octet-stream": {
+                            "schema": {
+                                "format": "binary",
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "description": "JPEG or PNG, up to 2 MB",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_source_adapter_http_sourceResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "summary": "Replace Source profile image",
                 "tags": [
                     "Sources"
                 ]

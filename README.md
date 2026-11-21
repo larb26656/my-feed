@@ -194,3 +194,9 @@ API resources live under `/api/v1/sources`, `/api/v1/entries`, and `/api/v1/fetc
 - [Domain glossary](GLOSSARY.md) — Entry, Source, Saved, and Fetch Job terminology.
 - [Architecture decisions](docs/adr/) — module boundaries, fetching, and SQLite deployment.
 - [Backend patterns](docs/patterns/architecture.md) — implementation conventions.
+
+### Backing up Source Profile Images
+
+Source Profile Images are stored in `UPLOADS_DIR` (default `data/uploads` when running the backend locally). Docker Compose sets it to `/data/uploads` in the same persistent volume as the SQLite database.
+
+Stop the application and any other writers before copying the SQLite database and uploads directory together. Keep both copies as one backup. To restore, stop the application, replace both the database and uploads with the matching copies from that backup, and then restart the application. Restoring only one of the pair can leave images missing or unreferenced.

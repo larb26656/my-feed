@@ -116,7 +116,12 @@ export function DesktopSidebar() {
 						active={path === `/sources/${source.id}`}
 						variant="source"
 					>
-						<SourceAvatar name={source.name} image={source.image} size={24} />
+						<SourceAvatar
+							name={source.name}
+							imageId={source.profileImageId}
+							sourceId={source.id}
+							size={24}
+						/>
 						<span className="truncate">{source.name}</span>
 					</NavItem>
 				))}

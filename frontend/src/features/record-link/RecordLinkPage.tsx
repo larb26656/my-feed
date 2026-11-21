@@ -1,8 +1,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "#/components/ui/button";
-import { FormField } from "#/components/ui/form-field";
+import {
+	Field,
+	FieldError,
+	FieldGroup,
+	FieldLabel,
+} from "#/components/ui/field";
+import { Input } from "#/components/ui/input";
 import { toastManager } from "#/components/ui/toaster";
 import { useSaveLink } from "#/hooks/queries";
 
@@ -67,51 +73,142 @@ export function RecordLinkPage() {
 				Add a link as an entry in the “Saved links” source
 			</p>
 			<form
-				className="mt-6 space-y-4 rounded-xl border bg-card p-5"
+				className="mt-6 rounded-xl border bg-card p-5"
 				onSubmit={form.handleSubmit(submit)}
 				noValidate
 			>
-				<FormField
-					id="entry-title"
-					label="Entry title"
-					error={form.formState.errors.title?.message}
-					registration={form.register("title")}
-				/>
-				<FormField
-					id="entry-link"
-					label="Link"
-					type="url"
-					error={form.formState.errors.link?.message}
-					registration={form.register("link")}
-				/>
-				<FormField
-					id="entry-description"
-					label="Description"
-					error={form.formState.errors.description?.message}
-					registration={form.register("description")}
-				/>
-				<FormField
-					id="entry-thumbnail"
-					label="Image URL (optional)"
-					type="url"
-					error={form.formState.errors.thumbnail?.message}
-					registration={form.register("thumbnail")}
-				/>
-				<FormField
-					id="entry-published-at"
-					label="Publication date (optional)"
-					type="datetime-local"
-					error={form.formState.errors.publishedAt?.message}
-					registration={form.register("publishedAt")}
-				/>
-				{mutation.isError && (
-					<p role="alert" className="text-sm text-destructive">
-						Could not save link: {mutation.error.message}
-					</p>
-				)}
-				<Button type="submit" disabled={mutation.isPending}>
-					{mutation.isPending ? "Saving..." : "Save Link"}
-				</Button>
+				<FieldGroup>
+					<Controller
+						name="title"
+						control={form.control}
+						render={({ field, fieldState }) => (
+							<Field data-invalid={fieldState.invalid}>
+								<FieldLabel htmlFor="entry-title">Entry title</FieldLabel>
+								<Input
+									{...field}
+									id="entry-title"
+									aria-invalid={fieldState.invalid}
+									aria-describedby={
+										fieldState.invalid ? "entry-title-error" : undefined
+									}
+								/>
+								{fieldState.invalid && (
+									<FieldError
+										id="entry-title-error"
+										errors={[fieldState.error]}
+									/>
+								)}
+							</Field>
+						)}
+					/>
+					<Controller
+						name="link"
+						control={form.control}
+						render={({ field, fieldState }) => (
+							<Field data-invalid={fieldState.invalid}>
+								<FieldLabel htmlFor="entry-link">Link</FieldLabel>
+								<Input
+									{...field}
+									id="entry-link"
+									type="url"
+									aria-invalid={fieldState.invalid}
+									aria-describedby={
+										fieldState.invalid ? "entry-link-error" : undefined
+									}
+								/>
+								{fieldState.invalid && (
+									<FieldError
+										id="entry-link-error"
+										errors={[fieldState.error]}
+									/>
+								)}
+							</Field>
+						)}
+					/>
+					<Controller
+						name="description"
+						control={form.control}
+						render={({ field, fieldState }) => (
+							<Field data-invalid={fieldState.invalid}>
+								<FieldLabel htmlFor="entry-description">Description</FieldLabel>
+								<Input
+									{...field}
+									id="entry-description"
+									aria-invalid={fieldState.invalid}
+									aria-describedby={
+										fieldState.invalid ? "entry-description-error" : undefined
+									}
+								/>
+								{fieldState.invalid && (
+									<FieldError
+										id="entry-description-error"
+										errors={[fieldState.error]}
+									/>
+								)}
+							</Field>
+						)}
+					/>
+					<Controller
+						name="thumbnail"
+						control={form.control}
+						render={({ field, fieldState }) => (
+							<Field data-invalid={fieldState.invalid}>
+								<FieldLabel htmlFor="entry-thumbnail">
+									Image URL (optional)
+								</FieldLabel>
+								<Input
+									{...field}
+									id="entry-thumbnail"
+									type="url"
+									aria-invalid={fieldState.invalid}
+									aria-describedby={
+										fieldState.invalid ? "entry-thumbnail-error" : undefined
+									}
+								/>
+								{fieldState.invalid && (
+									<FieldError
+										id="entry-thumbnail-error"
+										errors={[fieldState.error]}
+									/>
+								)}
+							</Field>
+						)}
+					/>
+					<Controller
+						name="publishedAt"
+						control={form.control}
+						render={({ field, fieldState }) => (
+							<Field data-invalid={fieldState.invalid}>
+								<FieldLabel htmlFor="entry-published-at">
+									Publication date (optional)
+								</FieldLabel>
+								<Input
+									{...field}
+									id="entry-published-at"
+									type="datetime-local"
+									aria-invalid={fieldState.invalid}
+									aria-describedby={
+										fieldState.invalid ? "entry-published-at-error" : undefined
+									}
+								/>
+								{fieldState.invalid && (
+									<FieldError
+										id="entry-published-at-error"
+										errors={[fieldState.error]}
+									/>
+								)}
+							</Field>
+						)}
+					/>
+					{mutation.isError && (
+						<p role="alert" className="text-sm text-destructive">
+							Could not save link: {mutation.error.message}
+						</p>
+					)}
+					<Button type="submit" disabled={mutation.isPending}>
+						{mutation.isPending ? "Saving..." : "Save Link"}
+					</Button>
+				</FieldGroup>
 			</form>
 		</section>
 	);

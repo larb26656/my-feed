@@ -164,3 +164,13 @@ export async function api<TData, TMeta = undefined>(
 	const success = body as SuccessEnvelope<TData, TMeta>;
 	return { data: success.data, meta: success.meta };
 }
+
+/** Fetch an authenticated image as a Blob for use in an avatar. */
+export async function fetchImage(path: string, retried = false): Promise<Blob> {
+	const response = await fetch(`${baseURL()}${path}`, withAuthHeaders());
+	if (response.status === 401 && !retried && (await refreshSession()))
+		return fetchImage(path, true);
+	if (!response.ok)
+		throw new Error(`Could not load image (${response.status})`);
+	return response.blob();
+}

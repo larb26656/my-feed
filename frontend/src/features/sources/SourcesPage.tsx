@@ -2,14 +2,13 @@ import { Link } from "@tanstack/react-router";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import { useState } from "react";
 import { DataTable } from "#/components/data-table/DataTable";
-import { ErrorState } from "#/components/ErrorState";
 import { SourceAvatar } from "#/components/SourceAvatar";
 import { SourceTypeBadge } from "#/components/SourceTypeBadge";
 import { Button } from "#/components/ui/button";
-import { Skeleton } from "#/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "#/components/ui/tabs";
 import { toastManager } from "#/components/ui/toaster";
 import type { Source } from "#/features/feed/types";
+import { ProfileImageDialog } from "#/features/sources/ProfileImageDialog";
 import { SourceDialog } from "#/features/sources/SourceDialog";
 import { SourcesItem } from "#/features/sources/SourcesItem";
 import { SourcesSearch } from "#/features/sources/SourcesSearch";
@@ -40,6 +39,7 @@ export function SourcesPage() {
 	const [sorting, setSorting] = useState<SortingState>([
 		{ id: "name", desc: false },
 	]);
+	const [imageSource, setImageSource] = useState<Source | null>(null);
 	const [editing, setEditing] = useState<Source | null>(null);
 	const [showForm, setShowForm] = useState(false);
 	const activationMutation = useSetSourceActive();
@@ -88,7 +88,12 @@ export function SourcesPage() {
 				const source = row.original;
 				return (
 					<div className="flex min-w-0 items-center gap-3">
-						<SourceAvatar name={source.name} image={source.image} size={32} />
+						<SourceAvatar
+							name={source.name}
+							imageId={source.profileImageId}
+							sourceId={source.id}
+							size={32}
+						/>
 						<Link
 							to="/sources/$sourceId"
 							params={{ sourceId: source.id }}
@@ -135,6 +140,7 @@ export function SourcesPage() {
 					activationPending={activationMutation.isPending}
 					activationSourceId={activationMutation.variables?.id}
 					onEdit={openEdit}
+					onImage={setImageSource}
 					onToggleActive={(item) => {
 						activationMutation.reset();
 						activationMutation.mutate(
@@ -147,36 +153,24 @@ export function SourcesPage() {
 		},
 	];
 
-	const tableContent = sourcesQuery.isError ? (
-		<ErrorState
-			size="compact"
-			error={sourcesQuery.error ?? "Sources unavailable"}
-			message="Could not load sources. Please try again"
-			action={
-				<Button onClick={() => void sourcesQuery.refetch()}>Try again</Button>
-			}
-		/>
-	) : sourcesQuery.isLoading && !sourcesQuery.data ? (
-		<div className="space-y-3" aria-busy="true">
-			<span className="sr-only">Loading sources</span>
-			{["first", "second", "third"].map((row) => (
-				<div
-					key={row}
-					className="flex items-center gap-3 rounded-xl border p-4"
-				>
-					<Skeleton className="size-8 rounded-full" />
-					<div className="flex-1 space-y-2">
-						<Skeleton className="h-4 w-40 max-w-2/3" />
-						<Skeleton className="h-3 w-28" />
-					</div>
-					<Skeleton className="h-9 w-9" />
-				</div>
-			))}
-		</div>
-	) : (
+	const tableContent = (
 		<DataTable
 			columns={columns}
 			data={sources}
+			isLoading={sourcesQuery.isFetching}
+			error={
+				sourcesQuery.isError
+					? {
+							error: sourcesQuery.error ?? "Sources unavailable",
+							message: "Could not load sources. Please try again",
+							action: (
+								<Button onClick={() => void sourcesQuery.refetch()}>
+									Try again
+								</Button>
+							),
+						}
+					: undefined
+			}
 			getRowId={(source) => source.id}
 			ariaLabel={`${tab} sources`}
 			sorting={{
@@ -218,6 +212,12 @@ export function SourcesPage() {
 				<Button onClick={openCreate}>Add Source</Button>
 			</div>
 
+			{imageSource && (
+				<ProfileImageDialog
+					source={imageSource}
+					onClose={() => setImageSource(null)}
+				/>
+			)}
 			{showForm && (
 				<SourceDialog editing={editing} onClose={() => setShowForm(false)} />
 			)}

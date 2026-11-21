@@ -72,7 +72,7 @@ func (r *Repository) ListSourcesPage(ctx context.Context, q repository.SourcePag
 	query := `WITH filtered AS (SELECT * FROM sources` + clause + `),
 		page AS (SELECT * FROM filtered ORDER BY ` + column + " " + direction + `, id ASC LIMIT ? OFFSET ?)
 		SELECT page.id, page.name, page.type, page.rss_url, page.youtube_channel_id,
-		page.active, page.created_at, page.updated_at, (SELECT count(*) FROM filtered)
+		page.active, page.created_at, page.updated_at, page.profile_image_id, (SELECT count(*) FROM filtered)
 		FROM (SELECT 1) LEFT JOIN page ON 1=1 ORDER BY page.` + column + " " + direction + ", page.id ASC"
 	offset := math.MaxInt
 	if q.Page-1 <= math.MaxInt/q.PageSize {
@@ -87,10 +87,10 @@ func (r *Repository) ListSourcesPage(ctx context.Context, q repository.SourcePag
 	out := make([]*domain.Source, 0)
 	var total int64
 	for rows.Next() {
-		var id, name, typ, rssURL, channelID sql.NullString
+		var id, name, typ, rssURL, channelID, imageID sql.NullString
 		var active sql.NullBool
 		var createdAt, updatedAt sql.NullInt64
-		if err := rows.Scan(&id, &name, &typ, &rssURL, &channelID, &active, &createdAt, &updatedAt, &total); err != nil {
+		if err := rows.Scan(&id, &name, &typ, &rssURL, &channelID, &active, &createdAt, &updatedAt, &imageID, &total); err != nil {
 			return nil, 0, err
 		}
 		if !id.Valid {
@@ -100,7 +100,7 @@ func (r *Repository) ListSourcesPage(ctx context.Context, q repository.SourcePag
 		if err != nil {
 			return nil, 0, err
 		}
-		out = append(out, &domain.Source{ID: parsedID, Name: name.String, Type: domain.Type(typ.String), RSSURL: rssURL.String, YouTubeChannelID: channelID.String, Active: active.Bool, CreatedAt: unixTime(createdAt.Int64), UpdatedAt: unixTime(updatedAt.Int64)})
+		out = append(out, &domain.Source{ProfileImageID: imageID.String, ID: parsedID, Name: name.String, Type: domain.Type(typ.String), RSSURL: rssURL.String, YouTubeChannelID: channelID.String, Active: active.Bool, CreatedAt: unixTime(createdAt.Int64), UpdatedAt: unixTime(updatedAt.Int64)})
 	}
 	return out, total, rows.Err()
 }
@@ -143,15 +143,15 @@ func (r *Repository) CreateSource(ctx context.Context, s *domain.Source) error {
 }
 
 func (r *Repository) GetSourceByID(ctx context.Context, id uuid.UUID) (*domain.Source, error) {
-	return scanSource(r.q.QueryRowContext(ctx, `SELECT id, name, type, rss_url, youtube_channel_id, active, created_at, updated_at FROM sources WHERE id = ?`, id.String()))
+	return scanSource(r.q.QueryRowContext(ctx, `SELECT id, name, type, rss_url, youtube_channel_id, active, created_at, updated_at, profile_image_id FROM sources WHERE id = ?`, id.String()))
 }
 
 func (r *Repository) GetManualSource(ctx context.Context) (*domain.Source, error) {
-	return scanSource(r.q.QueryRowContext(ctx, `SELECT id, name, type, rss_url, youtube_channel_id, active, created_at, updated_at FROM sources WHERE type = ? LIMIT 1`, string(domain.TypeManual)))
+	return scanSource(r.q.QueryRowContext(ctx, `SELECT id, name, type, rss_url, youtube_channel_id, active, created_at, updated_at, profile_image_id FROM sources WHERE type = ? LIMIT 1`, string(domain.TypeManual)))
 }
 
 func (r *Repository) ListSources(ctx context.Context, filter repository.ListSourcesFilter) ([]*domain.Source, error) {
-	query := `SELECT id, name, type, rss_url, youtube_channel_id, active, created_at, updated_at FROM sources`
+	query := `SELECT id, name, type, rss_url, youtube_channel_id, active, created_at, updated_at, profile_image_id FROM sources`
 	if !filter.IncludeDeactivated {
 		query += ` WHERE active = 1`
 	}
@@ -200,10 +200,10 @@ type scanner interface{ Scan(...any) error }
 func scanSource(row scanner) (*domain.Source, error) {
 	var s domain.Source
 	var typ, id string
-	var rssURL, channelID sql.NullString
+	var rssURL, channelID, imageID sql.NullString
 	var active bool
 	var createdAt, updatedAt int64
-	if err := row.Scan(&id, &s.Name, &typ, &rssURL, &channelID, &active, &createdAt, &updatedAt); err != nil {
+	if err := row.Scan(&id, &s.Name, &typ, &rssURL, &channelID, &active, &createdAt, &updatedAt, &imageID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, apperr.ResourceNotFound.Wrap(err, "source not found")
 		}
@@ -214,6 +214,7 @@ func scanSource(row scanner) (*domain.Source, error) {
 		return nil, err
 	}
 	s.ID, s.Type, s.Active = parsedID, domain.Type(typ), active
+	s.ProfileImageID = imageID.String
 	if rssURL.Valid {
 		s.RSSURL = rssURL.String
 	}
@@ -226,3 +227,22 @@ func scanSource(row scanner) (*domain.Source, error) {
 }
 
 func unixTime(n int64) time.Time { return time.Unix(0, n).UTC() }
+
+func (r *Repository) SetProfileImage(ctx context.Context, id uuid.UUID, imageID string) error {
+	var value any
+	if imageID != "" {
+		value = imageID
+	}
+	result, err := r.q.ExecContext(ctx, `UPDATE sources SET profile_image_id = ? WHERE id = ?`, value, id.String())
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return apperr.ResourceNotFound.New("source not found")
+	}
+	return nil
+}

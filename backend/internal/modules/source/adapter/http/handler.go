@@ -1,6 +1,7 @@
 package http
 
 import (
+	"io"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -28,6 +29,9 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("", h.listSources)
 	r.GET("/:id", h.getSource)
 	r.PATCH("/:id", h.updateSource)
+	r.PUT("/:id/profile-image", h.replaceProfileImage)
+	r.GET("/:id/profile-image", h.getProfileImage)
+	r.DELETE("/:id/profile-image", h.removeProfileImage)
 	r.POST("/:id/deactivate", h.deactivateSource)
 	r.POST("/:id/reactivate", h.reactivateSource)
 }
@@ -216,4 +220,72 @@ func parseID(c *gin.Context, invalidMsg string) (uuid.UUID, error) {
 		return uuid.Nil, apperr.InvalidInput.Wrap(err, invalidMsg)
 	}
 	return id, nil
+}
+
+// @Summary Replace Source profile image
+// @Tags Sources
+// @Accept application/octet-stream
+// @Produce json
+// @Param id path string true "Source ID"
+// @Param image body []byte true "JPEG or PNG, up to 2 MB"
+// @Success 200 {object} httpx.SuccessResponse[sourceResponse]
+// @Router /api/v1/sources/{id}/profile-image [put]
+func (h *Handler) replaceProfileImage(c *gin.Context) {
+	id, err := parseID(c, "invalid source id")
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	data, err := io.ReadAll(io.LimitReader(c.Request.Body, 2*1024*1024+1))
+	if err != nil {
+		_ = c.Error(apperr.InvalidInput.Wrap(err, "invalid image"))
+		return
+	}
+	src, err := h.svc.ReplaceProfileImage(c.Request.Context(), id, data)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	c.JSON(http.StatusOK, httpx.Success(toSourceResponse(src)))
+}
+
+// @Summary Get Source profile image
+// @Tags Sources
+// @Produce image/jpeg,image/png
+// @Param id path string true "Source ID"
+// @Success 200 {string} string "Image bytes"
+// @Router /api/v1/sources/{id}/profile-image [get]
+func (h *Handler) getProfileImage(c *gin.Context) {
+	id, err := parseID(c, "invalid source id")
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	data, err := h.svc.GetProfileImage(c.Request.Context(), id)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	c.Header("Cache-Control", "private, no-store")
+	c.Data(http.StatusOK, http.DetectContentType(data), data)
+}
+
+// @Summary Remove Source profile image
+// @Tags Sources
+// @Produce json
+// @Param id path string true "Source ID"
+// @Success 200 {object} httpx.SuccessResponse[sourceResponse]
+// @Router /api/v1/sources/{id}/profile-image [delete]
+func (h *Handler) removeProfileImage(c *gin.Context) {
+	id, err := parseID(c, "invalid source id")
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	src, err := h.svc.RemoveProfileImage(c.Request.Context(), id)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	c.JSON(http.StatusOK, httpx.Success(toSourceResponse(src)))
 }

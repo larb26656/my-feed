@@ -45,7 +45,11 @@ export function FeedItem({
 				aria-label={`View ${source?.name ?? "Source"} feed`}
 				className="shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-primary"
 			>
-				<SourceAvatar name={source?.name ?? "Source"} image={source?.image} />
+				<SourceAvatar
+					name={source?.name ?? "Source"}
+					imageId={source?.profileImageId}
+					sourceId={source?.id}
+				/>
 			</Link>
 			<div className="min-w-0 flex-1">
 				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">

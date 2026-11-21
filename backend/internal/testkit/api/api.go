@@ -9,6 +9,7 @@ import (
 	entryhttp "github.com/larb26656/my-feed/backend/internal/modules/entry/adapter/http"
 	entrysqlite "github.com/larb26656/my-feed/backend/internal/modules/entry/adapter/sqlite"
 	entrysvc "github.com/larb26656/my-feed/backend/internal/modules/entry/service"
+	filestorage "github.com/larb26656/my-feed/backend/internal/modules/file/service"
 	sourcehttp "github.com/larb26656/my-feed/backend/internal/modules/source/adapter/http"
 	sourcesqlite "github.com/larb26656/my-feed/backend/internal/modules/source/adapter/sqlite"
 	sourcesvc "github.com/larb26656/my-feed/backend/internal/modules/source/service"
@@ -21,9 +22,15 @@ import (
 // separately cover fetch hooks and worker wiring.
 func New(t testing.TB) *gin.Engine {
 	t.Helper()
+	return NewWithUploads(t, t.TempDir())
+}
+
+func NewWithUploads(t testing.TB, uploads string) *gin.Engine {
+	t.Helper()
 	pool := testkit.NewDatabase(t)
 	sourceRepo := sourcesqlite.NewRepository(pool.DB)
 	sources := sourcesvc.New(sourceRepo)
+	sources.SetFileStorage(filestorage.New(uploads))
 	_, err := sources.EnsureSavedLinks(context.Background())
 	require.NoError(t, err)
 	entries := entrysvc.New(entrysqlite.NewRepository(pool.DB), sources)

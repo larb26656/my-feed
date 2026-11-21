@@ -10,6 +10,7 @@ import (
 )
 
 type sourceResponse struct {
+	ProfileImageID   *string   `json:"profileImageId" extensions:"x-nullable"`
 	ID               uuid.UUID `json:"id"`
 	Name             string    `json:"name"`
 	Type             string    `json:"type"`
@@ -22,6 +23,7 @@ type sourceResponse struct {
 
 func toSourceResponse(s *domain.Source) sourceResponse {
 	resp := sourceResponse{ID: s.ID, Name: s.Name, Type: string(s.Type), Active: s.Active, CreatedAt: s.CreatedAt.UTC(), UpdatedAt: s.UpdatedAt.UTC()}
+	resp.ProfileImageID = optionalString(s.ProfileImageID)
 	resp.RSSURL = optionalString(s.RSSURL)
 	resp.YouTubeChannelID = optionalString(s.YouTubeChannelID)
 	return resp
@@ -29,6 +31,7 @@ func toSourceResponse(s *domain.Source) sourceResponse {
 
 func toLifecycleResponse(s *sourceapi.Source) sourceResponse {
 	return sourceResponse{
+		ProfileImageID:   optionalString(s.ProfileImageID),
 		ID:               s.ID,
 		Name:             s.Name,
 		Type:             string(s.Type),

@@ -12,10 +12,10 @@
     "preview": "vite preview",
     "format": "biome format",
     "lint": "biome lint",
-		"check": "biome check",
-		"test": "vitest run",
-		"openapi:generate": "openapi-typescript ../backend/internal/platform/apidocs/swagger.json -o src/lib/api/schema.d.ts",
-		"openapi:check": "openapi-typescript ../backend/internal/platform/apidocs/swagger.json -o /tmp/my-feed-openapi-schema.d.ts && diff -u src/lib/api/schema.d.ts /tmp/my-feed-openapi-schema.d.ts"
+    "check": "biome check",
+    "test": "vitest run",
+    "openapi:generate": "openapi-typescript ../backend/internal/platform/apidocs/swagger.json -o src/lib/api/schema.d.ts",
+    "openapi:check": "openapi-typescript ../backend/internal/platform/apidocs/swagger.json -o /tmp/my-feed-openapi-schema.d.ts && diff -u src/lib/api/schema.d.ts /tmp/my-feed-openapi-schema.d.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
@@ -34,6 +34,7 @@
     "lucide-react": "^1.73.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-easy-crop": "^6.2.5",
     "react-hook-form": "^7.92.0",
     "shadcn": "^4.23.0",
     "tailwindcss": "^4.1.18",

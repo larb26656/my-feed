@@ -22,6 +22,7 @@ const (
 )
 
 type Source struct {
+	ProfileImageID   string
 	ID               uuid.UUID
 	Name             string
 	Type             Type
@@ -133,5 +134,21 @@ func (s *Source) UpdateDetails(name, feedURL string) error {
 	s.Name = name
 	s.RSSURL = feedURL
 	s.UpdatedAt = time.Now().UTC()
+	return nil
+}
+
+// ValidateProfileImageChange enforces the Source image invariant.
+func (s *Source) ValidateProfileImageChange() error {
+	if s.Type == TypeManual {
+		return ErrManualSourceImmutable.New("manual sources cannot have profile images")
+	}
+	return nil
+}
+
+func (s *Source) SetProfileImage(id string) error {
+	if err := s.ValidateProfileImageChange(); err != nil {
+		return err
+	}
+	s.ProfileImageID = id
 	return nil
 }

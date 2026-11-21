@@ -27,8 +27,7 @@ export type Source = {
 	youtubeChannelId?: string | null;
 	createdAt?: string;
 	updatedAt?: string;
-	/** Client-only avatar override; not part of the wire contract. */
-	image?: string | null;
+	profileImageId?: string | null;
 };
 
 export type FetchJobStatus = "pending" | "running" | "succeeded" | "failed";

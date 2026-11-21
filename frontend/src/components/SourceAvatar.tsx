@@ -1,24 +1,47 @@
 import { Avatar, Style } from "@dicebear/core";
 import definition from "@dicebear/styles/loops.json" with { type: "json" };
-import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { fetchImage } from "#/lib/api/client";
 import { cn } from "#/lib/utils";
 
 const loops = new Style(definition);
 
 export function SourceAvatar({
 	name,
-	image,
+	imageId,
+	sourceId,
 	size = 40,
 	className,
 }: {
 	name: string;
-	image?: string | null;
+	imageId?: string | null;
+	sourceId?: string;
 	size?: number;
 	className?: string;
 }) {
+	const { data: blob } = useQuery({
+		queryKey: ["source-profile-image", sourceId, imageId],
+		queryFn: () => fetchImage(`/sources/${sourceId}/profile-image`),
+		enabled: Boolean(sourceId && imageId),
+		retry: false,
+	});
+	const [image, setImage] = useState<{ blob: Blob; url: string } | null>(null);
+	useEffect(() => {
+		if (!blob) {
+			setImage(null);
+			return;
+		}
+		const url = URL.createObjectURL(blob);
+		setImage({ blob, url });
+		return () => URL.revokeObjectURL(url);
+	}, [blob]);
 	const [failedImage, setFailedImage] = useState<string | null>(null);
 	const seed = name.trim() || "Source";
-	const sourceImage = image && failedImage !== image ? image : undefined;
+	const sourceImage =
+		image && image.blob === blob && failedImage !== image.url
+			? image.url
+			: undefined;
 	const generatedImage = useMemo(
 		() =>
 			new Avatar(loops, {

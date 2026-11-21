@@ -8,7 +8,11 @@ import {
 	useReactTable,
 } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { useMemo } from "react";
+import { ErrorState, type ErrorStateProps } from "#/components/ErrorState";
+import { NoDataState } from "#/components/NoDataState";
 import { Button } from "#/components/ui/button";
+import { Skeleton } from "#/components/ui/skeleton";
 import {
 	DataTablePagination,
 	type DataTablePaginationConfig,
@@ -25,6 +29,8 @@ type DataTableProps<TData> = {
 	data: TData[];
 	getRowId?: (row: TData, index: number) => string;
 	emptyMessage?: string;
+	error?: ErrorStateProps;
+	isLoading?: boolean;
 	ariaLabel?: string;
 	pagination?: DataTablePaginationConfig;
 	sorting?: { value: SortingState; onChange: OnChangeFn<SortingState> };
@@ -39,6 +45,8 @@ export function DataTable<TData>({
 	data,
 	getRowId,
 	emptyMessage = "No results",
+	error,
+	isLoading = false,
 	ariaLabel = "Data table",
 	pagination,
 	sorting,
@@ -86,10 +94,29 @@ export function DataTable<TData>({
 			: undefined,
 	});
 
+	const columnCount = table.getVisibleLeafColumns().length;
+	const skeletonWidths = useMemo(
+		() =>
+			Array.from({ length: 4 }, () =>
+				Array.from(
+					{ length: columnCount },
+					() => `${50 + Math.floor(Math.random() * 51)}%`,
+				),
+			),
+		[columnCount],
+	);
+
 	return (
 		<div className="space-y-3">
-			<div className="overflow-x-auto rounded-xl border">
-				<table className="w-full text-left text-sm" aria-label={ariaLabel}>
+			<div className="min-h-80 overflow-x-auto rounded-xl border">
+				<table
+					className="w-full text-left text-sm"
+					aria-label={ariaLabel}
+					aria-busy={isLoading}
+				>
+					{isLoading && (
+						<caption className="sr-only">Loading {ariaLabel}</caption>
+					)}
 					<thead className="bg-muted/60 text-muted-foreground">
 						{table.getHeaderGroups().map((headerGroup) => (
 							<tr key={headerGroup.id} className="border-b">
@@ -138,7 +165,22 @@ export function DataTable<TData>({
 						))}
 					</thead>
 					<tbody className="divide-y">
-						{table.getRowModel().rows.length ? (
+						{isLoading ? (
+							["first", "second", "third", "fourth"].map((row, rowIndex) => (
+								<tr key={row}>
+									{table.getVisibleLeafColumns().map((column, columnIndex) => (
+										<td key={column.id} className="px-4 py-3">
+											<Skeleton
+												className="h-5 max-w-40"
+												style={{
+													width: skeletonWidths[rowIndex]?.[columnIndex],
+												}}
+											/>
+										</td>
+									))}
+								</tr>
+							))
+						) : !error && table.getRowModel().rows.length ? (
 							table.getRowModel().rows.map((row) => (
 								<tr key={row.id} className="hover:bg-muted/30">
 									{row.getVisibleCells().map((cell) => (
@@ -155,9 +197,13 @@ export function DataTable<TData>({
 							<tr>
 								<td
 									colSpan={Math.max(table.getVisibleLeafColumns().length, 1)}
-									className="px-4 py-10 text-center text-muted-foreground"
+									className="p-0"
 								>
-									{emptyMessage}
+									{error ? (
+										<ErrorState {...error} />
+									) : (
+										<NoDataState title={emptyMessage} />
+									)}
 								</td>
 							</tr>
 						)}
@@ -165,7 +211,7 @@ export function DataTable<TData>({
 				</table>
 			</div>
 
-			{pagination && (
+			{pagination && !error && (
 				<DataTablePagination
 					pagination={pagination}
 					canPreviousPage={table.getCanPreviousPage()}
