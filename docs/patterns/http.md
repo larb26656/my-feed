@@ -1,68 +1,66 @@
-# HTTP Adapter Pattern
+# HTTP API pattern
 
-## โครง handler
+For an existing endpoint, use its handler and route tests to identify the status codes, response fields, and pagination behavior clients depend on before editing it.
 
-```go
-type Handler struct {
-    svc *service.Service
-}
+## Wire the route
 
-func NewHandler(svc *service.Service) *Handler { ... }
+Define resource routes in the module's `RegisterRoutes`. Bootstrap constructs the repository, service, and handler and supplies the route prefix.
 
-func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
-    r.POST("/", h.create)
-    r.POST("", h.create) // collection path without trailing slash
-    r.GET("/:id", h.get)
-    // command-style: POST /:id/publish
-}
-```
+## Handle the request
 
-Bootstrap owns the prefix and uses the same registration as HTTP tests:
+1. Bind path, query, and body values in the HTTP adapter. Keep request DTOs and binding tags in `request.go`. Use `httpx.BindJSON` for JSON and Gin's `ShouldBindQuery` for query parameters.
+2. Pass `c.Request.Context()` and the mapped input to the service. The service applies operation rules and calls the repository port.
+3. Map the result to the response DTO in `response.go`. Return `201 Created` for creation and `200 OK` for reads and commands that return the resulting resource.
 
-```go
-producthttp.NewHandler(productService).RegisterRoutes(r.Group("/api/v1/products"))
-```
+## Write the response
 
-Handlers use `*gin.Context` for parameters and pass `c.Request.Context()` to services. Use `platform/http.NewRouter` for request IDs, recovery, untrusted forwarded headers and compatible routing responses.
+| Outcome | Response contract |
+| --- | --- |
+| Single resource | `httpx.Success(dto)` returns `success: true` and `data`. |
+| Cursor list | `httpx.Cursor(items, pageSize, nextCursor)` adds `meta.pageSize` and includes `meta.nextCursor` when another page exists. |
+| Page-number list | `httpx.Page(items, page, pageSize, total)` adds `meta.page`, `meta.pageSize`, `meta.total`, and `meta.totalPages`. |
 
-## Request / response
+Pass an empty slice to either list helper to return `data: []`.
 
-- Request DTO ในไฟล์ handler (`createRequest`) พร้อม `json` tags
-- Map → `service.CreateInput` (ไม่ส่ง DTO เข้า domain)
-- Response DTO แยก (`productResponse`) — แปลงจาก domain ใน `toResponse`
-- Decode ด้วย `platform/http.DecodeJSON` (`DisallowUnknownFields`)
-- สำเร็จ: `WriteJSON` + status ที่เหมาะสม (`201` สร้างใหม่, `200` อ่าน/อัปเดต)
-- ล้มเหลว: `WriteError` — แปลงจาก `apperr.Error`
+## Handle errors
 
-## Routing style
+See the [application error pattern](./errors.md) for how to define, construct, and wrap typed errors.
 
-| แบบ | ใช้เมื่อ |
-|-----|---------|
-| `POST /` | สร้าง resource |
-| `GET /{id}` | อ่าน |
-| `PATCH /{id}` | partial update ที่ domain รองรับ |
-| `POST /{id}/{action}` | คำสั่งธุรกิจ (`publish`, `archive`, `cancel`) |
+- JSON binding failures are reported by `httpx.BindJSON` through `httpx.InvalidRequest`. Return immediately when binding fails.
+- Convert query binding failures to a typed invalid-input error and report it through `c.Error(err)`.
+- For service errors, call `c.Error(err)` and return before writing the response. The router's `httpx.ErrorMiddleware` maps typed errors centrally and hides internal details on unexpected failures.
 
-อย่าซ่อน state transition ไว้ใน `PUT` ทั้งก้อนถ้าโดเมนมีคำสั่งชัดเจน
+| Failure | HTTP status | Error code |
+| --- | --- | --- |
+| Invalid JSON body, query, operation input, or cursor | 400 Bad Request | `validation` |
+| Unknown resource ID | 404 Not Found | `NOT_FOUND` |
+| Application conflict | 409 Conflict | Code from the error definition |
+| Unexpected failure | 500 Internal Server Error | `INTERNAL_SERVER_ERROR` |
 
-## Error → HTTP (ผ่าน apperr)
-
-| Code | HTTP (โดยประมาณ) |
-|------|------------------|
-| `validation` | 400 |
-| `not_found` | 404 |
-| `conflict` / `idempotency_conflict` | 409 |
-| `failed_precondition` / business exhausted | 422 |
-| อื่นๆ ที่ไม่รู้จัก | 500 (ข้อความไม่รั่วรายละเอียดภายใน) |
-
-Body มาตรฐาน:
+For example, a domain conflict defined with code `CONFLICT` produces this envelope. The middleware includes `error.detail` when the typed error supplies it.
 
 ```json
-{ "error": "message", "code": "validation" }
+{
+  "success": false,
+  "error": {
+    "code": "CONFLICT",
+    "message": "Resource already exists"
+  }
+}
 ```
 
-## Handler ไม่ทำ
+## Paginate list requests
 
-- เปิด DB transaction
-- ตรวจ invariant ที่ซ้ำกับ domain (ยกเว้น parse UUID / รูปแบบ request ตื้นๆ)
-- Import adapter/sqlite
+### Page numbers
+
+Initialize `httpx.PageOption` with `httpx.NewPageOption()` before binding the query. The defaults are `page=1` and `pageSize=10`. Apply the same filters to the page query and the total count, and pass the total before pagination to `httpx.Page`. The helper computes `totalPages` from the total and page size.
+
+### Cursors
+
+Initialize `httpx.CursorPageOption` with `httpx.NewCursorPageOption()` and embed it in the query DTO alongside the endpoint's filters and sort options. The repository filters and orders the result before seeking past the cursor. The client sends `meta.nextCursor` as `cursor` with the same filters and sort options.
+
+For SQLite, derive the cursor from the query's ordering and its tie-breaker so rows that share a sort value can be paged consistently.
+
+## Verify at the route boundary
+
+Run requests through `httptest` and the module's `RegisterRoutes`. Include the router's error middleware when checking the error envelope. Cover query binding and continuation across filtered, sorted pages. For Entry and Source, see the [backend test strategy](../testing/backend-tests.md).

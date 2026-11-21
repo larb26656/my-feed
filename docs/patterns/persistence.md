@@ -1,8 +1,8 @@
-# Persistence Pattern
+# Persistence pattern
 
-## Port อยู่ที่ `repository/`
+## Repository port
 
-Interface เป็นสัญญาของ module — explicit operations ไม่ใช่ generic `Save(T)`
+Define the module's persistence contract in `repository/`. Give each operation a method that expresses its intent. Use names such as `ReserveStock` or `Redeem` for operations that must enforce a rule under concurrent writes.
 
 ```go
 type Repository interface {
@@ -15,21 +15,41 @@ type Repository interface {
 }
 ```
 
-ตั้งชื่อ method ตามเจตนาธุรกิจเมื่อเป็น concurrency-sensitive (`ReserveStock`, `Redeem`) ไม่ใช่แค่ `Update` คลุมเครือ
-
 ## SQLite adapter
 
-```
-internal/{module}/adapter/sqlite/repository.go
+Place the implementation in `internal/{module}/adapter/sqlite/`.
+
+1. Use a `Querier` interface for the execution and query methods shared by the database handle and a transaction.
+2. Construct the adapter with `NewRepository(pool)` for ordinary requests.
+3. Have `WithTx(tx)` return a new repository instance bound to the supplied transaction. Return the port type so callers can use the same contract inside and outside the transaction.
+
+Keep SQL in the adapter, use `database/sql`, and route service persistence calls through the port. Use the platform transaction helper when coordinating multiple operations in one transaction. Keep SQL and error translation with the owning module.
+
+## Error translation
+
+Translate recognized storage failures into typed application errors at the adapter boundary. Check shared definitions first, then use a domain definition when callers need to distinguish a specific condition. Use `Definition.Wrap` to preserve the original error in the chain and supply a client-safe message. See the [application error pattern](./errors.md).
+
+For example, a lookup that requires a row can translate `sql.ErrNoRows` into `apperr.ResourceNotFound`.
+
+```go
+if errors.Is(err, sql.ErrNoRows) {
+    return nil, apperr.ResourceNotFound.Wrap(err, "Product not found")
+}
+if err != nil {
+    return nil, fmt.Errorf("get product by ID: %w", err)
+}
 ```
 
-รูปแบบที่ต้องมี:
+For a recognized uniqueness violation, check that it matches the constraint for the operation before returning the appropriate conflict definition with `Wrap`. For failures without an application mapping, return `fmt.Errorf("operation: %w", err)` to add context and preserve the cause. When a successful statement reports zero affected rows and the operation requires a change, use `Definition.New` for the application failure.
 
-1. **`Querier` interface** ครอบ `Exec` / `Query` / `QueryRow` — ให้รับได้ทั้ง pool และ tx
-2. **`NewRepository(pool)`** สำหรับ request ปกติ
-3. **`WithTx(tx)`** คืน instance ใหม่ที่ชี้ SQLite transaction เดียวกัน (type เป็น port)
-4. Map SQLite errors → `apperr` (unique → `Conflict`, 0 rows ที่ต้องเจอ → `NotFound`)
-5. Conditional update สำหรับแข่งกัน:
+## Enforce invariants in the domain and database
+
+| Layer | Responsibility |
+| --- | --- |
+| Domain | Validate quantities and allowed state transitions before writing. |
+| Database | Enforce invariants under concurrent writes with `UNIQUE`, `CHECK`, and conditional updates. |
+
+For example, reserve stock only when the product is available and has sufficient stock.
 
 ```sql
 UPDATE products
@@ -37,19 +57,4 @@ SET stock = stock - $2
 WHERE id = $1 AND stock >= $2 AND status = 'AVAILABLE'
 ```
 
-`RowsAffected() == 0` → fail ด้วย error ธุรกิจที่เหมาะสม แล้วให้ tx rollback
-
-## สองชั้นบังคับ invariant
-
-| ชั้น | ตัวอย่าง |
-|------|----------|
-| Domain | ปฏิเสธ transition / qty ไม่พอ ก่อนเขียน |
-| Database | UNIQUE, CHECK, conditional UPDATE |
-
-อย่าเลือกอย่างใดอย่างหนึ่งอย่างเดียวถ้ามี concurrency จริง
-
-## สิ่งที่ห้าม
-
-- Module เรียก `*sql.DB` ตรงๆ จาก service โดยข้าม port (ยกเว้น `WithinTransaction` ที่ platform)
-- Shared “BaseRepository” ที่ซ่อน SQL ต่างโดเมนไว้ที่เดียวก่อนมีเหตุผลจริง
-- ใช้ ORM เป็นค่าเริ่มต้นของ pattern นี้
+Check `RowsAffected()` after the update. If it returns zero, return the application error required by the repository contract so the enclosing transaction can roll back. The predicate combines multiple conditions, so identifying a specific reason may require further information.

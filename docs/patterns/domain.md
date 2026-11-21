@@ -1,15 +1,22 @@
-# Domain Pattern
+# Domain pattern
 
-## หลักการ
+## Design principles
 
-1. **Aggregate root** เป็นเจ้าของ state และ transition
-2. สร้างผ่าน factory (`New…`) ที่ validate ทันที
-3. เปลี่ยน state ผ่าน **method ที่มีชื่อทางธุรกิจ** เท่านั้น — ไม่มี public setter สำหรับ status / stock / usage ที่ข้าม rule
-4. Error ใช้ `platform/apperr` (`Validation`, `FailedPrecondition`, …) ไม่ใช่ `fmt.Errorf` เปล่าๆ สำหรับเคสธุรกิจ
+1. The aggregate root owns its state and enforces the rules for changing it.
+2. Validate required inputs in the factory and initialize the aggregate in a valid state.
+3. Expose methods named for business actions, such as `Publish` or `ReserveStock`. Keep fields such as status, stock, and usage private when changing them directly could bypass an invariant.
+4. Return typed `apperr` errors for business failures. See the [application error pattern](./errors.md) for shared definitions, module-specific codes, and structured details.
 
-## โครง type มาตรฐาน
+## Example aggregate
 
 ```go
+// domain/error.go
+var ErrProductNotDraft = apperr.Definition{
+    Kind: apperr.KindConflict,
+    Code: "PRODUCT_NOT_DRAFT",
+}
+
+// domain/product.go
 type Status string
 
 const (
@@ -19,38 +26,35 @@ const (
 
 type Product struct {
     ID        uuid.UUID
-    // ... fields
-    Status    Status
+    status    Status
     CreatedAt time.Time
     UpdatedAt time.Time
 }
 
-func NewProduct(/* required attrs */) (*Product, error) {
-    // validate → return apperr.Validation(...)
-    // set initial status, timestamps, id
+func (p *Product) Status() Status {
+    return p.status
 }
 
 func (p *Product) Publish() error {
-    if p.Status != StatusDraft {
-        return apperr.FailedPrecondition("only DRAFT products can be published")
+    if p.status != StatusDraft {
+        return ErrProductNotDraft.New("Only draft products can be published")
     }
-    p.Status = StatusAvailable
+    p.status = StatusAvailable
     p.UpdatedAt = time.Now().UTC()
     return nil
 }
 ```
 
-## Checklist ตอนเขียน domain
+A `NewProduct` factory validates required attributes and sets the ID, timestamps, and initial status. Use a shared invalid-input definition when it describes the failure.
 
-- [ ] Invariant อ่านจาก method ได้โดยไม่ต้องเปิด SQL
-- [ ] State machine ชัด (ค่าคงที่ status + เงื่อนไขก่อนเปลี่ยน)
-- [ ] Money เป็นจำนวนเต็มหน่วยย่อย (`int64`) ถ้ามีราคา/ส่วนลด
-- [ ] Snapshot ฟิลด์ที่ต้องคงประวัติ (เช่น order line `unit_price`) อยู่ที่ aggregate ปลายทาง
-- [ ] มี unit test ใน `domain/*_test.go` ครอบคลุม happy path + transition ผิด
+## Domain checklist
 
-## สิ่งที่ domain ไม่ทำ
+- [ ] Express invariants in domain methods so their rules can be read directly from the Go code.
+- [ ] Define status constants and check the current state before applying a transition.
+- [ ] Represent money in integer minor units (`int64`) for prices and discounts.
+- [ ] Store historical snapshots in the aggregate that owns the record, such as the unit price on an order line.
+- [ ] Cover successful behavior and rejected transitions in `domain/*_test.go`.
 
-- ไม่เปิด transaction
-- ไม่เรียก repository
-- ไม่ map JSON tag เพื่อ HTTP (persistence mapping อยู่ adapter)
-- ไม่ “เผื่อ” event bus ถ้ายังไม่มี requirement
+## Layer boundaries
+
+Keep transactions and repository calls in the layers that coordinate persistence. Map HTTP DTOs and database rows in their adapters. Add event publishing when a concrete workflow requires it.

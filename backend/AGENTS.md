@@ -16,11 +16,11 @@ Default `DATABASE_PATH` and `HTTP_ADDR`: `backend/.env.example`. Compose mounts 
 
 ## Stack
 
-Go + gin + SQLite. No ORM, no message broker. HTTP via gin; SQL via `database/sql` and modernc SQLite; schema via Goose + `migrations/` SQL files. Run one backend instance with its database on a local persistent filesystem. Business errors: `platform/apperr`. Overview: `docs/patterns/README.md`.
+Go + gin + SQLite. No ORM, no message broker. HTTP via gin; SQL via `database/sql` and modernc SQLite; schema via Goose + `migrations/` SQL files. Run one backend instance with its database on a local persistent filesystem. Business errors: `platform/apperr`.
 
 ## Architecture
 
-Hexagonal modular monolith (ports & adapters). Dependency direction and cut-outs: `docs/patterns/architecture.md`. Decision record: `docs/adr/0001-architecture.md`.
+Read and follow the [backend architecture pattern](../docs/patterns/architecture.md) when designing, implementing, or reviewing backend changes.
 
 ## Module scaffold
 

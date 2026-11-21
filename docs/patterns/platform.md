@@ -4,17 +4,14 @@
 
 ```
 internal/platform/
-  apperr/       # typed application errors + HTTP status mapping
+  apperr/       # typed application errors
   database/     # SQLite database/sql connection + WithinTransaction
   http/         # DecodeJSON, WriteJSON, WriteError
 ```
 
 ## `apperr`
 
-- Type `Error` มี `Code` + `Message` + `HTTPStatus()`
-- Factory: `Validation`, `NotFound`, `Conflict`, `FailedPrecondition`, …
-- Domain และ adapters คืน `*apperr.Error` สำหรับเคสที่ client ต้องแยกชนิดได้
-- เพิ่ม code ใหม่เมื่อมีเคสธุรกิจซ้ำๆ — อย่าใส่ชื่อ module เฉพาะใน platform ถ้าใช้ครั้งเดียว (ใส่ใน domain ของ module นั้นแล้ว map ใน adapter ได้)
+See the [application error pattern](./errors.md) for shared and module-specific error definitions.
 
 ## `database`
 

@@ -19,9 +19,6 @@ type Definition struct {
 	Code string
 }
 
-var InvalidInput = Definition{Kind: KindInvalid, Code: "validation"}
-var ResourceNotFound = Definition{Kind: KindNotFound, Code: "NOT_FOUND"}
-
 type AppError struct {
 	Definition
 	Message string

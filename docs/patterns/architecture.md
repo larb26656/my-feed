@@ -1,67 +1,47 @@
 # Architecture
 
-## สไตล์
+## Modular monolith
 
-**Modular monolith + hexagonal (ports & adapters)**
+The Go backend runs as a single process and uses hexagonal architecture to keep business logic behind ports. Source and Entry own their respective domain rules. Fetch owns the Fetch Job lifecycle and coordinates with Source and Entry through injected ports. Bootstrap wires the modules and starts the in-process scheduler and executor. See [ADR 0001](../adr/0001-architecture.md) and [ADR 0002](../adr/0002-in-process-fetch.md).
 
-- แต่ละ business module เป็น bounded context ภายใน process เดียว
-- Domain ไม่รู้จัก HTTP / SQL
-- Application service คุยกับ persistence ผ่าน **repository port** (interface)
-- Adapter อยู่ขอบนอก: `adapter/http`, `adapter/sqlite`
-- Cross-module ผ่าน port ที่ inject — **ห้าม** import adapter ของ module อื่น
+## Dependency direction
+
+Arrows show package dependencies.
 
 ```mermaid
-flowchart TB
-  HTTP[adapter/http] --> SVC[service]
-  SVC --> DOM[domain]
-  SVC --> PORT[repository port]
-  DB[adapter/sqlite] --> PORT
-  BOOT[bootstrap] --> HTTP
-  BOOT --> SVC
-  BOOT --> DB
-  XMOD[cross-module use case] --> PORT
+flowchart TD
+    CMD["cmd/api"] --> BOOT["bootstrap"]
+    BOOT --> HTTP["adapter/http"]
+    BOOT --> SERVICE["service"]
+    BOOT --> SQLITE["adapter/sqlite"]
+    HTTP --> SERVICE
+    HTTP --> DOMAIN["domain"]
+    SERVICE --> DOMAIN
+    SERVICE --> REPO["repository port"]
+    SQLITE --> REPO
+    SQLITE --> DOMAIN
+    REPO --> DOMAIN
+    REPO --> TX["platform/database transaction types"]
+    DOMAIN --> ERR["platform/apperr"]
 ```
 
-## Dependency direction (บังคับ)
+Keep HTTP and SQLite dependencies in adapters. Services depend on repository contracts with explicit operations. Repository ports may use the shared transaction type for `WithTx`. Connect modules through injected ports and wire concrete adapters in bootstrap.
 
-```
-cmd/ → bootstrap → (http adapters, services, SQLite adapters)
-service → domain, repository (port)
-adapter/http → service, domain (mapping เท่านั้น), platform
-adapter/sqlite → domain, repository (implements port), platform
-domain → platform/apperr เท่านั้น (ไม่ import service/adapter)
-```
+## Layer responsibilities
 
-| อนุญาต | ห้าม |
-|--------|------|
-| `service` เรียก domain method | domain import `database/sql` / `gin` / HTTP types |
-| `service` พึ่ง `repository.Repository` interface | module A import `moduleB/adapter/sqlite` |
-| cross-module ใช้ port ของหลาย module | generic `Save(any)` เป็น API หลักของ repo |
-| DB constraint + conditional UPDATE เสริม domain | public setter ที่ข้าม state machine |
+| Layer | Responsibility |
+| --- | --- |
+| Domain | Own aggregate invariants, initial state, and transitions. Define module-specific application errors. [Domain pattern](./domain.md) |
+| Application service | Coordinate domain operations and persistence. Own transaction boundaries for operations that require atomic writes. [Application service pattern](./application.md) |
+| Repository port and SQLite adapter | Declare persistence operations in the port. Implement SQL, row mapping, constraints, and storage error translation in the adapter. [Persistence pattern](./persistence.md) |
+| HTTP adapter | Register routes, bind request DTOs, invoke services, and map results to response DTOs. [HTTP API pattern](./http.md) |
+| Platform | Provide shared database and transaction primitives, typed errors, and HTTP helpers. [Application error pattern](./errors.md) |
+| Bootstrap | Construct concrete dependencies, mount routes, and manage process-level wiring. [Module scaffold](./module-scaffold.md) |
 
-## ชั้นความรับผิดชอบ
+## Consistency boundaries
 
-| ชั้น | รับผิดชอบ |
-|------|-----------|
-| **domain** | Invariants, state transitions, factory (`New…`) |
-| **service** (module) | Load → domain method → persist |
-| **service** (use case) | Orchestrate หลาย aggregate ใน 1 transaction |
-| **repository port** | Explicit operations + `WithTx` |
-| **adapter/sqlite** | SQL, map rows ↔ domain, map unique/check → `apperr` |
-| **adapter/http** | Decode/encode JSON, status code, เรียก service |
-| **platform** | Pool/tx, `apperr`, HTTP write helpers |
-| **bootstrap** | Wire dependencies, mount routes |
+An aggregate enforces its own invariants through domain methods. A use case can coordinate changes across aggregates or modules. When those writes must commit together, the use case uses the platform's `WithinTransaction` helper and binds participating repositories to the same transaction with `WithTx`. SQLite constraints and conditional updates enforce persistence invariants under concurrent writes.
 
-## Aggregate vs use case
+## Deployment scope
 
-- **Aggregate** = consistency boundary ใน module (`Product`, `Coupon`, `Order`)
-- **Use case ข้าม module** (เช่น Checkout, Cancel-with-restitution) = application service คนละแพ็กเกจ ไม่ใช่ aggregate
-- Use case เหล่านี้ถือ transaction ที่ `platform/database.Pool.WithinTransaction`
-
-## ขอบเขตที่ตั้งใจตัดออก (อย่าเพิ่มตอน init ถ้ายังไม่จำเป็น)
-
-- ORM / repository generic CRUD
-- Domain events + outbox / message broker
-- CQRS แยก read model
-- Microservice ต่อ module
-- Soft-delete / audit framework ทั้งระบบ
+The backend uses Gin, SQLite through `database/sql`, and Goose migrations. The API and fetch workers share the process. See the [SQLite deployment decision](../adr/0003-sqlite-for-self-hosting.md) for storage constraints. Introduce additional infrastructure or patterns such as an outbox, separate read models, or a separate worker process when a concrete requirement calls for them.

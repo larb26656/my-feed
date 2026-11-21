@@ -105,4 +105,4 @@ API resources live under `/api/v1/sources`, `/api/v1/entries`, and `/api/v1/fetc
 
 - [Domain glossary](GLOSSARY.md) — Entry, Source, Saved, and Fetch Job terminology.
 - [Architecture decisions](docs/adr/) — module boundaries, fetching, and SQLite deployment.
-- [Backend patterns](docs/patterns/README.md) — implementation conventions.
+- [Backend patterns](docs/patterns/architecture.md) — implementation conventions.

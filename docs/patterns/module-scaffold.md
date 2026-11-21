@@ -1,69 +1,51 @@
-# Module Scaffold
+# Module scaffold
 
-แม่แบบโฟลเดอร์เมื่อเพิ่ม module / bounded context ใหม่ชื่อ `{module}`
+Use this layout when adding a module under `backend/internal/`. Add packages and files as their responsibilities appear.
 
-## โครงมาตรฐาน
+## Directory layout
 
-```
+```text
 internal/{module}/
   domain/
-    {entity}.go          # aggregate root + methods
-    {entity}_test.go     # unit tests (ไม่ต้องมี DB)
+    {entity}.go          # Aggregate state, invariants, and transitions
+    {entity}_test.go     # Domain tests with no database dependency
+    error.go             # Module-specific application error definitions
   repository/
-    repository.go        # port (interface) เท่านั้น
+    {entity}.go          # Repository port and query types
   service/
-    service.go           # application service ของ module
+    {entity}.go          # Application operations and service inputs
   adapter/
     http/
-      handler.go         # Gin routes + DTO
+      handler.go         # Gin routes and request handling
+      request.go         # Request DTOs, query options, and binding tags
+      response.go        # Response DTOs and domain-to-response mapping
     sqlite/
-      repository.go      # implements repository.Repository
+      {entity}.go        # SQL implementation of the repository port
 ```
 
-Cross-module use case (ถ้ามี) แยกแพ็กเกจระดับ `internal/` ไม่ฝังใน module เดียว:
+## Package responsibilities
 
-```
-internal/{usecase}/
-  service/
-    service.go           # orchestrate หลาย repository ports + WithinTransaction
-```
+| Package | Responsibility |
+| --- | --- |
+| `domain` | Own aggregate invariants and transitions. Define custom errors in `error.go` after checking the shared definitions. See [Application error pattern](./errors.md). |
+| `repository` | Declare the persistence operations and query types that the module uses. See [Persistence pattern](./persistence.md). |
+| `service` | Orchestrate domain operations through repository ports. Declare typed operation inputs here. See [Application service pattern](./application.md). |
+| `adapter/http` | Register routes in `handler.go`, bind transport inputs defined in `request.go`, and serialize DTOs defined in `response.go`. See [HTTP API pattern](./http.md). |
+| `adapter/sqlite` | Implement the repository port, map rows to domain values, and translate recognized storage errors. |
 
-ตัวอย่างใน POC: `internal/checkout/service`
+Use domain terms for entity types and filenames. Name the port `repository.Repository` for a module with a single repository. Use unexported HTTP DTOs such as `createProductRequest` and `productResponse`.
 
-## แพ็กเกจละทำอะไร
+## Bootstrap wiring
 
-| Path | สร้างเมื่อ | ห้ามใส่ |
-|------|-----------|---------|
-| `domain/` | มี aggregate / rule | SQL, HTTP, DTO request |
-| `repository/` | ต้อง persist | implementation |
-| `service/` | มี use case ของ module | raw SQL, `http.ResponseWriter` |
-| `adapter/http/` | มี REST API | business rule ซ้ำกับ domain |
-| `adapter/sqlite/` | มีตาราง | business rule ที่ควรอยู่ domain |
+Wire modules in `internal/bootstrap/app.go`.
 
-## Wiring ใน bootstrap
+1. Build the SQLite repository with the application's database handle.
+2. Pass the repository port to the module service.
+3. Construct any cross-module services with the ports they need and a transaction helper when required.
+4. Construct the handler with the service and call `RegisterRoutes` on the router group for that API.
 
-ใน `internal/bootstrap/app.go` ลำดับเดิมเสมอ:
+Keep a cross-module use case in `internal/{usecase}/service/` when it coordinates multiple modules. Use the transaction helper to bind participating repository ports to the same transaction when their writes must succeed together.
 
-1. สร้าง SQLite repository จาก pool
-2. สร้าง module service จาก port
-3. สร้าง cross-module service (ถ้ามี) จาก pool + ports
-4. สร้าง HTTP handler จาก service
-5. `RegisterRoutes` ใต้ `/api/v1/...`
+## Migrations
 
-อย่าให้ handler สร้าง repository เอง
-
-## ตั้งชื่อ
-
-- Aggregate / entity: คำโดเมนชัดเจน (`Product`, ไม่ใช่ `ProductModel`)
-- Port: `repository.Repository` ในแพ็กเกจของ module นั้น
-- SQLite impl: `adapter/sqlite.Repository` — method set ตรงกับ port
-- HTTP DTO: `createRequest`, `{entity}Response` ในไฟล์ handler (ไม่แชร์เป็น public API ของ domain)
-
-## Migration
-
-ทุก aggregate ที่ persist ต้องมีตารางใน `migrations/` (Goose: `NNNNNN_name.sql` พร้อม `-- +goose Up` / `-- +goose Down`) พร้อม:
-
-- PK / UNIQUE ที่สะท้อน uniqueness ในโดเมน
-- CHECK ที่สะท้อน invariant สำคัญ (เช่น `stock >= 0`)
-- ไม่พึ่ง ORM tag — schema คือ source of truth ฝั่ง DB
-- ใช้ `make migrate` / `make migrate-status` (ไม่รัน SQL ตรงด้วย `sqlite3`)
+Add Goose SQL migrations under `migrations/` when the module introduces or changes persisted data. Include the applicable `-- +goose Up` and `-- +goose Down` sections. Use primary keys and unique constraints to enforce identity and uniqueness, and use `CHECK` constraints for invariants such as nonnegative stock. Apply and inspect migrations with `make migrate` and `make migrate-status`.

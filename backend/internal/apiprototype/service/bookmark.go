@@ -25,9 +25,11 @@ func (s *Service) Create(ctx context.Context, title, link string) (domain.Bookma
 	}
 	return s.repo.Create(ctx, domain.Bookmark{Title: title, URL: link})
 }
+
 func (s *Service) Get(ctx context.Context, id string) (domain.Bookmark, error) {
 	return s.repo.Get(ctx, id)
 }
+
 func (s *Service) MarkRead(ctx context.Context, id string) (domain.Bookmark, error) {
 	return s.repo.MarkRead(ctx, id)
 }
