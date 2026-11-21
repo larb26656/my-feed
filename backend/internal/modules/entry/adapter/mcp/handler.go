@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/larb26656/my-feed/backend/internal/modules/entry/service"
@@ -39,6 +40,17 @@ func NewHandler(entries *service.Service) *Handler {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "save_link",
 		Description: "Record a link as an Entry on the manual Saved links Source. Does not mark the Entry as Saved (bookmarked).",
+		InputSchema: &jsonschema.Schema{
+			Type:     "object",
+			Required: []string{"title", "link"},
+			Properties: map[string]*jsonschema.Schema{
+				"title":       {Type: "string", Description: "Title of the Entry"},
+				"link":        {Type: "string", Description: "URL of the Entry"},
+				"description": {Type: "string", Description: "Optional description"},
+				"thumbnail":   {Description: "Optional thumbnail URL", AnyOf: []*jsonschema.Schema{{Type: "null"}, {Type: "string"}}},
+				"publishedAt": {Description: "Optional source-published time (RFC3339)", AnyOf: []*jsonschema.Schema{{Type: "null"}, {Type: "string"}}},
+			},
+		},
 	}, h.saveLink)
 	h.Handler = mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server {
 		return server

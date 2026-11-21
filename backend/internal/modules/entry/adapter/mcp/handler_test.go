@@ -30,12 +30,29 @@ func TestSaveLinkToolRecordsEntryWithoutMarkingSaved(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = session.Close() })
 
+	tools, err := session.ListTools(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, tools.Tools, 1)
+	rawSchema, err := json.Marshal(tools.Tools[0].InputSchema)
+	require.NoError(t, err)
+	var schema struct {
+		Properties map[string]json.RawMessage `json:"properties"`
+		Required   []string                   `json:"required"`
+	}
+	require.NoError(t, json.Unmarshal(rawSchema, &schema))
+	require.ElementsMatch(t, []string{"title", "link"}, schema.Required)
+	for _, field := range []string{"thumbnail", "publishedAt"} {
+		require.JSONEq(t, `{"description":"`+map[string]string{"thumbnail": "Optional thumbnail URL", "publishedAt": "Optional source-published time (RFC3339)"}[field]+`","anyOf":[{"type":"null"},{"type":"string"}]}`, string(schema.Properties[field]))
+	}
+
 	// Act
 	created, err := session.CallTool(ctx, &mcp.CallToolParams{
 		Name: "save_link",
 		Arguments: map[string]any{
-			"title": "Example Article",
-			"link":  "https://example.test/article",
+			"title":       "Example Article",
+			"link":        "https://example.test/article",
+			"thumbnail":   nil,
+			"publishedAt": nil,
 		},
 	})
 	require.NoError(t, err)
