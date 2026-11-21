@@ -47,6 +47,15 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/:id/clear-save", h.clearEntrySaved)
 }
 
+// @Summary Count saved Entries
+// @Tags Entries
+// @Produce json
+// @Success 200 {object} httpx.SuccessResponse[savedCountResponse]
+// @Failure 400 {object} httpx.ErrorResponse
+// @Failure 404 {object} httpx.ErrorResponse
+// @Failure 409 {object} httpx.ErrorResponse
+// @Failure 500 {object} httpx.ErrorResponse
+// @Router /api/v1/entries/saved-count [get]
 func (h *Handler) savedCount(c *gin.Context) {
 	count, err := h.svc.CountSavedEntries(c.Request.Context())
 	if err != nil {
@@ -56,6 +65,17 @@ func (h *Handler) savedCount(c *gin.Context) {
 	c.JSON(http.StatusOK, httpx.Success(savedCountResponse{Count: count}))
 }
 
+// @Summary Save link
+// @Tags Entries
+// @Produce json
+// @Accept json
+// @Param request body saveLinkRequest true "Request body"
+// @Success 201 {object} httpx.SuccessResponse[entryResponse]
+// @Failure 400 {object} httpx.ErrorResponse
+// @Failure 404 {object} httpx.ErrorResponse
+// @Failure 409 {object} httpx.ErrorResponse
+// @Failure 500 {object} httpx.ErrorResponse
+// @Router /api/v1/entries/save-link [post]
 func (h *Handler) saveLink(c *gin.Context) {
 	var req saveLinkRequest
 	if !httpx.BindJSON(c, &req) {
@@ -69,6 +89,18 @@ func (h *Handler) saveLink(c *gin.Context) {
 	c.JSON(http.StatusCreated, httpx.Success(toEntryResponse(entry)))
 }
 
+// @Summary Ingest Entry
+// @Tags Entries
+// @Produce json
+// @Accept json
+// @Param request body ingestEntryRequest true "Request body"
+// @Success 201 {object} httpx.SuccessResponse[entryResponse]
+// @Success 200 {object} httpx.SuccessResponse[entryResponse]
+// @Failure 400 {object} httpx.ErrorResponse
+// @Failure 404 {object} httpx.ErrorResponse
+// @Failure 409 {object} httpx.ErrorResponse
+// @Failure 500 {object} httpx.ErrorResponse
+// @Router /api/v1/entries [post]
 func (h *Handler) ingestEntry(c *gin.Context) {
 	var req ingestEntryRequest
 	if !httpx.BindJSON(c, &req) {
@@ -86,6 +118,16 @@ func (h *Handler) ingestEntry(c *gin.Context) {
 	c.JSON(status, httpx.Success(toEntryResponse(result.Entry)))
 }
 
+// @Summary Get Entry
+// @Tags Entries
+// @Produce json
+// @Param id path string true "Resource ID" format(uuid)
+// @Success 200 {object} httpx.SuccessResponse[entryResponse]
+// @Failure 400 {object} httpx.ErrorResponse
+// @Failure 404 {object} httpx.ErrorResponse
+// @Failure 409 {object} httpx.ErrorResponse
+// @Failure 500 {object} httpx.ErrorResponse
+// @Router /api/v1/entries/{id} [get]
 func (h *Handler) getEntry(c *gin.Context) {
 	id, err := parseID(c, "invalid entry id")
 	if err != nil {
@@ -100,6 +142,20 @@ func (h *Handler) getEntry(c *gin.Context) {
 	c.JSON(http.StatusOK, httpx.Success(toEntryResponse(entry)))
 }
 
+// @Summary List Entries
+// @Tags Entries
+// @Produce json
+// @Param cursor query string false "Continuation cursor"
+// @Param pageSize query int false "Page size" minimum(1) maximum(100) default(10)
+// @Param sourceId query string false "Source ID" format(uuid)
+// @Param unread query bool false "Only unread Entries"
+// @Param savedOnly query bool false "Only saved Entries"
+// @Success 200 {object} CursorResponse
+// @Failure 400 {object} httpx.ErrorResponse
+// @Failure 404 {object} httpx.ErrorResponse
+// @Failure 409 {object} httpx.ErrorResponse
+// @Failure 500 {object} httpx.ErrorResponse
+// @Router /api/v1/entries [get]
 func (h *Handler) listEntries(c *gin.Context) {
 	req := listEntriesQuery{CursorPageOption: httpx.NewCursorPageOption()}
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -124,18 +180,58 @@ func (h *Handler) listEntries(c *gin.Context) {
 
 type entryMutator func(ctx context.Context, id uuid.UUID) (*domain.Entry, error)
 
+// @Summary Mark Entry read
+// @Tags Entries
+// @Produce json
+// @Param id path string true "Resource ID" format(uuid)
+// @Success 200 {object} httpx.SuccessResponse[entryResponse]
+// @Failure 400 {object} httpx.ErrorResponse
+// @Failure 404 {object} httpx.ErrorResponse
+// @Failure 409 {object} httpx.ErrorResponse
+// @Failure 500 {object} httpx.ErrorResponse
+// @Router /api/v1/entries/{id}/read [post]
 func (h *Handler) markEntryRead(c *gin.Context) {
 	h.mutateEntry(c, h.svc.MarkEntryRead)
 }
 
+// @Summary Clear Entry read
+// @Tags Entries
+// @Produce json
+// @Param id path string true "Resource ID" format(uuid)
+// @Success 200 {object} httpx.SuccessResponse[entryResponse]
+// @Failure 400 {object} httpx.ErrorResponse
+// @Failure 404 {object} httpx.ErrorResponse
+// @Failure 409 {object} httpx.ErrorResponse
+// @Failure 500 {object} httpx.ErrorResponse
+// @Router /api/v1/entries/{id}/clear-read [post]
 func (h *Handler) clearEntryRead(c *gin.Context) {
 	h.mutateEntry(c, h.svc.ClearEntryRead)
 }
 
+// @Summary Save Entry
+// @Tags Entries
+// @Produce json
+// @Param id path string true "Resource ID" format(uuid)
+// @Success 200 {object} httpx.SuccessResponse[entryResponse]
+// @Failure 400 {object} httpx.ErrorResponse
+// @Failure 404 {object} httpx.ErrorResponse
+// @Failure 409 {object} httpx.ErrorResponse
+// @Failure 500 {object} httpx.ErrorResponse
+// @Router /api/v1/entries/{id}/save [post]
 func (h *Handler) markEntrySaved(c *gin.Context) {
 	h.mutateEntry(c, h.svc.MarkEntrySaved)
 }
 
+// @Summary Clear saved Entry
+// @Tags Entries
+// @Produce json
+// @Param id path string true "Resource ID" format(uuid)
+// @Success 200 {object} httpx.SuccessResponse[entryResponse]
+// @Failure 400 {object} httpx.ErrorResponse
+// @Failure 404 {object} httpx.ErrorResponse
+// @Failure 409 {object} httpx.ErrorResponse
+// @Failure 500 {object} httpx.ErrorResponse
+// @Router /api/v1/entries/{id}/clear-save [post]
 func (h *Handler) clearEntrySaved(c *gin.Context) {
 	h.mutateEntry(c, h.svc.ClearEntrySaved)
 }

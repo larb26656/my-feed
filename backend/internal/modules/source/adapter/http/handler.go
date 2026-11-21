@@ -42,6 +42,17 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/:id/reactivate", h.reactivateSource)
 }
 
+// @Summary Create Source
+// @Tags Sources
+// @Produce json
+// @Accept json
+// @Param request body createSourceRequest true "Request body"
+// @Success 201 {object} httpx.SuccessResponse[sourceResponse]
+// @Failure 400 {object} httpx.ErrorResponse
+// @Failure 404 {object} httpx.ErrorResponse
+// @Failure 409 {object} httpx.ErrorResponse
+// @Failure 500 {object} httpx.ErrorResponse
+// @Router /api/v1/sources [post]
 func (h *Handler) createSource(c *gin.Context) {
 	r := c.Request
 	var req createSourceRequest
@@ -61,6 +72,16 @@ func (h *Handler) createSource(c *gin.Context) {
 	c.JSON(http.StatusCreated, httpx.Success(toLifecycleResponse(s)))
 }
 
+// @Summary List Sources
+// @Tags Sources
+// @Produce json
+// @Param includeDeactivated query bool false "Include deactivated Sources"
+// @Success 200 {object} httpx.SuccessResponse[[]sourceResponse]
+// @Failure 400 {object} httpx.ErrorResponse
+// @Failure 404 {object} httpx.ErrorResponse
+// @Failure 409 {object} httpx.ErrorResponse
+// @Failure 500 {object} httpx.ErrorResponse
+// @Router /api/v1/sources [get]
 func (h *Handler) listSources(c *gin.Context) {
 	r := c.Request
 	var req listSourcesQuery
@@ -82,6 +103,16 @@ func (h *Handler) listSources(c *gin.Context) {
 	c.JSON(http.StatusOK, httpx.Success(out))
 }
 
+// @Summary Get Source
+// @Tags Sources
+// @Produce json
+// @Param id path string true "Resource ID" format(uuid)
+// @Success 200 {object} httpx.SuccessResponse[sourceResponse]
+// @Failure 400 {object} httpx.ErrorResponse
+// @Failure 404 {object} httpx.ErrorResponse
+// @Failure 409 {object} httpx.ErrorResponse
+// @Failure 500 {object} httpx.ErrorResponse
+// @Router /api/v1/sources/{id} [get]
 func (h *Handler) getSource(c *gin.Context) {
 	r := c.Request
 	id, err := parseID(c, "invalid source id")
@@ -97,6 +128,19 @@ func (h *Handler) getSource(c *gin.Context) {
 	c.JSON(http.StatusOK, httpx.Success(toSourceResponse(s)))
 }
 
+// @Summary Update Source
+// @Description Source type and YouTube channel ID cannot be changed.
+// @Tags Sources
+// @Produce json
+// @Accept json
+// @Param request body updateSourceRequest true "Request body"
+// @Param id path string true "Resource ID" format(uuid)
+// @Success 200 {object} httpx.SuccessResponse[sourceResponse]
+// @Failure 400 {object} httpx.ErrorResponse
+// @Failure 404 {object} httpx.ErrorResponse
+// @Failure 409 {object} httpx.ErrorResponse
+// @Failure 500 {object} httpx.ErrorResponse
+// @Router /api/v1/sources/{id} [patch]
 func (h *Handler) updateSource(c *gin.Context) {
 	r := c.Request
 	id, err := parseID(c, "invalid source id")
@@ -119,6 +163,16 @@ func (h *Handler) updateSource(c *gin.Context) {
 	c.JSON(http.StatusOK, httpx.Success(toSourceResponse(s)))
 }
 
+// @Summary Deactivate Source
+// @Tags Sources
+// @Produce json
+// @Param id path string true "Resource ID" format(uuid)
+// @Success 200 {object} httpx.SuccessResponse[sourceResponse]
+// @Failure 400 {object} httpx.ErrorResponse
+// @Failure 404 {object} httpx.ErrorResponse
+// @Failure 409 {object} httpx.ErrorResponse
+// @Failure 500 {object} httpx.ErrorResponse
+// @Router /api/v1/sources/{id}/deactivate [post]
 func (h *Handler) deactivateSource(c *gin.Context) {
 	r := c.Request
 	id, err := parseID(c, "invalid source id")
@@ -134,6 +188,16 @@ func (h *Handler) deactivateSource(c *gin.Context) {
 	c.JSON(http.StatusOK, httpx.Success(toLifecycleResponse(s)))
 }
 
+// @Summary Reactivate Source
+// @Tags Sources
+// @Produce json
+// @Param id path string true "Resource ID" format(uuid)
+// @Success 200 {object} httpx.SuccessResponse[sourceResponse]
+// @Failure 400 {object} httpx.ErrorResponse
+// @Failure 404 {object} httpx.ErrorResponse
+// @Failure 409 {object} httpx.ErrorResponse
+// @Failure 500 {object} httpx.ErrorResponse
+// @Router /api/v1/sources/{id}/reactivate [post]
 func (h *Handler) reactivateSource(c *gin.Context) {
 	r := c.Request
 	id, err := parseID(c, "invalid source id")

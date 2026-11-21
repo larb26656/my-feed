@@ -42,7 +42,7 @@ build:
 test-unit:
 	go test ./internal/...
 
-test:
+test: check-openapi
 	go test ./...
 
 check-arch:
@@ -61,3 +61,12 @@ lint:
 
 tidy:
 	go mod tidy
+
+# Generate the OpenAPI document from HTTP handler annotations and Go DTOs.
+openapi:
+	go run github.com/swaggo/swag/v2/cmd/swag@v2.0.0-rc6 init --v3.1 -g cmd/api/main.go --parseInternal --parseDependencyLevel 1 -o internal/platform/apidocs --outputTypes json
+
+check-openapi:
+	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT; \
+	go run github.com/swaggo/swag/v2/cmd/swag@v2.0.0-rc6 init --v3.1 -g cmd/api/main.go --parseInternal --parseDependencyLevel 1 -o "$$tmp" --outputTypes json --quiet && \
+	diff -u internal/platform/apidocs/swagger.json "$$tmp/swagger.json"

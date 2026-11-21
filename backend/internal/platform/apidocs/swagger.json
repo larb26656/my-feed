@@ -1,0 +1,1752 @@
+{
+    "components": {
+        "schemas": {
+            "github_com_larb26656_my-feed_backend_internal_platform_http.CursorMeta": {
+                "properties": {
+                    "nextCursor": {
+                        "type": "string"
+                    },
+                    "pageSize": {
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_larb26656_my-feed_backend_internal_platform_http.ErrorBody": {
+                "properties": {
+                    "code": {
+                        "type": "string"
+                    },
+                    "detail": {},
+                    "message": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse": {
+                "properties": {
+                    "error": {
+                        "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorBody"
+                    },
+                    "success": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-array_internal_modules_source_adapter_http_sourceResponse": {
+                "properties": {
+                    "data": {
+                        "items": {
+                            "$ref": "#/components/schemas/internal_modules_source_adapter_http.sourceResponse"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "meta": {},
+                    "success": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_entry_adapter_http_entryResponse": {
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/internal_modules_entry_adapter_http.entryResponse"
+                    },
+                    "meta": {},
+                    "success": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_entry_adapter_http_savedCountResponse": {
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/internal_modules_entry_adapter_http.savedCountResponse"
+                    },
+                    "meta": {},
+                    "success": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_fetch_adapter_http_fetchJobResponse": {
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/internal_modules_fetch_adapter_http.fetchJobResponse"
+                    },
+                    "meta": {},
+                    "success": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_source_adapter_http_sourceResponse": {
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/internal_modules_source_adapter_http.sourceResponse"
+                    },
+                    "meta": {},
+                    "success": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "internal_bootstrap.healthResponse": {
+                "properties": {
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "internal_modules_entry_adapter_http.CursorResponse": {
+                "properties": {
+                    "data": {
+                        "items": {
+                            "$ref": "#/components/schemas/internal_modules_entry_adapter_http.entryResponse"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "meta": {
+                        "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.CursorMeta"
+                    },
+                    "success": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "internal_modules_entry_adapter_http.entryResponse": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "link": {
+                        "type": "string"
+                    },
+                    "publishedAt": {
+                        "type": "string"
+                    },
+                    "readAt": {
+                        "type": "string"
+                    },
+                    "savedAt": {
+                        "type": "string"
+                    },
+                    "sourceId": {
+                        "type": "string"
+                    },
+                    "thumbnail": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "internal_modules_entry_adapter_http.ingestEntryRequest": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "link": {
+                        "type": "string"
+                    },
+                    "publishedAt": {
+                        "type": "string"
+                    },
+                    "sourceId": {
+                        "type": "string"
+                    },
+                    "thumbnail": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "link",
+                    "sourceId",
+                    "title"
+                ],
+                "type": "object"
+            },
+            "internal_modules_entry_adapter_http.saveLinkRequest": {
+                "properties": {
+                    "description": {
+                        "maxLength": 1000,
+                        "type": "string"
+                    },
+                    "link": {
+                        "type": "string"
+                    },
+                    "publishedAt": {
+                        "type": "string"
+                    },
+                    "thumbnail": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "maxLength": 255,
+                        "minLength": 3,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "link",
+                    "title"
+                ],
+                "type": "object"
+            },
+            "internal_modules_entry_adapter_http.savedCountResponse": {
+                "properties": {
+                    "count": {
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "internal_modules_fetch_adapter_http.CursorResponse": {
+                "properties": {
+                    "data": {
+                        "items": {
+                            "$ref": "#/components/schemas/internal_modules_fetch_adapter_http.fetchJobResponse"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "meta": {
+                        "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.CursorMeta"
+                    },
+                    "success": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "internal_modules_fetch_adapter_http.createFetchJobRequest": {
+                "properties": {
+                    "sourceId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "sourceId"
+                ],
+                "type": "object"
+            },
+            "internal_modules_fetch_adapter_http.fetchJobResponse": {
+                "properties": {
+                    "attempt": {
+                        "type": "integer"
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "entriesCreated": {
+                        "type": "integer"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "maxAttempts": {
+                        "type": "integer"
+                    },
+                    "sourceId": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "internal_modules_source_adapter_http.createSourceRequest": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "rssUrl": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "youtubeChannelId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "name",
+                    "type"
+                ],
+                "type": "object"
+            },
+            "internal_modules_source_adapter_http.sourceResponse": {
+                "properties": {
+                    "active": {
+                        "type": "boolean"
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "rssUrl": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string"
+                    },
+                    "youtubeChannelId": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "internal_modules_source_adapter_http.updateSourceRequest": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "rssUrl": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "name"
+                ],
+                "type": "object"
+            }
+        }
+    },
+    "info": {
+        "title": "My Feed API",
+        "version": "1.0"
+    },
+    "externalDocs": {
+        "description": "",
+        "url": ""
+    },
+    "paths": {
+        "/api/v1/entries": {
+            "get": {
+                "parameters": [
+                    {
+                        "description": "Continuation cursor",
+                        "in": "query",
+                        "name": "cursor",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Page size",
+                        "in": "query",
+                        "name": "pageSize",
+                        "schema": {
+                            "default": 10,
+                            "maximum": 100,
+                            "minimum": 1,
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Source ID",
+                        "in": "query",
+                        "name": "sourceId",
+                        "schema": {
+                            "format": "uuid",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Only unread Entries",
+                        "in": "query",
+                        "name": "unread",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "Only saved Entries",
+                        "in": "query",
+                        "name": "savedOnly",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/internal_modules_entry_adapter_http.CursorResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Conflict"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "summary": "List Entries",
+                "tags": [
+                    "Entries"
+                ]
+            },
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/internal_modules_entry_adapter_http.ingestEntryRequest",
+                                "summary": "request",
+                                "description": "Request body"
+                            }
+                        }
+                    },
+                    "description": "Request body",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_entry_adapter_http_entryResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_entry_adapter_http_entryResponse"
+                                }
+                            }
+                        },
+                        "description": "Created"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Conflict"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "summary": "Ingest Entry",
+                "tags": [
+                    "Entries"
+                ]
+            }
+        },
+        "/api/v1/entries/save-link": {
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/internal_modules_entry_adapter_http.saveLinkRequest",
+                                "summary": "request",
+                                "description": "Request body"
+                            }
+                        }
+                    },
+                    "description": "Request body",
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_entry_adapter_http_entryResponse"
+                                }
+                            }
+                        },
+                        "description": "Created"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Conflict"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "summary": "Save link",
+                "tags": [
+                    "Entries"
+                ]
+            }
+        },
+        "/api/v1/entries/saved-count": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_entry_adapter_http_savedCountResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Conflict"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "summary": "Count saved Entries",
+                "tags": [
+                    "Entries"
+                ]
+            }
+        },
+        "/api/v1/entries/{id}": {
+            "get": {
+                "parameters": [
+                    {
+                        "description": "Resource ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_entry_adapter_http_entryResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Conflict"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "summary": "Get Entry",
+                "tags": [
+                    "Entries"
+                ]
+            }
+        },
+        "/api/v1/entries/{id}/clear-read": {
+            "post": {
+                "parameters": [
+                    {
+                        "description": "Resource ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_entry_adapter_http_entryResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Conflict"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "summary": "Clear Entry read",
+                "tags": [
+                    "Entries"
+                ]
+            }
+        },
+        "/api/v1/entries/{id}/clear-save": {
+            "post": {
+                "parameters": [
+                    {
+                        "description": "Resource ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_entry_adapter_http_entryResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Conflict"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "summary": "Clear saved Entry",
+                "tags": [
+                    "Entries"
+                ]
+            }
+        },
+        "/api/v1/entries/{id}/read": {
+            "post": {
+                "parameters": [
+                    {
+                        "description": "Resource ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_entry_adapter_http_entryResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Conflict"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "summary": "Mark Entry read",
+                "tags": [
+                    "Entries"
+                ]
+            }
+        },
+        "/api/v1/entries/{id}/save": {
+            "post": {
+                "parameters": [
+                    {
+                        "description": "Resource ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_entry_adapter_http_entryResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Conflict"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "summary": "Save Entry",
+                "tags": [
+                    "Entries"
+                ]
+            }
+        },
+        "/api/v1/fetch-jobs": {
+            "get": {
+                "parameters": [
+                    {
+                        "description": "Continuation cursor",
+                        "in": "query",
+                        "name": "cursor",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Page size",
+                        "in": "query",
+                        "name": "pageSize",
+                        "schema": {
+                            "default": 10,
+                            "maximum": 100,
+                            "minimum": 1,
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Source ID",
+                        "in": "query",
+                        "name": "sourceId",
+                        "schema": {
+                            "format": "uuid",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Fetch Job status",
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "enum": [
+                                "pending",
+                                "running",
+                                "succeeded",
+                                "failed"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/internal_modules_fetch_adapter_http.CursorResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Conflict"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "summary": "List Fetch Jobs",
+                "tags": [
+                    "Fetch Jobs"
+                ]
+            },
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/internal_modules_fetch_adapter_http.createFetchJobRequest",
+                                "summary": "request",
+                                "description": "Request body"
+                            }
+                        }
+                    },
+                    "description": "Request body",
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_fetch_adapter_http_fetchJobResponse"
+                                }
+                            }
+                        },
+                        "description": "Created"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Conflict"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "summary": "Create Fetch Job",
+                "tags": [
+                    "Fetch Jobs"
+                ]
+            }
+        },
+        "/api/v1/fetch-jobs/{id}": {
+            "get": {
+                "parameters": [
+                    {
+                        "description": "Resource ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_fetch_adapter_http_fetchJobResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Conflict"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "summary": "Get Fetch Job",
+                "tags": [
+                    "Fetch Jobs"
+                ]
+            }
+        },
+        "/api/v1/sources": {
+            "get": {
+                "parameters": [
+                    {
+                        "description": "Include deactivated Sources",
+                        "in": "query",
+                        "name": "includeDeactivated",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-array_internal_modules_source_adapter_http_sourceResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Conflict"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "summary": "List Sources",
+                "tags": [
+                    "Sources"
+                ]
+            },
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/internal_modules_source_adapter_http.createSourceRequest",
+                                "summary": "request",
+                                "description": "Request body"
+                            }
+                        }
+                    },
+                    "description": "Request body",
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_source_adapter_http_sourceResponse"
+                                }
+                            }
+                        },
+                        "description": "Created"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Conflict"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "summary": "Create Source",
+                "tags": [
+                    "Sources"
+                ]
+            }
+        },
+        "/api/v1/sources/{id}": {
+            "get": {
+                "parameters": [
+                    {
+                        "description": "Resource ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_source_adapter_http_sourceResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Conflict"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "summary": "Get Source",
+                "tags": [
+                    "Sources"
+                ]
+            },
+            "patch": {
+                "description": "Source type and YouTube channel ID cannot be changed.",
+                "parameters": [
+                    {
+                        "description": "Resource ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/internal_modules_source_adapter_http.updateSourceRequest",
+                                "summary": "request",
+                                "description": "Request body"
+                            }
+                        }
+                    },
+                    "description": "Request body",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_source_adapter_http_sourceResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Conflict"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "summary": "Update Source",
+                "tags": [
+                    "Sources"
+                ]
+            }
+        },
+        "/api/v1/sources/{id}/deactivate": {
+            "post": {
+                "parameters": [
+                    {
+                        "description": "Resource ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_source_adapter_http_sourceResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Conflict"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "summary": "Deactivate Source",
+                "tags": [
+                    "Sources"
+                ]
+            }
+        },
+        "/api/v1/sources/{id}/reactivate": {
+            "post": {
+                "parameters": [
+                    {
+                        "description": "Resource ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "format": "uuid",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_source_adapter_http_sourceResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Conflict"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "summary": "Reactivate Source",
+                "tags": [
+                    "Sources"
+                ]
+            }
+        },
+        "/healthz": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/internal_bootstrap.healthResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "summary": "Health check",
+                "tags": [
+                    "Health"
+                ]
+            }
+        }
+    },
+    "openapi": "3.1.0"
+}

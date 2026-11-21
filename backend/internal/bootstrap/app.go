@@ -32,6 +32,7 @@ import (
 	sourcesqlite "github.com/larb26656/my-feed/backend/internal/modules/source/adapter/sqlite"
 	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
 	sourcesvc "github.com/larb26656/my-feed/backend/internal/modules/source/service"
+	"github.com/larb26656/my-feed/backend/internal/platform/apidocs"
 	"github.com/larb26656/my-feed/backend/internal/platform/database"
 	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
 	sourcelifecycle "github.com/larb26656/my-feed/backend/internal/sourcelifecycle/service"
@@ -104,12 +105,9 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 	})
 
 	r := httpx.NewRouter()
+	apidocs.Register(r)
 
-	r.GET("/healthz", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status": "ok",
-		})
-	})
+	r.GET("/healthz", health)
 
 	sourceLifecycle := sourcelifecycle.New(pool, sourceService, fetchService)
 	sourcehttp.NewHandler(sourceService, sourceLifecycle).RegisterRoutes(r.Group("/api/v1/sources"))
@@ -170,4 +168,15 @@ func Run(ctx context.Context) error {
 		}
 		return err
 	}
+}
+
+// @Summary Health check
+// @Tags Health
+// @Produce json
+// @Success 200 {object} healthResponse
+// @Router /healthz [get]
+func health(c *gin.Context) { c.JSON(http.StatusOK, healthResponse{Status: "ok"}) }
+
+type healthResponse struct {
+	Status string `json:"status"`
 }

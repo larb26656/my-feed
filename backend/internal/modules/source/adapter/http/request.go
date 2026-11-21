@@ -9,8 +9,8 @@ type createSourceRequest struct {
 	YouTubeChannelID string `json:"youtubeChannelId"`
 }
 type updateSourceRequest struct {
-	Type             *json.RawMessage `json:"type" binding:"isdefault"`
-	YouTubeChannelID *json.RawMessage `json:"youtubeChannelId" binding:"isdefault"`
+	Type             *json.RawMessage `json:"type" binding:"isdefault" swaggerignore:"true"`
+	YouTubeChannelID *json.RawMessage `json:"youtubeChannelId" binding:"isdefault" swaggerignore:"true"`
 	Name             string           `json:"name" binding:"required"`
 	RSSURL           string           `json:"rssUrl"`
 }

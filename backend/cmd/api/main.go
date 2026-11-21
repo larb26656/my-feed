@@ -10,6 +10,8 @@ import (
 	"github.com/larb26656/my-feed/backend/internal/bootstrap"
 )
 
+// @title My Feed API
+// @version 1.0
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
