@@ -1,7 +1,9 @@
 package middleware_test
 
 import (
+	"bytes"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -50,14 +52,46 @@ func TestErrorMiddlewareHidesUnexpectedFailures(t *testing.T) {
 	// Arrange
 	gin.SetMode(gin.TestMode)
 	recorder := httptest.NewRecorder()
+	var logs bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
 
 	// Act
 	router := gin.New()
-	router.Use(middleware.ErrorMiddleware())
-	router.GET("/", func(c *gin.Context) { _ = c.Error(fmt.Errorf("db dial timeout")) })
-	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
+	router.Use(middleware.RequestID(), middleware.ErrorMiddleware())
+	router.GET("/boom", func(c *gin.Context) { _ = c.Error(fmt.Errorf("db dial timeout")) })
+	req := httptest.NewRequest(http.MethodGet, "/boom", nil)
+	req.Header.Set("X-Request-Id", "req-500")
+	router.ServeHTTP(recorder, req)
 
 	// Assert
 	require.Equal(t, http.StatusInternalServerError, recorder.Code)
 	require.JSONEq(t, `{"success":false,"error":{"message":"Internal server error","code":"INTERNAL_SERVER_ERROR"}}`, recorder.Body.String())
+	require.Contains(t, logs.String(), "internal server error")
+	require.Contains(t, logs.String(), "db dial timeout")
+	require.Contains(t, logs.String(), "request_id=req-500")
+	require.Contains(t, logs.String(), "path=/boom")
+}
+
+func TestErrorMiddlewareLogsInternalAppErrorCause(t *testing.T) {
+	// Arrange
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	var logs bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+	err := apperr.Definition{Kind: apperr.KindInternal, Code: "INTERNAL"}.Wrap(fmt.Errorf("sqlite locked"), "persist failed")
+
+	// Act
+	router := gin.New()
+	router.Use(middleware.ErrorMiddleware())
+	router.GET("/", func(c *gin.Context) { _ = c.Error(err) })
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	// Assert
+	require.Equal(t, http.StatusInternalServerError, recorder.Code)
+	require.Contains(t, logs.String(), "persist failed")
+	require.Contains(t, logs.String(), "sqlite locked")
 }

@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -34,7 +35,24 @@ func fail(code, message string, details ...any) errorResponse {
 	}
 }
 
+func logInternalError(c *gin.Context, err error) {
+	attrs := []any{
+		"method", c.Request.Method,
+		"path", c.Request.URL.Path,
+		"error", err,
+	}
+	if id := RequestIDFromContext(c.Request.Context()); id != "" {
+		attrs = append(attrs, "request_id", id)
+	}
+	var appErr *apperr.AppError
+	if errors.As(err, &appErr) && appErr.Cause != nil {
+		attrs = append(attrs, "cause", appErr.Cause)
+	}
+	slog.Error("internal server error", attrs...)
+}
+
 // ErrorMiddleware writes the last error reported with c.Error after a handler returns.
+// Unexpected failures keep a generic client response and are logged server-side for investigation.
 func ErrorMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()
@@ -45,6 +63,7 @@ func ErrorMiddleware() gin.HandlerFunc {
 		err := c.Errors.Last().Err
 		var appErr *apperr.AppError
 		if !errors.As(err, &appErr) {
+			logInternalError(c, err)
 			c.AbortWithStatusJSON(http.StatusInternalServerError, fail("INTERNAL_SERVER_ERROR", "Internal server error"))
 			return
 		}
@@ -68,6 +87,7 @@ func ErrorMiddleware() gin.HandlerFunc {
 		}
 
 		if status == http.StatusInternalServerError {
+			logInternalError(c, err)
 			c.AbortWithStatusJSON(status, fail("INTERNAL_SERVER_ERROR", "Internal server error"))
 			return
 		}

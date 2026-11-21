@@ -28,7 +28,7 @@ See the [application error pattern](./errors.md) for how to define, construct, a
 
 - JSON binding failures are reported by `httpx.BindJSON` through `httpx.InvalidRequest`. Return immediately when binding fails.
 - Convert query binding failures to a typed invalid-input error and report it through `c.Error(err)`.
-- For service errors, call `c.Error(err)` and return before writing the response. The router's `httpx.ErrorMiddleware` maps typed errors centrally and hides internal details on unexpected failures.
+- For service errors, call `c.Error(err)` and return before writing the response. The router's `httpx.ErrorMiddleware` maps typed errors centrally, hides internal details on unexpected failures, and logs those failures server-side for investigation.
 
 | Failure | HTTP status | Error code |
 | --- | --- | --- |

@@ -54,7 +54,7 @@ Both commands default to `backend/data/my-feed.db`. Stop the API with Ctrl-C. St
 
 ## Configuration
 
-The backend reads environment variables; defaults are listed in [backend/.env.example](backend/.env.example). Export overrides in your shell for local development. For Docker, configure the service environment in [backend/docker-compose.yml](backend/docker-compose.yml).
+The backend reads environment variables; defaults are listed in [backend/.env.example](backend/.env.example). For local `make backend:dev`, copy that file to `backend/.env` — the Makefile loads it before starting the API. You can also export overrides in your shell. For Docker, configure the service environment in [backend/docker-compose.yml](backend/docker-compose.yml).
 
 | Variable | Default | Purpose |
 | --- | --- | --- |

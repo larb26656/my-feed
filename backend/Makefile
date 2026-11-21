@@ -33,8 +33,9 @@ migrate-status:
 migrate-down:
 	./scripts/migrate.sh down
 
+# Load backend/.env when present. Go only sees process env (os.Getenv), not dotenv files.
 dev:
-	go run ./cmd/api
+	set -a; [ -f .env ] && . ./.env; set +a; go run ./cmd/api
 
 build:
 	go build -o bin/server ./cmd/api

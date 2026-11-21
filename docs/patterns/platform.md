@@ -23,7 +23,7 @@ See the [application error pattern](./errors.md) for shared and module-specific 
 
 - Independent of any module.
 - `ErrorMiddleware` uses `errors.As` to find an `*apperr.AppError` and map it to an HTTP error response.
-- Do not log details here without a requirement; keep this package small.
+- Unexpected failures (HTTP 500) keep a generic client body and are logged with `slog` (`method`, `path`, `error`, optional `request_id` / `cause`) for investigation.
 
 ## Bootstrap vs platform
 
