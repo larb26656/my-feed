@@ -2,6 +2,25 @@ import type { EntryFilters } from "#/features/feed/types";
 
 export const sourceKeys = {
 	all: ["sources"] as const,
+	page: (
+		active: boolean,
+		page: number,
+		pageSize: number,
+		filters: {
+			name: string;
+			type: string;
+		},
+		sort: { sortBy: string; sortDirection: string },
+	) =>
+		[
+			"sources",
+			"page",
+			active ? "active" : "inactive",
+			page,
+			pageSize,
+			filters,
+			sort,
+		] as const,
 };
 
 export const entryKeys = {

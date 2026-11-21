@@ -2,38 +2,47 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ComponentProps } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 import { failJson, okJson } from "#/lib/api/test-helpers";
 import { SourcesPage } from "./SourcesPage";
 
 vi.mock("@tanstack/react-router", () => ({
-	Link: ({ children }: { children: React.ReactNode }) => (
-		<a href="/sources">{children}</a>
+	Link: ({
+		children,
+		...props
+	}: ComponentProps<"a"> & { to?: string; params?: unknown }) => (
+		<a href="/sources" {...props}>
+			{children}
+		</a>
 	),
 }));
-vi.mock("#/features/feed/FeedState", () => ({
-	useFeedState: () => ({
-		allSources: [],
-		sourcesLoading: false,
-		sourcesError: false,
-	}),
-}));
+
 afterEach(() => {
 	cleanup();
 	vi.unstubAllGlobals();
 });
 
-test("adds a YouTube Source using its channel ID", async () => {
-	const fetchMock = vi.fn(async () =>
-		okJson({
-			id: "yt",
-			name: "Channel",
-			type: "youtube",
-			active: true,
-		}),
-	);
-	vi.stubGlobal("fetch", fetchMock);
-	render(
+function isSourcesList(url: string, init?: RequestInit) {
+	if (init?.method && init.method !== "GET") return false;
+	const path = url.replace(/\?.*$/, "");
+	return path === "/api/v1/sources" || path === "/api/v1/sources/";
+}
+
+function emptyList(url: string, init?: RequestInit) {
+	if (isSourcesList(url, init)) {
+		return okJson([], { page: 1, pageSize: 10, total: 0, totalPages: 1 });
+	}
+	return okJson({
+		id: "yt",
+		name: "Channel",
+		type: "youtube",
+		active: true,
+	});
+}
+
+function renderPage() {
+	return render(
 		<QueryClientProvider
 			client={
 				new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -42,8 +51,24 @@ test("adds a YouTube Source using its channel ID", async () => {
 			<SourcesPage />
 		</QueryClientProvider>,
 	);
+}
+
+test("adds a YouTube Source using its channel ID", async () => {
+	const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+		if (init?.method === "POST") {
+			return okJson({
+				id: "yt",
+				name: "Channel",
+				type: "youtube",
+				active: true,
+			});
+		}
+		return emptyList(url, init);
+	});
+	vi.stubGlobal("fetch", fetchMock);
+	renderPage();
 	const user = userEvent.setup();
-	await user.click(screen.getAllByRole("button", { name: "Add Source" })[0]);
+	await user.click(await screen.findByRole("button", { name: "Add Source" }));
 	await user.click(screen.getByLabelText("YouTube"));
 	await user.type(screen.getByLabelText("Source name"), "Channel");
 	await user.type(
@@ -51,9 +76,15 @@ test("adds a YouTube Source using its channel ID", async () => {
 		"UC1234567890123456789012",
 	);
 	await user.click(screen.getByRole("button", { name: "Save source" }));
-	await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-	const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-	expect(JSON.parse(String(init.body))).toEqual({
+	await waitFor(() =>
+		expect(
+			fetchMock.mock.calls.some(([, init]) => init?.method === "POST"),
+		).toBe(true),
+	);
+	const postCall = fetchMock.mock.calls.find(
+		([, init]) => init?.method === "POST",
+	);
+	expect(JSON.parse(String(postCall?.[1]?.body))).toEqual({
 		name: "Channel",
 		type: "youtube",
 		youtubeChannelId: "UC1234567890123456789012",
@@ -61,22 +92,21 @@ test("adds a YouTube Source using its channel ID", async () => {
 });
 
 test("accepts a canonical channel URL", async () => {
-	const fetchMock = vi.fn(async () =>
-		okJson({
-			id: "yt",
-			name: "Channel",
-			type: "youtube",
-			active: true,
-		}),
-	);
+	const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+		if (init?.method === "POST") {
+			return okJson({
+				id: "yt",
+				name: "Channel",
+				type: "youtube",
+				active: true,
+			});
+		}
+		return emptyList(url, init);
+	});
 	vi.stubGlobal("fetch", fetchMock);
-	render(
-		<QueryClientProvider client={new QueryClient()}>
-			<SourcesPage />
-		</QueryClientProvider>,
-	);
+	renderPage();
 	const user = userEvent.setup();
-	await user.click(screen.getAllByRole("button", { name: "Add Source" })[0]);
+	await user.click(await screen.findByRole("button", { name: "Add Source" }));
 	await user.click(screen.getByLabelText("YouTube"));
 	await user.type(screen.getByLabelText("Source name"), "Channel");
 	await user.type(
@@ -84,19 +114,21 @@ test("accepts a canonical channel URL", async () => {
 		"https://www.youtube.com/channel/UC1234567890123456789012",
 	);
 	await user.click(screen.getByRole("button", { name: "Save source" }));
-	await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+	await waitFor(() =>
+		expect(
+			fetchMock.mock.calls.some(([, init]) => init?.method === "POST"),
+		).toBe(true),
+	);
 });
 
 test("explains supported inputs and rejects a handle", async () => {
-	const fetchMock = vi.fn();
-	vi.stubGlobal("fetch", fetchMock);
-	render(
-		<QueryClientProvider client={new QueryClient()}>
-			<SourcesPage />
-		</QueryClientProvider>,
+	const fetchMock = vi.fn(async (url: string, init?: RequestInit) =>
+		emptyList(url, init),
 	);
+	vi.stubGlobal("fetch", fetchMock);
+	renderPage();
 	const user = userEvent.setup();
-	await user.click(screen.getAllByRole("button", { name: "Add Source" })[0]);
+	await user.click(await screen.findByRole("button", { name: "Add Source" }));
 	await user.click(screen.getByLabelText("YouTube"));
 	expect(
 		screen.getByText(/Handles and custom URLs are not supported/),
@@ -112,26 +144,27 @@ test("explains supported inputs and rejects a handle", async () => {
 			/Enter a channel ID starting with UC or a canonical YouTube channel URL/,
 		),
 	).toBeTruthy();
-	expect(fetchMock).not.toHaveBeenCalled();
+	expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(
+		false,
+	);
 });
 
 test("shows duplicate channel conflict", async () => {
 	vi.stubGlobal(
 		"fetch",
-		vi.fn(async () =>
-			failJson(409, {
-				code: "CONFLICT",
-				message: "youtube channel already in use",
-			}),
-		),
+		vi.fn(async (url: string, init?: RequestInit) => {
+			if (init?.method === "POST") {
+				return failJson(409, {
+					code: "CONFLICT",
+					message: "youtube channel already in use",
+				});
+			}
+			return emptyList(url, init);
+		}),
 	);
-	render(
-		<QueryClientProvider client={new QueryClient()}>
-			<SourcesPage />
-		</QueryClientProvider>,
-	);
+	renderPage();
 	const user = userEvent.setup();
-	await user.click(screen.getAllByRole("button", { name: "Add Source" })[0]);
+	await user.click(await screen.findByRole("button", { name: "Add Source" }));
 	await user.click(screen.getByLabelText("YouTube"));
 	await user.type(screen.getByLabelText("Source name"), "Channel");
 	await user.type(

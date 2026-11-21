@@ -2,34 +2,23 @@ import {
 	type ColumnDef,
 	flexRender,
 	getCoreRowModel,
+	type OnChangeFn,
 	type PaginationState,
+	type SortingState,
 	useReactTable,
 } from "@tanstack/react-table";
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { Button } from "#/components/ui/button";
+import {
+	DataTablePagination,
+	type DataTablePaginationConfig,
+} from "./DataTablePagination";
 
-type PaginationBase = {
-	pageIndex: number;
-	pageSize: number;
-	onPageSizeChange: (pageSize: number) => void;
-	pageSizeOptions?: number[];
-	isLoading?: boolean;
-};
-
-export type PagePagination = PaginationBase & {
-	mode: "page";
-	pageCount: number;
-	onPageChange: (pageIndex: number) => void;
-};
-
-export type CursorPagination = PaginationBase & {
-	mode: "cursor";
-	hasPreviousPage: boolean;
-	hasNextPage: boolean;
-	onPreviousPage: () => void;
-	onNextPage: () => void;
-};
-
-export type DataTablePagination = PagePagination | CursorPagination;
+export type {
+	CursorPagination,
+	DataTablePaginationConfig as DataTablePagination,
+	PagePagination,
+} from "./DataTablePagination";
 
 type DataTableProps<TData> = {
 	columns: ColumnDef<TData, unknown>[];
@@ -37,7 +26,8 @@ type DataTableProps<TData> = {
 	getRowId?: (row: TData, index: number) => string;
 	emptyMessage?: string;
 	ariaLabel?: string;
-	pagination?: DataTablePagination;
+	pagination?: DataTablePaginationConfig;
+	sorting?: { value: SortingState; onChange: OnChangeFn<SortingState> };
 };
 
 /**
@@ -51,6 +41,7 @@ export function DataTable<TData>({
 	emptyMessage = "No results",
 	ariaLabel = "Data table",
 	pagination,
+	sorting,
 }: DataTableProps<TData>) {
 	const table = useReactTable({
 		data,
@@ -58,15 +49,22 @@ export function DataTable<TData>({
 		getCoreRowModel: getCoreRowModel(),
 		getRowId,
 		manualPagination: Boolean(pagination),
+		manualSorting: Boolean(sorting),
+		enableMultiSort: false,
+		enableSortingRemoval: false,
+		onSortingChange: sorting?.onChange,
 		pageCount: pagination?.mode === "page" ? pagination.pageCount : -1,
-		state: pagination
-			? {
-					pagination: {
-						pageIndex: pagination.pageIndex,
-						pageSize: pagination.pageSize,
-					},
-				}
-			: undefined,
+		state: {
+			...(sorting ? { sorting: sorting.value } : {}),
+			...(pagination
+				? {
+						pagination: {
+							pageIndex: pagination.pageIndex,
+							pageSize: pagination.pageSize,
+						},
+					}
+				: {}),
+		},
 		onPaginationChange: pagination
 			? (updater) => {
 					const current: PaginationState = {
@@ -100,14 +98,40 @@ export function DataTable<TData>({
 										key={header.id}
 										colSpan={header.colSpan}
 										scope="col"
+										aria-sort={
+											header.column.getIsSorted() === "asc"
+												? "ascending"
+												: header.column.getIsSorted() === "desc"
+													? "descending"
+													: undefined
+										}
 										className="px-4 py-3 font-medium"
 									>
-										{header.isPlaceholder
-											? null
-											: flexRender(
+										{header.isPlaceholder ? null : sorting &&
+											header.column.getCanSort() ? (
+											<Button
+												variant="ghost"
+												size="sm"
+												onClick={header.column.getToggleSortingHandler()}
+											>
+												{flexRender(
 													header.column.columnDef.header,
 													header.getContext(),
 												)}
+												{header.column.getIsSorted() === "asc" ? (
+													<ArrowUp data-icon="inline-end" />
+												) : header.column.getIsSorted() === "desc" ? (
+													<ArrowDown data-icon="inline-end" />
+												) : (
+													<ArrowUpDown data-icon="inline-end" />
+												)}
+											</Button>
+										) : (
+											flexRender(
+												header.column.columnDef.header,
+												header.getContext(),
+											)
+										)}
 									</th>
 								))}
 							</tr>
@@ -142,90 +166,15 @@ export function DataTable<TData>({
 			</div>
 
 			{pagination && (
-				<div className="flex flex-wrap items-center justify-between gap-3">
-					<label className="flex items-center gap-2 text-sm text-muted-foreground">
-						<span>Rows per page</span>
-						<select
-							className="h-9 rounded-lg border bg-background px-2 text-foreground"
-							value={pagination.pageSize}
-							disabled={pagination.isLoading}
-							onChange={(event) =>
-								pagination.onPageSizeChange(Number(event.target.value))
-							}
-						>
-							{(pagination.pageSizeOptions ?? [10, 20, 50]).map((size) => (
-								<option key={size} value={size}>
-									{size}
-								</option>
-							))}
-						</select>
-					</label>
-					<div className="flex items-center gap-2">
-						<span className="min-w-24 text-center text-sm text-muted-foreground">
-							Page {pagination.pageIndex + 1}
-							{pagination.mode === "page" &&
-								` of ${Math.max(pagination.pageCount, 1)}`}
-						</span>
-						{pagination.mode === "page" ? (
-							<>
-								<Button
-									variant="outline"
-									size="sm"
-									disabled={pagination.pageIndex === 0 || pagination.isLoading}
-									onClick={() => table.firstPage()}
-								>
-									First
-								</Button>
-								<Button
-									variant="outline"
-									size="sm"
-									disabled={!table.getCanPreviousPage() || pagination.isLoading}
-									onClick={() => table.previousPage()}
-								>
-									Previous
-								</Button>
-								<Button
-									variant="outline"
-									size="sm"
-									disabled={!table.getCanNextPage() || pagination.isLoading}
-									onClick={() => table.nextPage()}
-								>
-									Next
-								</Button>
-								<Button
-									variant="outline"
-									size="sm"
-									disabled={
-										pagination.pageIndex >= pagination.pageCount - 1 ||
-										pagination.isLoading
-									}
-									onClick={() => table.lastPage()}
-								>
-									Last
-								</Button>
-							</>
-						) : (
-							<>
-								<Button
-									variant="outline"
-									size="sm"
-									disabled={!pagination.hasPreviousPage || pagination.isLoading}
-									onClick={pagination.onPreviousPage}
-								>
-									Previous
-								</Button>
-								<Button
-									variant="outline"
-									size="sm"
-									disabled={!pagination.hasNextPage || pagination.isLoading}
-									onClick={pagination.onNextPage}
-								>
-									Next
-								</Button>
-							</>
-						)}
-					</div>
-				</div>
+				<DataTablePagination
+					pagination={pagination}
+					canPreviousPage={table.getCanPreviousPage()}
+					canNextPage={table.getCanNextPage()}
+					onFirstPage={() => table.firstPage()}
+					onPreviousPage={() => table.previousPage()}
+					onNextPage={() => table.nextPage()}
+					onLastPage={() => table.lastPage()}
+				/>
 			)}
 		</div>
 	);

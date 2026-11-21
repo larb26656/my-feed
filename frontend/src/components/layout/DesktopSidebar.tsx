@@ -1,9 +1,10 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Bookmark, Layers3, RefreshCw, Settings } from "lucide-react";
+import { Bookmark, Layers3, RefreshCw, Rss, Settings } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { SourceAvatar } from "#/components/SourceAvatar";
 import { buttonVariants } from "#/components/ui/button";
 import { useFeedState } from "#/features/feed/FeedState";
+import { useSidebarSources } from "#/hooks/queries";
 import { ThemeToggle } from "./ThemeToggle";
 
 type NavItemProps = Omit<
@@ -42,22 +43,28 @@ function NavItem({
 }
 
 export function DesktopSidebar() {
-	const { sources, savedCount, savedCountError } = useFeedState();
+	const { savedCount, savedCountError } = useFeedState();
+	const { data: sidebarSources = [] } = useSidebarSources();
 	const path = useRouterState({ select: (state) => state.location.pathname });
 	return (
 		<aside className="sticky top-0 hidden h-screen flex-col border-r bg-card px-5 py-7 md:flex">
 			<Link
 				to="/"
+				aria-label="My feed"
 				className="flex items-center gap-2 text-left text-xl font-bold tracking-tight"
 			>
 				<span className="grid size-9 place-items-center">
 					<img
-						src="/my-feed-mascot.png"
+						src="/my-feed-logo.png"
 						alt=""
-						className="size-9 object-contain"
+						className="size-9 object-contain dark:hidden"
+					/>
+					<img
+						src="/my-feed-logo-dark.png"
+						alt=""
+						className="hidden size-9 object-contain dark:block"
 					/>
 				</span>
-				My feed
 			</Link>
 			<p className="mt-14 px-3 text-[10px] font-bold tracking-widest text-muted-foreground">
 				YOUR SPACE
@@ -88,12 +95,20 @@ export function DesktopSidebar() {
 						)
 					)}
 				</NavItem>
+				<NavItem
+					to="/sources"
+					active={path === "/sources"}
+					activeOptions={{ exact: true }}
+				>
+					<Rss data-icon="inline-start" />
+					Manage Sources
+				</NavItem>
 			</nav>
 			<p className="mt-10 flex justify-between px-3 text-[10px] font-bold tracking-widest text-muted-foreground">
-				YOUR SOURCES <span>{sources.length}</span>
+				YOUR SOURCES
 			</p>
 			<div className="mt-3 flex min-h-0 flex-col overflow-y-auto">
-				{sources.map((source) => (
+				{sidebarSources.map((source) => (
 					<NavItem
 						key={source.id}
 						to="/sources/$sourceId"
@@ -105,14 +120,6 @@ export function DesktopSidebar() {
 						<span className="truncate">{source.name}</span>
 					</NavItem>
 				))}
-				<NavItem
-					to="/sources"
-					active={path === "/sources"}
-					className="mt-2 h-11"
-					activeOptions={{ exact: true }}
-				>
-					Manage Sources
-				</NavItem>
 			</div>
 			<div className="mt-auto flex flex-col gap-1 pt-4">
 				<ThemeToggle />

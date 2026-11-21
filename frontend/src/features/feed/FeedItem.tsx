@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { SourceAvatar } from "#/components/SourceAvatar";
+import { SourceTypeBadge } from "#/components/SourceTypeBadge";
 import { formatDate } from "#/lib/date";
 import { cn } from "#/lib/utils";
 import { RichDescription } from "./RichDescription";
@@ -47,9 +48,12 @@ export function FeedItem({
 			<div className="min-w-0 flex-1">
 				<div className="min-h-36">
 					<div className="flex items-center justify-between gap-3">
-						<strong className="truncate text-sm">
-							{source?.name ?? "Source"}
-						</strong>
+						<div className="flex min-w-0 items-center gap-2">
+							<strong className="truncate text-sm">
+								{source?.name ?? "Source"}
+							</strong>
+							{source && <SourceTypeBadge type={source.type} />}
+						</div>
 						<time
 							dateTime={date}
 							className="shrink-0 text-xs text-muted-foreground"
@@ -72,9 +76,7 @@ export function FeedItem({
 							{entry.title}
 						</a>
 					</h3>
-					{description && (
-						<RichDescription html={description} />
-					)}
+					{description && <RichDescription html={description} />}
 					{entry.thumbnail && (
 						<a
 							href={entry.link}
@@ -92,6 +94,7 @@ export function FeedItem({
 				</div>
 				<div className="mt-2 grid grid-cols-3 text-muted-foreground">
 					<button
+						type="button"
 						disabled={disabled}
 						onClick={() => onToggle(entry, "read")}
 						aria-label={
@@ -106,6 +109,7 @@ export function FeedItem({
 						{read ? <CircleCheck size={19} /> : <BookOpenCheck size={19} />}
 					</button>
 					<button
+						type="button"
 						onClick={copyLink}
 						aria-label={copied ? "Link copied" : "Copy link"}
 						title={copied ? "Link copied" : "Copy link"}
@@ -118,6 +122,7 @@ export function FeedItem({
 						)}
 					</button>
 					<button
+						type="button"
 						disabled={disabled}
 						onClick={() => onToggle(entry, "save")}
 						aria-label={

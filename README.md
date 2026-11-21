@@ -37,7 +37,7 @@ Start the application with Docker Compose:
 make backend:up
 ```
 
-Set `MY_FEED_PASSWORD` and `MY_FEED_JWT_SECRET` in your shell or a root `.env` file first. Compose builds one image containing the frontend and backend, applies Goose migrations, and exposes the app at **http://localhost:8080/**. SQLite data persists in `backend/data/my-feed.db` on the host.
+Set `MY_FEED_PASSWORD` and `MY_FEED_JWT_SECRET` in your shell or a root `.env` file first. Compose builds one image containing the frontend and backend, applies Goose migrations, and exposes the app at **http://localhost:8080/**. SQLite data persists in `backend/data/my-feed.db` on the host. For deployment and MCP setup, see [Deployment](#deployment) and [MCP](#mcp).
 
 For frontend development with hot reload, start Vite separately:
 
@@ -82,7 +82,75 @@ The backend reads environment variables; defaults are listed in [backend/.env.ex
 | `VITE_API_BASE_URL` | `/api/v1` | Frontend API base URL; set before building when deploying elsewhere |
 | `VITE_MY_FEED_API_KEY` | _(empty)_ | Optional: same secret as `MY_FEED_API_KEY` for non-login clients; the SPA normally uses JWT from `/login` |
 
-Streamable HTTP MCP is served at `/mcp` on the same process (tool: `save_link`). Clients such as Codex can use `url = "https://<host>/mcp"` with `bearer_token_env_var` pointing at `MY_FEED_API_KEY`, or a JWT from `POST /api/v1/auth/login`.
+## Deployment
+
+The included Compose configuration builds and runs the application on a host with Docker and Docker Compose. Run one instance and keep `backend/data` on a persistent local filesystem; shared network filesystems are not supported.
+
+1. Clone the repository on the host and enter its directory. Create a root `.env` file with your own credentials (do not commit it):
+
+   ```dotenv
+   MY_FEED_USERNAME=admin
+   MY_FEED_PASSWORD=replace-with-a-strong-password
+   MY_FEED_JWT_SECRET=replace-with-a-long-random-secret
+   MY_FEED_API_KEY=replace-with-a-separate-random-secret
+   ```
+
+   `MY_FEED_API_KEY` is optional, but needed for the long-lived MCP bearer token example below. Generate independent secrets, for example with `openssl rand -hex 32`. The root `.env` is read by Compose; `backend/.env` is for local backend development.
+
+2. Build and start the app, then check its status:
+
+   ```bash
+   docker compose up -d --build
+   docker compose ps
+   docker compose logs --tail=100 api
+   curl -f http://localhost:8080/healthz
+   ```
+
+   The image runs pending Goose migrations before starting the server. Open `http://<host>:8080/` and sign in with the configured username and password. For access over an untrusted network, put the service behind an HTTPS reverse proxy and forward `/`, `/api`, and `/mcp` to port 8080. Restrict direct access to port 8080 as appropriate.
+
+3. To update, back up the database, update the checkout to the desired revision, and rebuild:
+
+   ```bash
+   docker compose up -d --build
+   docker compose logs --tail=100 api
+   curl -f http://localhost:8080/healthz
+   ```
+
+   To stop the service, run `docker compose down`; the bind-mounted data remains in `backend/data`.
+
+### Back up and restore
+
+For a consistent backup while the app is running, use the SQLite CLI's online backup command on the host:
+
+```bash
+sqlite3 backend/data/my-feed.db ".backup 'my-feed-backup.db'"
+```
+
+Store the resulting file somewhere safe outside `backend/data`. To restore, stop the app, preserve the current data directory, and restore the backup before starting it again:
+
+```bash
+docker compose down
+mv backend/data backend/data-before-restore
+mkdir -p backend/data
+cp my-feed-backup.db backend/data/my-feed.db
+docker compose up -d
+```
+
+Ensure the restored file and directory are writable by the container. Startup applies any pending migrations, so keep a backup before upgrading or restoring.
+
+## MCP
+
+My feed serves a Streamable HTTP MCP endpoint at `/mcp`. Set `MY_FEED_API_KEY` in the deployment's root `.env`, then recreate the service with `docker compose up -d`. The same key grants bearer access to `/api/v1` as well as `/mcp`, so keep it secret. A JWT from `POST /api/v1/auth/login` can also authenticate MCP requests.
+
+For example, add this to your Codex `config.toml`, replacing the URL with your deployment's HTTPS address (or use `http://localhost:8080/mcp` locally):
+
+```toml
+[mcp_servers.my-feed]
+url = "https://your-host.example/mcp"
+bearer_token_env_var = "MY_FEED_API_KEY"
+```
+
+Export `MY_FEED_API_KEY` in the environment that starts Codex; the server's `.env` file is not automatically loaded by the client. Restart Codex after changing its configuration. Ask it to save a link to My feed to use the `save_link` tool. The tool requires `title` and `link`, and accepts `description`, `thumbnail`, and `publishedAt` (RFC3339) as optional fields. It records an Entry in the manual **Saved links** Source; it does not bookmark the Entry in **Saved**. An existing link has its metadata refreshed, with `created: false` in the result.
 
 ## Development
 

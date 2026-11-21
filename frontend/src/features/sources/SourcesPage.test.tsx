@@ -2,15 +2,31 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ComponentProps } from "react";
 import { afterEach, expect, test, vi } from "vitest";
-import { FeedProvider } from "#/features/feed/FeedState";
 import { failJson, okJson } from "#/lib/api/test-helpers";
 import { SourcesPage } from "./SourcesPage";
 
 vi.mock("@tanstack/react-router", () => ({
-	Link: ({ children }: { children: React.ReactNode }) => (
-		<a href="/sources">{children}</a>
-	),
+	Link: ({
+		to,
+		params,
+		children,
+		...props
+	}: ComponentProps<"a"> & {
+		to: string;
+		params?: { sourceId?: string };
+	}) => {
+		const href =
+			to === "/sources/$sourceId" && params?.sourceId
+				? `/sources/${params.sourceId}`
+				: to;
+		return (
+			<a href={href} {...props}>
+				{children}
+			</a>
+		);
+	},
 }));
 
 afterEach(() => {
@@ -18,29 +34,66 @@ afterEach(() => {
 	vi.unstubAllGlobals();
 });
 
+function renderPage() {
+	const client = new QueryClient({
+		defaultOptions: { queries: { retry: false } },
+	});
+	return render(
+		<QueryClientProvider client={client}>
+			<SourcesPage />
+		</QueryClientProvider>,
+	);
+}
+
+function isSourcesList(url: string, init?: RequestInit) {
+	if (init?.method && init.method !== "GET") return false;
+	const path = url.replace(/\?.*$/, "");
+	return path === "/api/v1/sources" || path === "/api/v1/sources/";
+}
+
+function listMeta(total: number, page = 1, pageSize = 10) {
+	return {
+		page,
+		pageSize,
+		total,
+		totalPages: Math.max(1, Math.ceil(total / pageSize)),
+	};
+}
+
+function filterSources(url: string, sources: Array<Record<string, unknown>>) {
+	const params = new URL(url, "http://local").searchParams;
+	const activeEqual = params.get("activeEqual");
+	const page = Number(params.get("page") ?? "1");
+	const pageSize = Number(params.get("pageSize") ?? "10");
+	const filtered =
+		activeEqual === null
+			? sources
+			: sources.filter((source) => String(source.active) === activeEqual);
+	const start = (page - 1) * pageSize;
+	return {
+		data: filtered.slice(start, start + pageSize),
+		meta: listMeta(filtered.length, page, pageSize),
+	};
+}
+
 test("creates an RSS Source and shows it in management after success", async () => {
 	const sources: Array<Record<string, unknown>> = [];
 	vi.stubGlobal(
 		"fetch",
-		vi.fn(async (_url: string, init?: RequestInit) => {
-			if (init?.method === "POST") {
+		vi.fn(async (url: string, init?: RequestInit) => {
+			if (init?.method === "POST" && isSourcesList(url, { method: "GET" })) {
 				const input = JSON.parse(String(init.body));
 				sources.push({ id: "new-source", ...input, active: true });
 				return okJson(sources[0], undefined, 201);
 			}
-			return okJson(sources);
+			if (isSourcesList(url, init)) {
+				const page = filterSources(url, sources);
+				return okJson(page.data, page.meta);
+			}
+			return okJson(null);
 		}),
 	);
-	const client = new QueryClient({
-		defaultOptions: { queries: { retry: false } },
-	});
-	render(
-		<QueryClientProvider client={client}>
-			<FeedProvider>
-				<SourcesPage />
-			</FeedProvider>
-		</QueryClientProvider>,
-	);
+	renderPage();
 	const user = userEvent.setup();
 	await user.click(await screen.findByRole("button", { name: "Add Source" }));
 	expect(screen.getByRole("heading", { name: "Add source" })).toBeTruthy();
@@ -50,12 +103,14 @@ test("creates an RSS Source and shows it in management after success", async () 
 		"https://example.com/feed.xml",
 	);
 	await user.click(screen.getByRole("button", { name: "Save source" }));
-	await screen.findByText("Engineering Blog");
+	await screen.findByRole("link", { name: "Engineering Blog" });
 	await waitFor(() => {
 		const request = vi
 			.mocked(fetch)
 			.mock.calls.find(
-				([url, init]) => url === "/api/v1/sources/" && init?.method === "POST",
+				([url, init]) =>
+					(url === "/api/v1/sources/" || url === "/api/v1/sources") &&
+					init?.method === "POST",
 			);
 		expect(request).toBeDefined();
 		expect(JSON.parse(String(request?.[1]?.body))).toEqual({
@@ -74,24 +129,19 @@ test("edits the supported Source fields and refreshes management", async () => {
 		rssUrl: "https://example.com/old.xml",
 		active: true,
 	};
-	const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+	const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
 		if (init?.method === "PATCH") {
 			source = { ...source, ...JSON.parse(String(init.body)) };
 			return okJson(source);
 		}
-		return okJson([source]);
+		if (isSourcesList(url, init)) {
+			const page = filterSources(url, [source]);
+			return okJson(page.data, page.meta);
+		}
+		return okJson(source);
 	});
 	vi.stubGlobal("fetch", fetchMock);
-	const client = new QueryClient({
-		defaultOptions: { queries: { retry: false } },
-	});
-	render(
-		<QueryClientProvider client={client}>
-			<FeedProvider>
-				<SourcesPage />
-			</FeedProvider>
-		</QueryClientProvider>,
-	);
+	renderPage();
 	const user = userEvent.setup();
 	await user.click(
 		await screen.findByRole("button", { name: "Actions for Old name" }),
@@ -114,24 +164,12 @@ test("edits the supported Source fields and refreshes management", async () => {
 });
 
 test("shows field validation and server submission errors", async () => {
-	const fetchMock = vi.fn(
-		async (
-			_url: string,
-			_init?: RequestInit,
-		): Promise<ReturnType<typeof okJson> | ReturnType<typeof failJson>> =>
-			okJson([]),
-	);
-	vi.stubGlobal("fetch", fetchMock);
-	const client = new QueryClient({
-		defaultOptions: { queries: { retry: false } },
+	const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+		if (isSourcesList(url, init)) return okJson([], listMeta(0));
+		return okJson([]);
 	});
-	render(
-		<QueryClientProvider client={client}>
-			<FeedProvider>
-				<SourcesPage />
-			</FeedProvider>
-		</QueryClientProvider>,
-	);
+	vi.stubGlobal("fetch", fetchMock);
+	renderPage();
 	const user = userEvent.setup();
 	await user.click(await screen.findByRole("button", { name: "Add Source" }));
 	await user.click(screen.getByRole("button", { name: "Save source" }));
@@ -147,7 +185,6 @@ test("shows field validation and server submission errors", async () => {
 		screen.getByLabelText("RSS / Atom feed URL"),
 		"https://example.com/feed.xml",
 	);
-	fetchMock.mockClear();
 	fetchMock.mockImplementationOnce(async () => failJson(400));
 	await user.click(screen.getByRole("button", { name: "Save source" }));
 	expect(
@@ -155,7 +192,7 @@ test("shows field validation and server submission errors", async () => {
 	).toBeTruthy();
 });
 
-test("deactivates and reactivates RSS Sources while keeping Entries linked to them", async () => {
+test("moves Sources between Active and Inactive tabs", async () => {
 	let sources = [
 		{ id: "rss-1", name: "Engineering Blog", type: "rss", active: true },
 		{ id: "manual-1", name: "Saved links", type: "manual", active: true },
@@ -167,37 +204,41 @@ test("deactivates and reactivates RSS Sources while keeping Entries linked to th
 			sources = sources.map((source) =>
 				source.id === "rss-1" ? { ...source, active } : source,
 			);
-			return okJson(sources[0]);
+			return okJson(sources.find((source) => source.id === "rss-1"));
 		}
-		if (url.includes("/entries/")) {
-			return okJson([], { pageSize: 10 });
+		if (isSourcesList(url, init)) {
+			const page = filterSources(url, sources);
+			return okJson(page.data, page.meta);
 		}
-		return okJson(sources);
+		return okJson([]);
 	});
 	vi.stubGlobal("fetch", fetchMock);
-	const client = new QueryClient({
-		defaultOptions: { queries: { retry: false } },
-	});
-	render(
-		<QueryClientProvider client={client}>
-			<FeedProvider>
-				<SourcesPage />
-			</FeedProvider>
-		</QueryClientProvider>,
-	);
+	renderPage();
 	const user = userEvent.setup();
-	await user.click(
-		await screen.findByRole("button", { name: "Actions for Engineering Blog" }),
-	);
-	await user.click(screen.getByRole("menuitem", { name: "Deactivate source" }));
-	await screen.findByText(/RSS.*Inactive/);
+	await screen.findByRole("link", { name: "Engineering Blog" });
+	expect(screen.getByRole("link", { name: "Saved links" })).toBeTruthy();
 	await user.click(
 		screen.getByRole("button", { name: "Actions for Engineering Blog" }),
 	);
-	expect(screen.getByText(/RSS.*Inactive/)).toBeTruthy();
+	await user.click(screen.getByRole("menuitem", { name: "Deactivate source" }));
+	await waitFor(() =>
+		expect(screen.queryByRole("link", { name: "Engineering Blog" })).toBeNull(),
+	);
+	await user.click(screen.getByRole("tab", { name: "Inactive" }));
+	expect(
+		await screen.findByRole("link", { name: "Engineering Blog" }),
+	).toBeTruthy();
+	await user.click(
+		screen.getByRole("button", { name: "Actions for Engineering Blog" }),
+	);
 	await user.click(screen.getByRole("menuitem", { name: "Activate source" }));
-	await screen.findByText(/RSS.*Active/);
-	expect(screen.getByText(/RSS.*Active/)).toBeTruthy();
+	await waitFor(() =>
+		expect(screen.queryByRole("link", { name: "Engineering Blog" })).toBeNull(),
+	);
+	await user.click(screen.getByRole("tab", { name: "Active" }));
+	expect(
+		await screen.findByRole("link", { name: "Engineering Blog" }),
+	).toBeTruthy();
 	expect(
 		fetchMock.mock.calls.some(
 			([url, init]) =>
@@ -210,33 +251,60 @@ test("deactivates and reactivates RSS Sources while keeping Entries linked to th
 				url === "/api/v1/sources/rss-1/reactivate" && init?.method === "POST",
 		),
 	).toBe(true);
-	expect(screen.queryByRole("button", { name: /Saved links/ })).toBeNull();
+	expect(
+		screen.queryByRole("button", { name: "Actions for Saved links" }),
+	).toBeNull();
+});
+
+test("paginates Active Sources with the shared DataTable controls", async () => {
+	const sources = Array.from({ length: 12 }, (_, index) => ({
+		id: `source-${index + 1}`,
+		name: `Source ${index + 1}`,
+		type: "rss",
+		active: true,
+		rssUrl: `https://example.com/${index + 1}.xml`,
+	}));
+	vi.stubGlobal(
+		"fetch",
+		vi.fn(async (url: string, init?: RequestInit) => {
+			if (isSourcesList(url, init)) {
+				const page = filterSources(url, sources);
+				return okJson(page.data, page.meta);
+			}
+			return okJson([]);
+		}),
+	);
+	renderPage();
+	const user = userEvent.setup();
+	await screen.findByRole("table", { name: "active sources" });
+	expect(screen.getByRole("link", { name: "Source 1" })).toBeTruthy();
+	expect(screen.getByRole("link", { name: "Source 10" })).toBeTruthy();
+	expect(screen.queryByRole("link", { name: "Source 11" })).toBeNull();
+	expect(screen.getByText("Page 1 of 2")).toBeTruthy();
+	await user.click(screen.getByRole("button", { name: "Next page" }));
+	expect(await screen.findByRole("link", { name: "Source 11" })).toBeTruthy();
+	expect(screen.getByRole("link", { name: "Source 12" })).toBeTruthy();
+	expect(screen.queryByRole("link", { name: "Source 1" })).toBeNull();
+	expect(screen.getByText("Page 2 of 2")).toBeTruthy();
 });
 
 test("shows an activation failure without changing a Source", async () => {
-	const fetchMock = vi.fn(async (_url: string, init?: RequestInit) =>
-		init?.method === "POST"
-			? failJson(503)
-			: okJson([
-					{
-						id: "rss-1",
-						name: "Engineering Blog",
-						type: "rss",
-						active: true,
-					},
-				]),
-	);
-	vi.stubGlobal("fetch", fetchMock);
-	const client = new QueryClient({
-		defaultOptions: { queries: { retry: false } },
+	const source = {
+		id: "rss-1",
+		name: "Engineering Blog",
+		type: "rss",
+		active: true,
+	};
+	const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+		if (init?.method === "POST") return failJson(503);
+		if (isSourcesList(url, init)) {
+			const page = filterSources(url, [source]);
+			return okJson(page.data, page.meta);
+		}
+		return okJson([source]);
 	});
-	render(
-		<QueryClientProvider client={client}>
-			<FeedProvider>
-				<SourcesPage />
-			</FeedProvider>
-		</QueryClientProvider>,
-	);
+	vi.stubGlobal("fetch", fetchMock);
+	renderPage();
 	const user = userEvent.setup();
 	await user.click(
 		await screen.findByRole("button", { name: "Actions for Engineering Blog" }),
@@ -250,4 +318,67 @@ test("shows an activation failure without changing a Source", async () => {
 	expect(
 		screen.getByRole("button", { name: "Actions for Engineering Blog" }),
 	).toBeTruthy();
+});
+
+test("sends search criteria and resets the page", async () => {
+	const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+		if (isSourcesList(url, init)) return okJson([], listMeta(20));
+		return okJson([]);
+	});
+	vi.stubGlobal("fetch", fetchMock);
+	renderPage();
+	const user = userEvent.setup();
+	await screen.findByRole("table", { name: "active sources" });
+	await user.click(screen.getByRole("button", { name: "Next page" }));
+	const callsBeforeEditing = fetchMock.mock.calls.length;
+	await user.type(screen.getByLabelText("Search by name"), "blog");
+	await user.click(screen.getByRole("combobox", { name: "Type" }));
+	await user.click(await screen.findByRole("option", { name: "YouTube" }));
+	expect(fetchMock.mock.calls.length).toBe(callsBeforeEditing);
+	await user.click(screen.getByRole("button", { name: "Search" }));
+	await user.click(screen.getByRole("button", { name: "Date added" }));
+	await user.click(screen.getByRole("button", { name: "Date added" }));
+	await waitFor(() => {
+		const urls = fetchMock.mock.calls.map(
+			([url]) => new URL(url, "http://local").searchParams,
+		);
+		expect(
+			urls.some(
+				(params) =>
+					params.get("nameLike") === "blog" &&
+					params.get("typeEqual") === "youtube" &&
+					params.get("sortBy") === "createdAt" &&
+					params.get("sortDirection") === "desc" &&
+					params.get("page") === "1",
+			),
+		).toBe(true);
+	});
+	await user.click(screen.getByRole("tab", { name: "Inactive" }));
+	await waitFor(() =>
+		expect(
+			fetchMock.mock.calls.some(([url]) => {
+				const params = new URL(url, "http://local").searchParams;
+				return (
+					params.get("activeEqual") === "false" &&
+					params.get("nameLike") === "blog" &&
+					params.get("typeEqual") === "youtube"
+				);
+			}),
+		).toBe(true),
+	);
+});
+
+test("closes the source dialog with Escape and restores focus", async () => {
+	vi.stubGlobal(
+		"fetch",
+		vi.fn(async () => okJson([], listMeta(0))),
+	);
+	renderPage();
+	const user = userEvent.setup();
+	const trigger = await screen.findByRole("button", { name: "Add Source" });
+	await user.click(trigger);
+	expect(screen.getByRole("dialog", { name: "Add source" })).toBeTruthy();
+	await user.keyboard("{Escape}");
+	await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+	await waitFor(() => expect(document.activeElement).toBe(trigger));
 });
