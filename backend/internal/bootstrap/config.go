@@ -17,7 +17,10 @@ const (
 type Config struct {
 	DatabasePath string
 	HTTPAddr     string
-	Fetch        FetchConfig
+	// APIKey is the shared Bearer secret for /api/v1 and /mcp.
+	// Empty disables authentication.
+	APIKey string
+	Fetch  FetchConfig
 }
 
 // FetchConfig holds in-process Fetch Job scheduler/executor settings.
@@ -33,6 +36,7 @@ func LoadConfig() (Config, error) {
 	return Config{
 		DatabasePath: envString("DATABASE_PATH", defaultDatabasePath),
 		HTTPAddr:     envString("HTTP_ADDR", defaultHTTPAddr),
+		APIKey:       os.Getenv("MY_FEED_API_KEY"),
 		Fetch: FetchConfig{
 			RetryBackoff:     envDuration("FETCH_RETRY_BACKOFF", fetchsvc.DefaultRetryBackoff),
 			ScheduleInterval: envDuration("FETCH_SCHEDULE_INTERVAL", fetchsvc.DefaultScheduleInterval),

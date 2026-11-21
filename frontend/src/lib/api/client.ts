@@ -40,11 +40,23 @@ function baseURL(): string {
 	return (import.meta.env.VITE_API_BASE_URL ?? "/api/v1").replace(/\/$/, "");
 }
 
+function withAuthHeaders(init?: RequestInit): RequestInit | undefined {
+	const apiKey = import.meta.env.VITE_MY_FEED_API_KEY;
+	if (!apiKey) {
+		return init;
+	}
+	const headers = new Headers(init?.headers);
+	if (!headers.has("Authorization")) {
+		headers.set("Authorization", `Bearer ${apiKey}`);
+	}
+	return { ...init, headers };
+}
+
 export async function api<TData, TMeta = undefined>(
 	path: string,
 	init?: RequestInit,
 ): Promise<ApiResult<TData, TMeta>> {
-	const response = await fetch(`${baseURL()}${path}`, init);
+	const response = await fetch(`${baseURL()}${path}`, withAuthHeaders(init));
 	let body: unknown;
 	try {
 		body = await response.json();

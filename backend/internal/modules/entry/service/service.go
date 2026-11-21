@@ -34,9 +34,16 @@ type SaveLinkInput struct {
 	PublishedAt *time.Time
 }
 
+// SaveLinkResult is the outcome of recording a link on the manual Source.
+// Created is true only when a new Entry was written; metadata refresh is false.
+type SaveLinkResult struct {
+	Entry   *domain.Entry
+	Created bool
+}
+
 // SaveLink records an Entry on the system manual "Saved links" Source.
 // The client does not pass a Source id; the server resolves the singleton.
-func (s *Service) SaveLink(ctx context.Context, in SaveLinkInput) (*domain.Entry, error) {
+func (s *Service) SaveLink(ctx context.Context, in SaveLinkInput) (*SaveLinkResult, error) {
 	src, err := s.sources.GetManual(ctx)
 	if err != nil {
 		return nil, err
@@ -45,7 +52,7 @@ func (s *Service) SaveLink(ctx context.Context, in SaveLinkInput) (*domain.Entry
 	if err != nil {
 		return nil, err
 	}
-	return result.Entry, nil
+	return &SaveLinkResult{Entry: result.Entry, Created: result.Created}, nil
 }
 
 type IngestEntryInput = entryapi.IngestEntryInput

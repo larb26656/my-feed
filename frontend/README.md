@@ -16,6 +16,10 @@ different API base URL for production builds. During development, Vite proxies
 `/api` to `http://localhost:8080`; set `VITE_API_PROXY_TARGET` to change that
 backend target.
 
+When the backend has `MY_FEED_API_KEY` set, set the same value as
+`VITE_MY_FEED_API_KEY` so the client sends `Authorization: Bearer …` on API
+calls. Leave it empty when backend auth is disabled.
+
 # Building For Production
 
 To build this application for production:

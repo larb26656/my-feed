@@ -68,12 +68,12 @@ func (h *Handler) saveLink(c *gin.Context) {
 	if !httpx.BindJSON(c, &req) {
 		return
 	}
-	entry, err := h.svc.SaveLink(c.Request.Context(), req.input())
+	result, err := h.svc.SaveLink(c.Request.Context(), req.input())
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
-	c.JSON(http.StatusCreated, httpx.Success(toEntryResponse(entry)))
+	c.JSON(http.StatusCreated, httpx.Success(toEntryResponse(result.Entry)))
 }
 
 // @Summary Ingest Entry

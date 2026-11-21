@@ -28,6 +28,7 @@ func TestLoadConfigDefaults(t *testing.T) {
 func TestLoadConfigFromEnv(t *testing.T) {
 	t.Setenv("DATABASE_PATH", "var/library.db")
 	t.Setenv("HTTP_ADDR", ":9090")
+	t.Setenv("MY_FEED_API_KEY", "dev-secret")
 	t.Setenv("FETCH_RETRY_BACKOFF", "30s")
 	t.Setenv("FETCH_SCHEDULE_INTERVAL", "5m")
 	t.Setenv("FETCH_EXECUTOR_POLL", "1s")
@@ -36,9 +37,18 @@ func TestLoadConfigFromEnv(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "var/library.db", cfg.DatabasePath)
 	require.Equal(t, ":9090", cfg.HTTPAddr)
+	require.Equal(t, "dev-secret", cfg.APIKey)
 	require.Equal(t, 30*time.Second, cfg.Fetch.RetryBackoff)
 	require.Equal(t, 5*time.Minute, cfg.Fetch.ScheduleInterval)
 	require.Equal(t, time.Second, cfg.Fetch.ExecutorPoll)
+}
+
+func TestLoadConfigAPIKeyEmptyWhenUnset(t *testing.T) {
+	t.Setenv("MY_FEED_API_KEY", "")
+
+	cfg, err := LoadConfig()
+	require.NoError(t, err)
+	require.Empty(t, cfg.APIKey)
 }
 
 func TestLoadConfigInvalidDurationFallsBack(t *testing.T) {

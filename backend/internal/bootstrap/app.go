@@ -16,6 +16,7 @@ import (
 	"github.com/go-playground/validator/v10"
 
 	entryhttp "github.com/larb26656/my-feed/backend/internal/modules/entry/adapter/http"
+	entrymcp "github.com/larb26656/my-feed/backend/internal/modules/entry/adapter/mcp"
 	entrysqlite "github.com/larb26656/my-feed/backend/internal/modules/entry/adapter/sqlite"
 	entrysvc "github.com/larb26656/my-feed/backend/internal/modules/entry/service"
 	fetchhttp "github.com/larb26656/my-feed/backend/internal/modules/fetch/adapter/http"
@@ -33,6 +34,7 @@ import (
 	"github.com/larb26656/my-feed/backend/internal/platform/apidocs"
 	"github.com/larb26656/my-feed/backend/internal/platform/database"
 	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
+	"github.com/larb26656/my-feed/backend/internal/platform/http/middleware"
 )
 
 type realClock struct{}
@@ -106,10 +108,16 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 
 	r.GET("/healthz", health)
 
+	api := r.Group("/api/v1")
+	api.Use(middleware.APIKey(cfg.APIKey))
+
 	sourceLifecycle := sourcelifecycle.New(pool, sourceService, fetchService)
-	sourcehttp.NewHandler(sourceService, sourceLifecycle).RegisterRoutes(r.Group("/api/v1/sources"))
-	entryhttp.NewHandler(entryService).RegisterRoutes(r.Group("/api/v1/entries"))
-	fetchhttp.NewHandler(fetchService).RegisterRoutes(r.Group("/api/v1/fetch-jobs"))
+	sourcehttp.NewHandler(sourceService, sourceLifecycle).RegisterRoutes(api.Group("/sources"))
+	entryhttp.NewHandler(entryService).RegisterRoutes(api.Group("/entries"))
+	fetchhttp.NewHandler(fetchService).RegisterRoutes(api.Group("/fetch-jobs"))
+
+	mcpHandler := entrymcp.NewHandler(entryService)
+	r.Any("/mcp", middleware.APIKey(cfg.APIKey), gin.WrapH(mcpHandler))
 
 	return &App{Pool: pool, Router: r}, nil
 }
