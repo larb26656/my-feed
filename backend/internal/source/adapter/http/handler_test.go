@@ -171,7 +171,7 @@ func TestInvalidSubscriptionsReturnValidationErrorsWithoutCreatingSources(t *tes
 			sources := decodeSuccess[[]source](t, testkit.Request(t, router, "GET", "/api/v1/sources/", nil, 200))
 
 			// Assert
-			require.Equal(t, "validation", failure.Code)
+			require.Equal(t, "VALIDATION", failure.Code)
 			if scenario.name != "malformed JSON" {
 				require.Equal(t, scenario.message, failure.Message)
 			}
@@ -239,7 +239,7 @@ func TestInvalidEditsLeaveTheSubscriptionUnchanged(t *testing.T) {
 			got := decodeSuccess[source](t, testkit.Request(t, router, "GET", path, nil, 200))
 
 			// Assert
-			require.Equal(t, "validation", failure.Code)
+			require.Equal(t, "VALIDATION", failure.Code)
 			require.Equal(t, subscription, got)
 		})
 	}
@@ -284,7 +284,7 @@ func TestUnknownSourceRequestsReturnUsefulErrors(t *testing.T) {
 		name, id, code string
 		status         int
 	}{
-		{"invalid ID", "bad", "validation", 400}, {"missing source", uuid.NewString(), "NOT_FOUND", 404},
+		{"invalid ID", "bad", "VALIDATION", 400}, {"missing source", uuid.NewString(), "NOT_FOUND", 404},
 	} {
 		for _, action := range []struct{ method, suffix string }{{"GET", ""}, {"PATCH", ""}, {"POST", "/deactivate"}, {"POST", "/reactivate"}} {
 			t.Run(fmt.Sprintf("%s/%s%s", scenario.name, action.method, action.suffix), func(t *testing.T) {
@@ -330,7 +330,7 @@ func TestInvalidYouTubeChannelInputsAreRejected(t *testing.T) {
 			// Act
 			failure := decodeFailure(t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]string{"name": "Channel", "type": "youtube", "youtubeChannelId": input}, 400))
 			// Assert
-			require.Equal(t, "validation", failure.Code)
+			require.Equal(t, "VALIDATION", failure.Code)
 			require.Contains(t, failure.Message, "channel ID")
 			require.Len(t, decodeSuccess[[]source](t, testkit.Request(t, router, "GET", "/api/v1/sources/", nil, 200)), 1)
 		})
@@ -359,7 +359,7 @@ func TestYouTubeRetargetingIsRejected(t *testing.T) {
 			// Act
 			failure := decodeFailure(t, testkit.Request(t, router, "PATCH", "/api/v1/sources/"+created.ID, changes, 400))
 			// Assert
-			require.Equal(t, "validation", failure.Code)
+			require.Equal(t, "VALIDATION", failure.Code)
 			require.NotEmpty(t, failure.Message)
 			require.Equal(t, created, decodeSuccess[source](t, testkit.Request(t, router, "GET", "/api/v1/sources/"+created.ID, nil, 200)))
 		})
@@ -372,7 +372,7 @@ func decodeSuccess[T any](t *testing.T, response *httptest.ResponseRecorder) T {
 	require.True(t, result.Success)
 	return result.Data
 }
-func decodeFailure(t *testing.T, response *httptest.ResponseRecorder) httpx.ErrorBody2 {
+func decodeFailure(t *testing.T, response *httptest.ResponseRecorder) httpx.ErrorBody {
 	t.Helper()
 	result := testkit.Decode[httpx.ErrorResponse](t, response)
 	require.False(t, result.Success)

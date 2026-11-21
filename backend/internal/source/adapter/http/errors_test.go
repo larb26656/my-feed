@@ -26,7 +26,7 @@ func TestListErrorsUseCentralEnvelope(t *testing.T) {
 		status int
 		code   string
 	}{
-		{"/sources?includeDeactivated=invalid", http.StatusBadRequest, "validation"},
+		{"/sources?includeDeactivated=invalid", http.StatusBadRequest, "VALIDATION"},
 		{"/sources", http.StatusInternalServerError, "INTERNAL_SERVER_ERROR"},
 	} {
 		w := httptest.NewRecorder()

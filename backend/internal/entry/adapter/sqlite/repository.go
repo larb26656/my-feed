@@ -40,7 +40,7 @@ func (r *Repository) CreateEntry(ctx context.Context, e *domain.Entry) (*domain.
 		timeArg(e.PublishedAt), e.CreatedAt.UTC().UnixNano(), e.UpdatedAt.UTC().UnixNano(), timeArg(e.ReadAt), timeArg(e.SavedAt))
 	created, err := scanEntry(row)
 	if database.IsUniqueConstraintViolation(err) {
-		return nil, apperr.Conflict("entry already exists for source and link")
+		return nil, apperr.ResourceConflict.New("entry already exists for source and link")
 	}
 	return created, err
 }

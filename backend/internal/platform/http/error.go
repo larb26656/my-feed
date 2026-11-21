@@ -2,10 +2,10 @@ package httpx
 
 type ErrorResponse struct {
 	Success bool       `json:"success"`
-	Error   ErrorBody2 `json:"error"`
+	Error   ErrorBody `json:"error"`
 }
 
-type ErrorBody2 struct {
+type ErrorBody struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
 	Detail  any    `json:"detail,omitempty"`
@@ -23,7 +23,7 @@ func Fail(
 
 	return ErrorResponse{
 		Success: false,
-		Error: ErrorBody2{
+		Error: ErrorBody{
 			Code:    code,
 			Message: message,
 			Detail:  detail,

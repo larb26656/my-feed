@@ -53,9 +53,9 @@ func TestSQLiteRejectsDuplicateEntrySourceAndLink(t *testing.T) {
 	_, err = repo.CreateEntry(context.Background(), duplicate)
 
 	// Assert
-	var failure *apperr.Error
+	var failure *apperr.AppError
 	require.ErrorAs(t, err, &failure)
-	require.Equal(t, apperr.CodeConflict, failure.Code)
+	require.Equal(t, apperr.ResourceConflict.Code, failure.Code)
 }
 
 func TestSQLitePreservesPublicationTimestampPrecision(t *testing.T) {

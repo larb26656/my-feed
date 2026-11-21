@@ -59,7 +59,7 @@ func TestIngestionRecoversWhenAnotherWriterCreatesTheSameArticleFirst(t *testing
 			}
 			return winner, nil
 		},
-		create: func(*domain.Entry) (*domain.Entry, error) { return nil, apperr.Conflict("another writer won") },
+		create: func(*domain.Entry) (*domain.Entry, error) { return nil, apperr.ResourceConflict.New("another writer won") },
 		update: func(e *domain.Entry) (*domain.Entry, error) { require.Equal(t, winner.ID, e.ID); return e, nil },
 	}
 
@@ -101,7 +101,7 @@ func TestIngestionPropagatesStorageFailuresInsteadOfReportingSuccess(t *testing.
 					if stage == "create" {
 						return nil, storageFailure
 					}
-					return nil, apperr.Conflict("another writer won")
+					return nil, apperr.ResourceConflict.New("another writer won")
 				},
 				update: func(*domain.Entry) (*domain.Entry, error) { return nil, storageFailure },
 			}

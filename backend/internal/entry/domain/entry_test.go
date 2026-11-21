@@ -73,7 +73,7 @@ func TestNewEntryRejectsMissingRequiredFields(t *testing.T) {
 			var failure *apperr.AppError
 			require.ErrorAs(t, err, &failure)
 			require.Equal(t, apperr.KindInvalid, failure.Kind)
-			require.Equal(t, "validation", failure.Code)
+			require.Equal(t, "VALIDATION", failure.Code)
 			require.Equal(t, scenario.message, failure.Message)
 		})
 	}
@@ -204,7 +204,7 @@ func TestRefreshMetadataRejectsBlankRequiredFields(t *testing.T) {
 			var failure *apperr.AppError
 			require.ErrorAs(t, err, &failure)
 			require.Equal(t, apperr.KindInvalid, failure.Kind)
-			require.Equal(t, "validation", failure.Code)
+			require.Equal(t, "VALIDATION", failure.Code)
 			require.Equal(t, scenario.message, failure.Message)
 			require.Equal(t, original, *entry, "invalid metadata must not partially update the entry")
 		})

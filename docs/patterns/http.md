@@ -32,7 +32,7 @@ See the [application error pattern](./errors.md) for how to define, construct, a
 
 | Failure | HTTP status | Error code |
 | --- | --- | --- |
-| Invalid JSON body, query, operation input, or cursor | 400 Bad Request | `validation` |
+| Invalid JSON body, query, operation input, or cursor | 400 Bad Request | `VALIDATION` |
 | Unknown resource ID | 404 Not Found | `NOT_FOUND` |
 | Application conflict | 409 Conflict | Code from the error definition |
 | Unexpected failure | 500 Internal Server Error | `INTERNAL_SERVER_ERROR` |

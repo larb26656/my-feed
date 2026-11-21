@@ -286,6 +286,6 @@ func isNotFound(err error) bool {
 }
 
 func isConflict(err error) bool {
-	var ae *apperr.Error
-	return errors.As(err, &ae) && ae.Code == apperr.CodeConflict
+	var ae *apperr.AppError
+	return errors.As(err, &ae) && ae.Code == apperr.ResourceConflict.Code
 }

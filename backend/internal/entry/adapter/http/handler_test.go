@@ -331,7 +331,7 @@ func TestACursorCannotBeReusedWithDifferentFilters(t *testing.T) {
 	failure := decodeFailure(t, testkit.Request(t, router, "GET", "/api/v1/entries/?savedOnly=true&cursor="+url.QueryEscape(first.Meta.NextCursor), nil, 400))
 
 	// Assert
-	require.Equal(t, "validation", failure.Code)
+	require.Equal(t, "VALIDATION", failure.Code)
 	require.Equal(t, "cursor does not match criteria", failure.Message)
 }
 
@@ -343,20 +343,20 @@ func TestInvalidEntryRequestsReturnUsefulBusinessErrors(t *testing.T) {
 		status                   int
 		code, message            string
 	}{
-		{"malformed JSON", "POST", "/api/v1/entries/", "{", 400, "validation", "Invalid JSON body"},
-		{"invalid source ID", "POST", "/api/v1/entries/", `{"sourceId":"bad"}`, 400, "validation", "Invalid JSON body"},
-		{"omitted source ID", "POST", "/api/v1/entries/", `{"title":"News","link":"https://example.test/a"}`, 400, "validation", "Validation failed"},
-		{"nil UUID", "POST", "/api/v1/entries/", `{"sourceId":"00000000-0000-0000-0000-000000000000","title":"News","link":"https://example.test/a"}`, 400, "validation", "Validation failed"},
-		{"missing title and link", "POST", "/api/v1/entries/", fmt.Sprintf(`{"sourceId":%q}`, missing), 400, "validation", "Validation failed"},
-		{"invalid publication time", "POST", "/api/v1/entries/save-link", `{"title":"News","link":"https://example.test/a","publishedAt":"yesterday"}`, 400, "validation", "Invalid JSON body"},
+		{"malformed JSON", "POST", "/api/v1/entries/", "{", 400, "VALIDATION", "Invalid JSON body"},
+		{"invalid source ID", "POST", "/api/v1/entries/", `{"sourceId":"bad"}`, 400, "VALIDATION", "Invalid JSON body"},
+		{"omitted source ID", "POST", "/api/v1/entries/", `{"title":"News","link":"https://example.test/a"}`, 400, "VALIDATION", "Validation failed"},
+		{"nil UUID", "POST", "/api/v1/entries/", `{"sourceId":"00000000-0000-0000-0000-000000000000","title":"News","link":"https://example.test/a"}`, 400, "VALIDATION", "Validation failed"},
+		{"missing title and link", "POST", "/api/v1/entries/", fmt.Sprintf(`{"sourceId":%q}`, missing), 400, "VALIDATION", "Validation failed"},
+		{"invalid publication time", "POST", "/api/v1/entries/save-link", `{"title":"News","link":"https://example.test/a","publishedAt":"yesterday"}`, 400, "VALIDATION", "Invalid JSON body"},
 		{"missing source", "POST", "/api/v1/entries/", fmt.Sprintf(`{"sourceId":%q,"title":"A","link":"https://example.test/a"}`, missing), 404, "NOT_FOUND", "source not found"},
-		{"invalid entry ID", "GET", "/api/v1/entries/bad", "", 400, "validation", "invalid entry id"},
+		{"invalid entry ID", "GET", "/api/v1/entries/bad", "", 400, "VALIDATION", "invalid entry id"},
 		{"missing entry", "GET", "/api/v1/entries/" + missing, "", 404, "NOT_FOUND", "entry not found"},
-		{"invalid cursor", "GET", "/api/v1/entries/?cursor=bad", "", 400, "validation", "invalid cursor"},
-		{"invalid page size", "GET", "/api/v1/entries/?pageSize=many", "", 400, "validation", "Invalid Entry query"},
-		{"invalid unread filter", "GET", "/api/v1/entries/?unread=yes", "", 400, "validation", "Invalid Entry query"},
-		{"invalid saved filter", "GET", "/api/v1/entries/?savedOnly=yes", "", 400, "validation", "Invalid Entry query"},
-		{"invalid source filter", "GET", "/api/v1/entries/?sourceId=bad", "", 400, "validation", "Invalid Entry query"},
+		{"invalid cursor", "GET", "/api/v1/entries/?cursor=bad", "", 400, "VALIDATION", "invalid cursor"},
+		{"invalid page size", "GET", "/api/v1/entries/?pageSize=many", "", 400, "VALIDATION", "Invalid Entry query"},
+		{"invalid unread filter", "GET", "/api/v1/entries/?unread=yes", "", 400, "VALIDATION", "Invalid Entry query"},
+		{"invalid saved filter", "GET", "/api/v1/entries/?savedOnly=yes", "", 400, "VALIDATION", "Invalid Entry query"},
+		{"invalid source filter", "GET", "/api/v1/entries/?sourceId=bad", "", 400, "VALIDATION", "Invalid Entry query"},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
 			// Arrange
@@ -377,7 +377,7 @@ func TestSaveLinkReturnsValidationDetails(t *testing.T) {
 	response := testkit.Request(t, router, "POST", "/api/v1/entries/save-link",
 		map[string]string{"title": "Example"}, http.StatusBadRequest)
 	failure := decodeFailure(t, response)
-	require.Equal(t, "validation", failure.Code)
+	require.Equal(t, "VALIDATION", failure.Code)
 	require.Contains(t, response.Body.String(), `"rule":"required"`)
 	require.Contains(t, response.Body.String(), `"detail":{"fields":`)
 }
@@ -409,7 +409,7 @@ func TestIngestionRejectsManualSources(t *testing.T) {
 	failure := decodeFailure(t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sources[0].ID, "title": "News", "link": "https://example.test/a"}, 400))
 
 	// Assert
-	require.Equal(t, "validation", failure.Code)
+	require.Equal(t, "VALIDATION", failure.Code)
 	require.Equal(t, "ingest can only record Entries into fetchable Sources", failure.Message)
 }
 
@@ -426,7 +426,7 @@ func TestIngestionRejectsBlankMetadata(t *testing.T) {
 			failure := decodeFailure(t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sourceID, "title": scenario.title, "link": scenario.link}, 400))
 
 			// Assert
-			require.Equal(t, "validation", failure.Code)
+			require.Equal(t, "VALIDATION", failure.Code)
 		})
 	}
 }
@@ -545,7 +545,7 @@ func TestEntryPageUsesSharedPageSizeDefaultsAndBounds(t *testing.T) {
 
 	for _, size := range []string{"0", "-1", "101"} {
 		failure := decodeFailure(t, testkit.Request(t, router, "GET", "/api/v1/entries/?pageSize="+size, nil, 400))
-		require.Equal(t, "validation", failure.Code)
+		require.Equal(t, "VALIDATION", failure.Code)
 	}
 }
 
@@ -588,7 +588,7 @@ func decodePage(t *testing.T, response *httptest.ResponseRecorder) entryPage {
 	return body
 }
 
-func decodeFailure(t *testing.T, response *httptest.ResponseRecorder) httpx.ErrorBody2 {
+func decodeFailure(t *testing.T, response *httptest.ResponseRecorder) httpx.ErrorBody {
 	t.Helper()
 	body := testkit.Decode[httpx.ErrorResponse](t, response)
 	require.False(t, body.Success)

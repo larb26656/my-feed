@@ -25,7 +25,7 @@ func TestErrorMiddlewareReturnsValidationDetails(t *testing.T) {
 
 	// Assert
 	require.Equal(t, http.StatusBadRequest, recorder.Code)
-	require.JSONEq(t, `{"success":false,"error":{"message":"title is required","code":"validation"}}`, recorder.Body.String())
+	require.JSONEq(t, `{"success":false,"error":{"message":"title is required","code":"VALIDATION"}}`, recorder.Body.String())
 }
 
 func TestErrorMiddlewareReturnsEntryNotFound(t *testing.T) {
