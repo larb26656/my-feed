@@ -27,3 +27,7 @@ _Avoid_: using Feed for a single piece of content or for a Source
 **Fetch Job**:
 One unit of work that obtains content from a single fetchable Source, maps it into Entry fields, and records those Entries. It progresses through pending, running, succeeded, or failed; retries stay on the same Fetch Job until it succeeds or reaches its maximum attempts (a property of that Fetch Job; the product currently uses 3). Each attempt runs the whole obtain→map→record path; there is at most one unfinished Fetch Job per Source. Succeeded means that path completed, even when no Entry was newly created; the Fetch Job records how many Entries it newly created (metadata refresh of an existing Entry does not count). A terminal failed Fetch Job is finished; the next trigger creates a new Fetch Job. If the Source is deactivated while a Fetch Job is pending, that job becomes failed; if it is already running, it is allowed to finish. Deactivated Sources do not get new Fetch Jobs. Fetch Jobs are created on a fixed-rate round or manually for one Source. There is no separate persisted staging entity between origin content and Entry.
 _Avoid_: Job (alone), Fetcher, Fetch Run, poll, sync, Fetch Schedule
+
+**Session**:
+One login of the single Reader on a particular client. It lasts until logout, expiry, or revocation. The same Reader may hold multiple Sessions at once (for example several browsers or devices). Calling the API with the shared API key is not a Session.
+_Avoid_: User, Admin, account (as an entity), login (as the lasting thing)
