@@ -4,6 +4,183 @@
  */
 
 export interface paths {
+    "/api/v1/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Login */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description Credentials */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["internal_modules_auth_adapter_http.loginRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_auth_adapter_http_tokenResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Logout */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description Refresh token */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["internal_modules_auth_adapter_http.logoutRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_auth_adapter_http_logoutResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh Session */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description Refresh token */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["internal_modules_auth_adapter_http.refreshRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_auth_adapter_http_tokenResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/entries": {
         parameters: {
             query?: never;
@@ -1397,6 +1574,16 @@ export interface components {
             total?: number;
             totalPages?: number;
         };
+        "github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_auth_adapter_http_logoutResponse": {
+            data?: components["schemas"]["internal_modules_auth_adapter_http.logoutResponse"];
+            meta?: unknown;
+            success?: boolean;
+        };
+        "github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_auth_adapter_http_tokenResponse": {
+            data?: components["schemas"]["internal_modules_auth_adapter_http.tokenResponse"];
+            meta?: unknown;
+            success?: boolean;
+        };
         "github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_entry_adapter_http_entryResponse": {
             data?: components["schemas"]["internal_modules_entry_adapter_http.entryResponse"];
             meta?: unknown;
@@ -1419,6 +1606,25 @@ export interface components {
         };
         "internal_bootstrap.healthResponse": {
             status?: string;
+        };
+        "internal_modules_auth_adapter_http.loginRequest": {
+            password: string;
+            username: string;
+        };
+        "internal_modules_auth_adapter_http.logoutRequest": {
+            refresh_token: string;
+        };
+        "internal_modules_auth_adapter_http.logoutResponse": {
+            ok?: boolean;
+        };
+        "internal_modules_auth_adapter_http.refreshRequest": {
+            refresh_token: string;
+        };
+        "internal_modules_auth_adapter_http.tokenResponse": {
+            access_token?: string;
+            expires_in?: number;
+            refresh_token?: string;
+            token_type?: string;
         };
         "internal_modules_entry_adapter_http.CursorResponse": {
             data?: components["schemas"]["internal_modules_entry_adapter_http.entryResponse"][];

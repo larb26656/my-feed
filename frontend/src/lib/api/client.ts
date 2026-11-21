@@ -1,3 +1,6 @@
+import { refreshSession } from "#/lib/auth/session";
+import { clearTokens, getAccessToken } from "#/lib/auth/tokens";
+
 export class ApiError extends Error {
 	readonly code: string;
 	readonly status: number;
@@ -40,21 +43,55 @@ function baseURL(): string {
 	return (import.meta.env.VITE_API_BASE_URL ?? "/api/v1").replace(/\/$/, "");
 }
 
-function withAuthHeaders(init?: RequestInit): RequestInit | undefined {
-	const apiKey = import.meta.env.VITE_MY_FEED_API_KEY;
-	if (!apiKey) {
-		return init;
+function copyHeaders(input?: HeadersInit): Record<string, string> {
+	const headers: Record<string, string> = {};
+	if (!input) {
+		return headers;
 	}
-	const headers = new Headers(init?.headers);
-	if (!headers.has("Authorization")) {
-		headers.set("Authorization", `Bearer ${apiKey}`);
+	if (input instanceof Headers) {
+		input.forEach((value, key) => {
+			headers[key] = value;
+		});
+		return headers;
+	}
+	if (Array.isArray(input)) {
+		for (const [key, value] of input) {
+			headers[key] = value;
+		}
+		return headers;
+	}
+	return { ...input };
+}
+
+function withAuthHeaders(init?: RequestInit): RequestInit {
+	const headers = copyHeaders(init?.headers);
+	const hasAuthorization = Object.keys(headers).some(
+		(key) => key.toLowerCase() === "authorization",
+	);
+	if (!hasAuthorization) {
+		const accessToken = getAccessToken();
+		const apiKey = import.meta.env.VITE_MY_FEED_API_KEY;
+		if (accessToken) {
+			headers.Authorization = `Bearer ${accessToken}`;
+		} else if (apiKey) {
+			headers.Authorization = `Bearer ${apiKey}`;
+		}
 	}
 	return { ...init, headers };
+}
+
+function isAuthPath(path: string): boolean {
+	return (
+		path.startsWith("/auth/login") ||
+		path.startsWith("/auth/refresh") ||
+		path.startsWith("/auth/logout")
+	);
 }
 
 export async function api<TData, TMeta = undefined>(
 	path: string,
 	init?: RequestInit,
+	retried = false,
 ): Promise<ApiResult<TData, TMeta>> {
 	const response = await fetch(`${baseURL()}${path}`, withAuthHeaders(init));
 	let body: unknown;
@@ -66,6 +103,25 @@ export async function api<TData, TMeta = undefined>(
 			`Request failed (${response.status})`,
 			response.status,
 		);
+	}
+
+	if (
+		response.status === 401 &&
+		!retried &&
+		!isAuthPath(path) &&
+		(await refreshSession())
+	) {
+		return api(path, init, true);
+	}
+
+	if (response.status === 401 && !isAuthPath(path)) {
+		clearTokens();
+		if (
+			typeof window !== "undefined" &&
+			window.location.pathname !== "/login"
+		) {
+			window.location.assign("/login");
+		}
 	}
 
 	if (

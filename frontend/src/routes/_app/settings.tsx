@@ -1,15 +1,33 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { NoDataState } from "#/components/NoDataState";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
+import { Button } from "#/components/ui/button";
+import { logout } from "#/lib/auth/session";
+
 export const Route = createFileRoute("/_app/settings")({ component: Settings });
+
 function Settings() {
+	const navigate = useNavigate();
+	const [busy, setBusy] = useState(false);
+
+	const signOut = async () => {
+		setBusy(true);
+		try {
+			await logout();
+			await navigate({ to: "/login" });
+		} finally {
+			setBusy(false);
+		}
+	};
+
 	return (
-		<section>
-			<h1 className="sr-only">Settings</h1>
-			<NoDataState
-				illustration="search"
-				title="No settings yet"
-				description="Available settings will appear here when they are ready"
-			/>
+		<section className="space-y-4">
+			<h1 className="text-xl font-semibold tracking-tight">Settings</h1>
+			<p className="text-sm text-muted-foreground">
+				Sign out of this browser Session. Other devices stay signed in.
+			</p>
+			<Button variant="outline" onClick={signOut} disabled={busy}>
+				{busy ? "Signing out…" : "Sign out"}
+			</Button>
 		</section>
 	);
 }

@@ -1,7 +1,9 @@
 package bootstrap_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -14,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestAPIRoutesRejectMissingBearerWhenAPIKeyConfigured(t *testing.T) {
+func TestAPIRoutesRejectMissingBearer(t *testing.T) {
 	// Arrange
 	app := newTestApp(t, "test-secret")
 	defer app.Close()
@@ -27,7 +29,7 @@ func TestAPIRoutesRejectMissingBearerWhenAPIKeyConfigured(t *testing.T) {
 	require.Equal(t, http.StatusUnauthorized, recorder.Code)
 }
 
-func TestAPIRoutesAllowMatchingBearerWhenAPIKeyConfigured(t *testing.T) {
+func TestAPIRoutesAllowMatchingAPIKey(t *testing.T) {
 	// Arrange
 	app := newTestApp(t, "test-secret")
 	defer app.Close()
@@ -42,7 +44,44 @@ func TestAPIRoutesAllowMatchingBearerWhenAPIKeyConfigured(t *testing.T) {
 	require.Equal(t, http.StatusOK, recorder.Code)
 }
 
-func TestHealthzStaysOpenWhenAPIKeyConfigured(t *testing.T) {
+func TestAPIRoutesAllowJWTFromLogin(t *testing.T) {
+	// Arrange
+	app := newTestApp(t, "")
+	defer app.Close()
+	access := loginAccessToken(t, app)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/entries/", nil)
+	req.Header.Set("Authorization", "Bearer "+access)
+
+	// Act
+	recorder := httptest.NewRecorder()
+	app.Router.ServeHTTP(recorder, req)
+
+	// Assert
+	require.Equal(t, http.StatusOK, recorder.Code)
+}
+
+func TestAuthLoginIsPublic(t *testing.T) {
+	// Arrange
+	app := newTestApp(t, "test-secret")
+	defer app.Close()
+	body, err := json.Marshal(map[string]string{
+		"username": "admin",
+		"password": "secret",
+	})
+	require.NoError(t, err)
+
+	// Act
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	app.Router.ServeHTTP(recorder, req)
+
+	// Assert
+	require.Equal(t, http.StatusOK, recorder.Code)
+}
+
+func TestHealthzStaysOpenWhenAuthConfigured(t *testing.T) {
 	// Arrange
 	app := newTestApp(t, "test-secret")
 	defer app.Close()
@@ -55,7 +94,7 @@ func TestHealthzStaysOpenWhenAPIKeyConfigured(t *testing.T) {
 	require.Equal(t, http.StatusOK, recorder.Code)
 }
 
-func TestAPIRoutesOpenWhenAPIKeyEmpty(t *testing.T) {
+func TestAPIRoutesRequireJWTWhenAPIKeyEmpty(t *testing.T) {
 	// Arrange
 	app := newTestApp(t, "")
 	defer app.Close()
@@ -65,10 +104,10 @@ func TestAPIRoutesOpenWhenAPIKeyEmpty(t *testing.T) {
 	app.Router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/entries/", nil))
 
 	// Assert
-	require.Equal(t, http.StatusOK, recorder.Code)
+	require.Equal(t, http.StatusUnauthorized, recorder.Code)
 }
 
-func TestMCPRequiresBearerWhenAPIKeyConfigured(t *testing.T) {
+func TestMCPRequiresAuth(t *testing.T) {
 	// Arrange
 	app := newTestApp(t, "mcp-secret")
 	defer app.Close()
@@ -82,9 +121,40 @@ func TestMCPRequiresBearerWhenAPIKeyConfigured(t *testing.T) {
 	allowed := httptest.NewRecorder()
 	app.Router.ServeHTTP(allowed, allowedReq)
 
+	jwtReq := httptest.NewRequest(http.MethodPost, "/mcp", nil)
+	jwtReq.Header.Set("Authorization", "Bearer "+loginAccessToken(t, app))
+	jwtAllowed := httptest.NewRecorder()
+	app.Router.ServeHTTP(jwtAllowed, jwtReq)
+
 	// Assert
 	require.Equal(t, http.StatusUnauthorized, denied.Code)
 	require.NotEqual(t, http.StatusUnauthorized, allowed.Code)
+	require.NotEqual(t, http.StatusUnauthorized, jwtAllowed.Code)
+}
+
+func loginAccessToken(t *testing.T, app *bootstrap.App) string {
+	t.Helper()
+	body, err := json.Marshal(map[string]string{
+		"username": "admin",
+		"password": "secret",
+	})
+	require.NoError(t, err)
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	app.Router.ServeHTTP(recorder, req)
+	require.Equal(t, http.StatusOK, recorder.Code)
+
+	var envelope struct {
+		Success bool `json:"success"`
+		Data    struct {
+			AccessToken string `json:"access_token"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &envelope))
+	require.True(t, envelope.Success)
+	require.NotEmpty(t, envelope.Data.AccessToken)
+	return envelope.Data.AccessToken
 }
 
 func newTestApp(t *testing.T, apiKey string) *bootstrap.App {
@@ -102,6 +172,13 @@ func newTestApp(t *testing.T, apiKey string) *bootstrap.App {
 		DatabasePath: dbPath,
 		HTTPAddr:     ":0",
 		APIKey:       apiKey,
+		Auth: bootstrap.AuthConfig{
+			Username:   "admin",
+			Password:   "secret",
+			JWTSecret:  "jwt-test-secret",
+			AccessTTL:  15 * time.Minute,
+			RefreshTTL: 7 * 24 * time.Hour,
+		},
 		Fetch: bootstrap.FetchConfig{
 			RetryBackoff:     time.Hour,
 			ScheduleInterval: time.Hour,

@@ -1,10 +1,24 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { DesktopSidebar } from "#/components/layout/DesktopSidebar";
 import { MobileNavigation } from "#/components/layout/MobileNavigation";
 import { PageHeader } from "#/components/layout/PageHeader";
 import { FeedProvider } from "#/features/feed/FeedState";
+import { refreshSession } from "#/lib/auth/session";
+import { getAccessToken, getRefreshToken } from "#/lib/auth/tokens";
 
-export const Route = createFileRoute("/_app")({ component: AppLayout });
+export const Route = createFileRoute("/_app")({
+	beforeLoad: async () => {
+		if (getAccessToken()) {
+			return;
+		}
+		if (getRefreshToken() && (await refreshSession())) {
+			return;
+		}
+		throw redirect({ to: "/login" });
+	},
+	component: AppLayout,
+});
+
 function AppLayout() {
 	return (
 		<FeedProvider>

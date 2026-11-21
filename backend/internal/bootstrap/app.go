@@ -15,6 +15,9 @@ import (
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 
+	authhttp "github.com/larb26656/my-feed/backend/internal/modules/auth/adapter/http"
+	authsqlite "github.com/larb26656/my-feed/backend/internal/modules/auth/adapter/sqlite"
+	authsvc "github.com/larb26656/my-feed/backend/internal/modules/auth/service"
 	entryhttp "github.com/larb26656/my-feed/backend/internal/modules/entry/adapter/http"
 	entrymcp "github.com/larb26656/my-feed/backend/internal/modules/entry/adapter/mcp"
 	entrysqlite "github.com/larb26656/my-feed/backend/internal/modules/entry/adapter/sqlite"
@@ -103,21 +106,32 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 		}
 	})
 
+	authService := authsvc.New(authsqlite.NewRepository(pool.DB), pool, authsvc.Config{
+		Username:   cfg.Auth.Username,
+		Password:   cfg.Auth.Password,
+		JWTSecret:  cfg.Auth.JWTSecret,
+		AccessTTL:  cfg.Auth.AccessTTL,
+		RefreshTTL: cfg.Auth.RefreshTTL,
+	})
+
 	r := httpx.NewRouter()
 	apidocs.Register(r)
 
 	r.GET("/healthz", health)
 
 	api := r.Group("/api/v1")
-	api.Use(middleware.APIKey(cfg.APIKey))
+	authhttp.NewHandler(authService).RegisterRoutes(api.Group("/auth"))
+
+	protected := api.Group("")
+	protected.Use(middleware.Authenticate(cfg.Auth.JWTSecret, cfg.APIKey))
 
 	sourceLifecycle := sourcelifecycle.New(pool, sourceService, fetchService)
-	sourcehttp.NewHandler(sourceService, sourceLifecycle).RegisterRoutes(api.Group("/sources"))
-	entryhttp.NewHandler(entryService).RegisterRoutes(api.Group("/entries"))
-	fetchhttp.NewHandler(fetchService).RegisterRoutes(api.Group("/fetch-jobs"))
+	sourcehttp.NewHandler(sourceService, sourceLifecycle).RegisterRoutes(protected.Group("/sources"))
+	entryhttp.NewHandler(entryService).RegisterRoutes(protected.Group("/entries"))
+	fetchhttp.NewHandler(fetchService).RegisterRoutes(protected.Group("/fetch-jobs"))
 
 	mcpHandler := entrymcp.NewHandler(entryService)
-	r.Any("/mcp", middleware.APIKey(cfg.APIKey), gin.WrapH(mcpHandler))
+	r.Any("/mcp", middleware.Authenticate(cfg.Auth.JWTSecret, cfg.APIKey), gin.WrapH(mcpHandler))
 
 	return &App{Pool: pool, Router: r}, nil
 }

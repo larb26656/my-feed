@@ -4,7 +4,12 @@ services:
     environment:
       DATABASE_PATH: /data/my-feed.db
       HTTP_ADDR: :8080
-      # Shared Bearer for /api/v1 and /mcp. Empty disables auth.
+      MY_FEED_USERNAME: ${MY_FEED_USERNAME:-admin}
+      MY_FEED_PASSWORD: ${MY_FEED_PASSWORD:?MY_FEED_PASSWORD is required}
+      MY_FEED_JWT_SECRET: ${MY_FEED_JWT_SECRET:?MY_FEED_JWT_SECRET is required}
+      MY_FEED_ACCESS_TTL: ${MY_FEED_ACCESS_TTL:-15m}
+      MY_FEED_REFRESH_TTL: ${MY_FEED_REFRESH_TTL:-168h}
+      # Optional shared Bearer for scripts / MCP. Empty = JWT login only.
       MY_FEED_API_KEY: ${MY_FEED_API_KEY:-}
     ports:
       - "8080:8080"

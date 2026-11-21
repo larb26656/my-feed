@@ -52,6 +52,30 @@
                 },
                 "type": "object"
             },
+            "github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_auth_adapter_http_logoutResponse": {
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/internal_modules_auth_adapter_http.logoutResponse"
+                    },
+                    "meta": {},
+                    "success": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_auth_adapter_http_tokenResponse": {
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/internal_modules_auth_adapter_http.tokenResponse"
+                    },
+                    "meta": {},
+                    "success": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
             "github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_entry_adapter_http_entryResponse": {
                 "properties": {
                     "data": {
@@ -103,6 +127,68 @@
             "internal_bootstrap.healthResponse": {
                 "properties": {
                     "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "internal_modules_auth_adapter_http.loginRequest": {
+                "properties": {
+                    "password": {
+                        "type": "string"
+                    },
+                    "username": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "password",
+                    "username"
+                ],
+                "type": "object"
+            },
+            "internal_modules_auth_adapter_http.logoutRequest": {
+                "properties": {
+                    "refresh_token": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "refresh_token"
+                ],
+                "type": "object"
+            },
+            "internal_modules_auth_adapter_http.logoutResponse": {
+                "properties": {
+                    "ok": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "internal_modules_auth_adapter_http.refreshRequest": {
+                "properties": {
+                    "refresh_token": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "refresh_token"
+                ],
+                "type": "object"
+            },
+            "internal_modules_auth_adapter_http.tokenResponse": {
+                "properties": {
+                    "access_token": {
+                        "type": "string"
+                    },
+                    "expires_in": {
+                        "type": "integer"
+                    },
+                    "refresh_token": {
+                        "type": "string"
+                    },
+                    "token_type": {
                         "type": "string"
                     }
                 },
@@ -381,6 +467,165 @@
         "url": ""
     },
     "paths": {
+        "/api/v1/auth/login": {
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/internal_modules_auth_adapter_http.loginRequest",
+                                "summary": "request",
+                                "description": "Credentials"
+                            }
+                        }
+                    },
+                    "description": "Credentials",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_auth_adapter_http_tokenResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    }
+                },
+                "summary": "Login",
+                "tags": [
+                    "Auth"
+                ]
+            }
+        },
+        "/api/v1/auth/logout": {
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/internal_modules_auth_adapter_http.logoutRequest",
+                                "summary": "request",
+                                "description": "Refresh token"
+                            }
+                        }
+                    },
+                    "description": "Refresh token",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_auth_adapter_http_logoutResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    }
+                },
+                "summary": "Logout",
+                "tags": [
+                    "Auth"
+                ]
+            }
+        },
+        "/api/v1/auth/refresh": {
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/internal_modules_auth_adapter_http.refreshRequest",
+                                "summary": "request",
+                                "description": "Refresh token"
+                            }
+                        }
+                    },
+                    "description": "Refresh token",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_auth_adapter_http_tokenResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    }
+                },
+                "summary": "Refresh Session",
+                "tags": [
+                    "Auth"
+                ]
+            }
+        },
         "/api/v1/entries": {
             "get": {
                 "parameters": [

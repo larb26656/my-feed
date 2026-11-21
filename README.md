@@ -60,15 +60,20 @@ The backend reads environment variables; defaults are listed in [backend/.env.ex
 | --- | --- | --- |
 | `DATABASE_PATH` | `data/my-feed.db` | SQLite path relative to the backend working directory; Compose uses `/data/my-feed.db` |
 | `HTTP_ADDR` | `:8080` | API listen address |
-| `MY_FEED_API_KEY` | _(empty)_ | Shared Bearer secret for `/api/v1` and `/mcp`; empty disables auth |
+| `MY_FEED_USERNAME` | _(required)_ | Reader login username |
+| `MY_FEED_PASSWORD` | _(required)_ | Reader login password |
+| `MY_FEED_JWT_SECRET` | _(required)_ | HS256 secret for access JWTs |
+| `MY_FEED_ACCESS_TTL` | `15m` | Access token lifetime |
+| `MY_FEED_REFRESH_TTL` | `168h` | Refresh token / Session lifetime |
+| `MY_FEED_API_KEY` | _(empty)_ | Optional shared Bearer for `/api/v1` and `/mcp` (scripts); empty = JWT login only |
 | `FETCH_SCHEDULE_INTERVAL` | `15m` | Interval between automatic fetching rounds |
 | `FETCH_RETRY_BACKOFF` | `1m` | Delay between Fetch Job retries |
 | `FETCH_EXECUTOR_POLL` | `2s` | Interval for checking pending Fetch Jobs |
 | `VITE_API_PROXY_TARGET` | `http://localhost:8080` | Backend target for the Vite development proxy |
 | `VITE_API_BASE_URL` | `/api/v1` | Frontend API base URL; set before building when deploying elsewhere |
-| `VITE_MY_FEED_API_KEY` | _(empty)_ | Same secret as `MY_FEED_API_KEY` so the UI can send Bearer tokens |
+| `VITE_MY_FEED_API_KEY` | _(empty)_ | Optional: same secret as `MY_FEED_API_KEY` for non-login clients; the SPA normally uses JWT from `/login` |
 
-Streamable HTTP MCP is served at `/mcp` on the same process (tool: `save_link`). Clients such as Codex can use `url = "https://<host>/mcp"` with `bearer_token_env_var` pointing at `MY_FEED_API_KEY`.
+Streamable HTTP MCP is served at `/mcp` on the same process (tool: `save_link`). Clients such as Codex can use `url = "https://<host>/mcp"` with `bearer_token_env_var` pointing at `MY_FEED_API_KEY`, or a JWT from `POST /api/v1/auth/login`.
 
 ## Development
 
