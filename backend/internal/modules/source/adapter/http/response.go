@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
 	"github.com/larb26656/my-feed/backend/internal/modules/source/domain"
+	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
 )
 
 type sourceResponse struct {
@@ -44,4 +45,11 @@ func optionalString(value string) *string {
 		return nil
 	}
 	return &value
+}
+
+// PageResponse describes the list envelope emitted by httpx.Page.
+type PageResponse struct {
+	Success bool             `json:"success"`
+	Data    []sourceResponse `json:"data"`
+	Meta    httpx.PageMeta   `json:"meta"`
 }

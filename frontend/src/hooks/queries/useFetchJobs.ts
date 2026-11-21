@@ -16,11 +16,14 @@ export function useFetchJobHistory(
 ) {
 	return useQuery({
 		queryKey: fetchJobKeys.history(status, cursor, pageSize),
-		queryFn: () => {
+		queryFn: async (): Promise<FetchJobsPage> => {
 			const params = new URLSearchParams({ pageSize: String(pageSize) });
 			if (status) params.set("status", status);
 			if (cursor) params.set("cursor", cursor);
-			return api<FetchJobsPage>(`/fetch-jobs/?${params}`);
+			const result = await api<FetchJob[], FetchJobsPage["meta"]>(
+				`/fetch-jobs/?${params}`,
+			);
+			return { data: result.data, meta: result.meta ?? { pageSize } };
 		},
 	});
 }
@@ -30,9 +33,12 @@ export function useActiveFetchJobs() {
 		queryKey: fetchJobKeys.active,
 		queryFn: async () => {
 			const [pending, running] = await Promise.all(
-				["pending", "running"].map((status) => {
+				["pending", "running"].map(async (status) => {
 					const params = new URLSearchParams({ status, pageSize: "100" });
-					return api<FetchJobsPage>(`/fetch-jobs/?${params}`);
+					const result = await api<FetchJob[], FetchJobsPage["meta"]>(
+						`/fetch-jobs/?${params}`,
+					);
+					return { data: result.data, meta: result.meta ?? { pageSize: 100 } };
 				}),
 			);
 			return [...pending.data, ...running.data].sort(
@@ -48,13 +54,14 @@ export function useStartFetchJobs() {
 	return useMutation({
 		mutationFn: async (sourceIds: string[]): Promise<StartFetchJobsResult> => {
 			const outcomes = await Promise.allSettled(
-				sourceIds.map((sourceId) =>
-					api<FetchJob>("/fetch-jobs/", {
+				sourceIds.map(async (sourceId) => {
+					const { data } = await api<FetchJob>("/fetch-jobs/", {
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
 						body: JSON.stringify({ sourceId }),
-					}),
-				),
+					});
+					return data;
+				}),
 			);
 			return {
 				started: outcomes.filter((outcome) => outcome.status === "fulfilled")
@@ -70,19 +77,24 @@ export function useStartFetchJobs() {
 
 export function useCreateFetchJob() {
 	return useMutation({
-		mutationFn: (sourceId: string) =>
-			api<FetchJob>("/fetch-jobs/", {
+		mutationFn: async (sourceId: string) => {
+			const { data } = await api<FetchJob>("/fetch-jobs/", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ sourceId }),
-			}),
+			});
+			return data;
+		},
 	});
 }
 
 export function useFetchJob(id: string | null) {
 	return useQuery({
 		queryKey: fetchJobKeys.detail(id),
-		queryFn: () => api<FetchJob>(`/fetch-jobs/${id}`),
+		queryFn: async () => {
+			const { data } = await api<FetchJob>(`/fetch-jobs/${id}`);
+			return data;
+		},
 		enabled: id !== null,
 		refetchInterval: (query) => {
 			const status = query.state.data?.status;

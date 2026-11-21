@@ -127,7 +127,7 @@ export function FetchJobsPage() {
 	const hasPreviousPage =
 		tab !== "in-progress" && historyNavigation[tab].pageIndex > 0;
 	const hasNextPage =
-		tab !== "in-progress" && Boolean(selectedHistory.data?.page.hasNext);
+		tab !== "in-progress" && Boolean(selectedHistory.data?.meta.nextCursor);
 	const goToPreviousPage = () => {
 		if (tab === "in-progress") return;
 		setHistoryNavigation((current) => ({
@@ -137,7 +137,7 @@ export function FetchJobsPage() {
 	};
 	const goToNextPage = () => {
 		if (tab === "in-progress") return;
-		const nextCursor = selectedHistory.data?.page.nextCursor;
+		const nextCursor = selectedHistory.data?.meta.nextCursor;
 		if (!nextCursor) return;
 		setHistoryNavigation((current) => {
 			const navigation = current[tab];
@@ -173,9 +173,9 @@ export function FetchJobsPage() {
 						{startJobs.isPending ? "Fetching…" : "Fetch now"}
 					</Button>
 					{startMessage && (
-						<p className="mt-2 text-sm text-muted-foreground" role="status">
+						<output className="mt-2 block text-sm text-muted-foreground">
 							{startMessage}
-						</p>
+						</output>
 					)}
 					{startJobs.isError && (
 						<p className="mt-2 text-sm text-destructive" role="alert">

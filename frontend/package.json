@@ -12,8 +12,10 @@
     "preview": "vite preview",
     "format": "biome format",
     "lint": "biome lint",
-    "check": "biome check",
-    "test": "vitest run"
+		"check": "biome check",
+		"test": "vitest run",
+		"openapi:generate": "openapi-typescript ../backend/internal/platform/apidocs/swagger.json -o src/lib/api/schema.d.ts",
+		"openapi:check": "openapi-typescript ../backend/internal/platform/apidocs/swagger.json -o /tmp/my-feed-openapi-schema.d.ts && diff -u src/lib/api/schema.d.ts /tmp/my-feed-openapi-schema.d.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
@@ -51,6 +53,7 @@
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.0.1",
     "jsdom": "^31.0.1",
+    "openapi-typescript": "^7.13.0",
     "typescript": "^6.0.2",
     "vite": "^8.0.0",
     "vitest": "^5.1.0"

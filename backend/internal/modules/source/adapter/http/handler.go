@@ -75,8 +75,14 @@ func (h *Handler) createSource(c *gin.Context) {
 // @Summary List Sources
 // @Tags Sources
 // @Produce json
-// @Param includeDeactivated query bool false "Include deactivated Sources"
-// @Success 200 {object} httpx.SuccessResponse[[]sourceResponse]
+// @Param page query int false "Page number" minimum(1) default(1)
+// @Param pageSize query int false "Page size" minimum(1) maximum(100) default(10)
+// @Param nameLike query string false "Case-insensitive substring match on Source name"
+// @Param typeEqual query string false "Exact Source Type" Enums(rss, youtube, manual)
+// @Param activeEqual query bool false "Filter by active status; omit to include both"
+// @Param sortBy query string false "Sort field" Enums(name, type, active, createdAt) default(createdAt)
+// @Param sortDirection query string false "Sort direction" Enums(asc, desc) default(asc)
+// @Success 200 {object} PageResponse
 // @Failure 400 {object} httpx.ErrorResponse
 // @Failure 404 {object} httpx.ErrorResponse
 // @Failure 409 {object} httpx.ErrorResponse

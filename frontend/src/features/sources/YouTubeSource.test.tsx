@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
+import { failJson, okJson } from "#/lib/api/test-helpers";
 import { SourcesPage } from "./SourcesPage";
 
 vi.mock("@tanstack/react-router", () => ({
@@ -23,15 +24,14 @@ afterEach(() => {
 });
 
 test("adds a YouTube Source using its channel ID", async () => {
-	const fetchMock = vi.fn(async () => ({
-		ok: true,
-		json: async () => ({
+	const fetchMock = vi.fn(async () =>
+		okJson({
 			id: "yt",
 			name: "Channel",
 			type: "youtube",
 			active: true,
 		}),
-	}));
+	);
 	vi.stubGlobal("fetch", fetchMock);
 	render(
 		<QueryClientProvider
@@ -61,15 +61,14 @@ test("adds a YouTube Source using its channel ID", async () => {
 });
 
 test("accepts a canonical channel URL", async () => {
-	const fetchMock = vi.fn(async () => ({
-		ok: true,
-		json: async () => ({
+	const fetchMock = vi.fn(async () =>
+		okJson({
 			id: "yt",
 			name: "Channel",
 			type: "youtube",
 			active: true,
 		}),
-	}));
+	);
 	vi.stubGlobal("fetch", fetchMock);
 	render(
 		<QueryClientProvider client={new QueryClient()}>
@@ -119,11 +118,12 @@ test("explains supported inputs and rejects a handle", async () => {
 test("shows duplicate channel conflict", async () => {
 	vi.stubGlobal(
 		"fetch",
-		vi.fn(async () => ({
-			ok: false,
-			status: 409,
-			json: async () => ({ error: "youtube channel already in use" }),
-		})),
+		vi.fn(async () =>
+			failJson(409, {
+				code: "CONFLICT",
+				message: "youtube channel already in use",
+			}),
+		),
 	);
 	render(
 		<QueryClientProvider client={new QueryClient()}>

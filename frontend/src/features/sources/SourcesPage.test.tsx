@@ -4,6 +4,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import { FeedProvider } from "#/features/feed/FeedState";
+import { failJson, okJson } from "#/lib/api/test-helpers";
 import { SourcesPage } from "./SourcesPage";
 
 vi.mock("@tanstack/react-router", () => ({
@@ -25,12 +26,9 @@ test("creates an RSS Source and shows it in management after success", async () 
 			if (init?.method === "POST") {
 				const input = JSON.parse(String(init.body));
 				sources.push({ id: "new-source", ...input, active: true });
+				return okJson(sources[0], undefined, 201);
 			}
-			return {
-				ok: true,
-				status: init?.method === "POST" ? 201 : 200,
-				json: async () => (init?.method === "POST" ? sources[0] : sources),
-			};
+			return okJson(sources);
 		}),
 	);
 	const client = new QueryClient({
@@ -45,9 +43,7 @@ test("creates an RSS Source and shows it in management after success", async () 
 	);
 	const user = userEvent.setup();
 	await user.click(await screen.findByRole("button", { name: "Add Source" }));
-	expect(
-		screen.getByRole("heading", { name: "Add source" }),
-	).toBeTruthy();
+	expect(screen.getByRole("heading", { name: "Add source" })).toBeTruthy();
 	await user.type(screen.getByLabelText("Source name"), "Engineering Blog");
 	await user.type(
 		screen.getByLabelText("RSS / Atom feed URL"),
@@ -81,11 +77,9 @@ test("edits the supported Source fields and refreshes management", async () => {
 	const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
 		if (init?.method === "PATCH") {
 			source = { ...source, ...JSON.parse(String(init.body)) };
+			return okJson(source);
 		}
-		return {
-			ok: true,
-			json: async () => (init?.method === "PATCH" ? source : [source]),
-		};
+		return okJson([source]);
 	});
 	vi.stubGlobal("fetch", fetchMock);
 	const client = new QueryClient({
@@ -103,9 +97,7 @@ test("edits the supported Source fields and refreshes management", async () => {
 		await screen.findByRole("button", { name: "Actions for Old name" }),
 	);
 	await user.click(screen.getByRole("menuitem", { name: "Edit source" }));
-	expect(
-		screen.getByRole("heading", { name: "Edit source" }),
-	).toBeTruthy();
+	expect(screen.getByRole("heading", { name: "Edit source" })).toBeTruthy();
 	const name = screen.getByLabelText("Source name");
 	await user.clear(name);
 	await user.type(name, "New name");
@@ -126,14 +118,8 @@ test("shows field validation and server submission errors", async () => {
 		async (
 			_url: string,
 			_init?: RequestInit,
-		): Promise<{
-			ok: boolean;
-			status?: number;
-			json: () => Promise<unknown>;
-		}> => ({
-			ok: true,
-			json: async () => [],
-		}),
+		): Promise<ReturnType<typeof okJson> | ReturnType<typeof failJson>> =>
+			okJson([]),
 	);
 	vi.stubGlobal("fetch", fetchMock);
 	const client = new QueryClient({
@@ -162,11 +148,7 @@ test("shows field validation and server submission errors", async () => {
 		"https://example.com/feed.xml",
 	);
 	fetchMock.mockClear();
-	fetchMock.mockImplementationOnce(async () => ({
-		ok: false,
-		status: 400,
-		json: async () => ({}),
-	}));
+	fetchMock.mockImplementationOnce(async () => failJson(400));
 	await user.click(screen.getByRole("button", { name: "Save source" }));
 	expect(
 		await screen.findByText(/Could not save source: Request failed \(400\)/),
@@ -185,18 +167,12 @@ test("deactivates and reactivates RSS Sources while keeping Entries linked to th
 			sources = sources.map((source) =>
 				source.id === "rss-1" ? { ...source, active } : source,
 			);
-			return { ok: true, status: 200, json: async () => sources[0] };
+			return okJson(sources[0]);
 		}
 		if (url.includes("/entries/")) {
-			return {
-				ok: true,
-				json: async () => ({
-					data: [],
-					page: { nextCursor: null, hasNext: false },
-				}),
-			};
+			return okJson([], { pageSize: 10 });
 		}
-		return { ok: true, json: async () => sources };
+		return okJson(sources);
 	});
 	vi.stubGlobal("fetch", fetchMock);
 	const client = new QueryClient({
@@ -240,18 +216,15 @@ test("deactivates and reactivates RSS Sources while keeping Entries linked to th
 test("shows an activation failure without changing a Source", async () => {
 	const fetchMock = vi.fn(async (_url: string, init?: RequestInit) =>
 		init?.method === "POST"
-			? { ok: false, status: 503, json: async () => ({}) }
-			: {
-					ok: true,
-					json: async () => [
-						{
-							id: "rss-1",
-							name: "Engineering Blog",
-							type: "rss",
-							active: true,
-						},
-					],
-				},
+			? failJson(503)
+			: okJson([
+					{
+						id: "rss-1",
+						name: "Engineering Blog",
+						type: "rss",
+						active: true,
+					},
+				]),
 	);
 	vi.stubGlobal("fetch", fetchMock);
 	const client = new QueryClient({

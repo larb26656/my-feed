@@ -35,18 +35,19 @@
                 },
                 "type": "object"
             },
-            "github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-array_internal_modules_source_adapter_http_sourceResponse": {
+            "github_com_larb26656_my-feed_backend_internal_platform_http.PageMeta": {
                 "properties": {
-                    "data": {
-                        "items": {
-                            "$ref": "#/components/schemas/internal_modules_source_adapter_http.sourceResponse"
-                        },
-                        "type": "array",
-                        "uniqueItems": false
+                    "page": {
+                        "type": "integer"
                     },
-                    "meta": {},
-                    "success": {
-                        "type": "boolean"
+                    "pageSize": {
+                        "type": "integer"
+                    },
+                    "total": {
+                        "type": "integer"
+                    },
+                    "totalPages": {
+                        "type": "integer"
                     }
                 },
                 "type": "object"
@@ -280,6 +281,24 @@
                     },
                     "updatedAt": {
                         "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "internal_modules_source_adapter_http.PageResponse": {
+                "properties": {
+                    "data": {
+                        "items": {
+                            "$ref": "#/components/schemas/internal_modules_source_adapter_http.sourceResponse"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "meta": {
+                        "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.PageMeta"
+                    },
+                    "success": {
+                        "type": "boolean"
                     }
                 },
                 "type": "object"
@@ -1293,11 +1312,81 @@
             "get": {
                 "parameters": [
                     {
-                        "description": "Include deactivated Sources",
+                        "description": "Page number",
                         "in": "query",
-                        "name": "includeDeactivated",
+                        "name": "page",
+                        "schema": {
+                            "default": 1,
+                            "minimum": 1,
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Page size",
+                        "in": "query",
+                        "name": "pageSize",
+                        "schema": {
+                            "default": 10,
+                            "maximum": 100,
+                            "minimum": 1,
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Case-insensitive substring match on Source name",
+                        "in": "query",
+                        "name": "nameLike",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Exact Source Type",
+                        "in": "query",
+                        "name": "typeEqual",
+                        "schema": {
+                            "enum": [
+                                "rss",
+                                "youtube",
+                                "manual"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by active status; omit to include both",
+                        "in": "query",
+                        "name": "activeEqual",
                         "schema": {
                             "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "Sort field",
+                        "in": "query",
+                        "name": "sortBy",
+                        "schema": {
+                            "default": "createdAt",
+                            "enum": [
+                                "name",
+                                "type",
+                                "active",
+                                "createdAt"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Sort direction",
+                        "in": "query",
+                        "name": "sortDirection",
+                        "schema": {
+                            "default": "asc",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ],
+                            "type": "string"
                         }
                     }
                 ],
@@ -1306,7 +1395,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-array_internal_modules_source_adapter_http_sourceResponse"
+                                    "$ref": "#/components/schemas/internal_modules_source_adapter_http.PageResponse"
                                 }
                             }
                         },

@@ -17,3 +17,6 @@ pre-commit:
       glob: "frontend/**/*.{js,jsx,ts,tsx,json,jsonc,css}"
       root: frontend/
       run: pnpm exec biome check --no-errors-on-unmatched "{staged_files}"
+    - name: check-api-client
+      glob: "{backend/internal/platform/apidocs/swagger.json,frontend/src/lib/api/schema.d.ts,frontend/package.json}"
+      run: make check-api-client

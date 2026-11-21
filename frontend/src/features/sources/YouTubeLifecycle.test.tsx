@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
+import { okJson } from "#/lib/api/test-helpers";
 import { SourcesPage } from "./SourcesPage";
 
 vi.mock("@tanstack/react-router", () => ({
@@ -31,15 +32,14 @@ afterEach(() => {
 });
 
 test("edits only the name of a YouTube Source", async () => {
-	const fetchMock = vi.fn(async () => ({
-		ok: true,
-		json: async () => ({
+	const fetchMock = vi.fn(async () =>
+		okJson({
 			id: "yt",
 			name: "Renamed",
 			type: "youtube",
 			active: true,
 		}),
-	}));
+	);
 	vi.stubGlobal("fetch", fetchMock);
 	render(
 		<QueryClientProvider client={new QueryClient()}>
@@ -63,15 +63,14 @@ test("edits only the name of a YouTube Source", async () => {
 });
 
 test("deactivates a YouTube Source through its action menu", async () => {
-	const fetchMock = vi.fn(async () => ({
-		ok: true,
-		json: async () => ({
+	const fetchMock = vi.fn(async () =>
+		okJson({
 			id: "yt",
 			name: "Channel",
 			type: "youtube",
 			active: false,
 		}),
-	}));
+	);
 	vi.stubGlobal("fetch", fetchMock);
 	render(
 		<QueryClientProvider client={new QueryClient()}>

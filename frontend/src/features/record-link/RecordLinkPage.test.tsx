@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import { Toaster } from "#/components/ui/toaster";
+import { failJson, okJson } from "#/lib/api/test-helpers";
 import { RecordLinkPage } from "./RecordLinkPage";
 
 afterEach(() => {
@@ -26,11 +27,9 @@ function renderPage(
 }
 
 test("records a link, refreshes Entries, and announces success", async () => {
-	const fetchMock = vi.fn(async () => ({
-		ok: true,
-		status: 201,
-		json: async () => ({ id: "entry-1", title: "A useful article" }),
-	}));
+	const fetchMock = vi.fn(async () =>
+		okJson({ id: "entry-1", title: "A useful article" }, undefined, 201),
+	);
 	vi.stubGlobal("fetch", fetchMock);
 	const client = renderPage();
 	client.setQueryData(
@@ -66,11 +65,7 @@ test("records a link, refreshes Entries, and announces success", async () => {
 });
 
 test("shows field validation and submission failures", async () => {
-	const fetchMock = vi.fn(async () => ({
-		ok: false,
-		status: 422,
-		json: async () => ({}),
-	}));
+	const fetchMock = vi.fn(async () => failJson(422));
 	vi.stubGlobal("fetch", fetchMock);
 	renderPage();
 	const user = userEvent.setup();
@@ -101,6 +96,8 @@ test("shows a field error for an invalid publication date without submitting", a
 	fireEvent.change(publishedAt, { target: { value: "not-a-date" } });
 	await user.click(screen.getByRole("button", { name: "Save Link" }));
 
-	expect(await screen.findByText("Please enter a valid publication date")).toBeTruthy();
+	expect(
+		await screen.findByText("Please enter a valid publication date"),
+	).toBeTruthy();
 	expect(fetchMock).not.toHaveBeenCalled();
 });

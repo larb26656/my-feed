@@ -4,6 +4,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import { FeedProvider } from "#/features/feed/FeedState";
+import { failJson, okJson } from "#/lib/api/test-helpers";
 import { FetchJobsPage } from "./FetchJobsPage";
 
 afterEach(() => {
@@ -16,10 +17,7 @@ const sources = [
 	{ id: "manual", name: "Saved links", type: "manual", active: true },
 	{ id: "inactive", name: "Old Blog", type: "rss", active: false },
 ];
-const page = (data: unknown[] = []) => ({
-	data,
-	page: { nextCursor: null, hasNext: false },
-});
+const page = (data: unknown[] = []) => okJson(data, { pageSize: 20 });
 const job = {
 	id: "job-1",
 	sourceId: "rss-1",
@@ -50,22 +48,17 @@ test("starts fetches only for available Sources and displays completed history",
 	vi.stubGlobal(
 		"fetch",
 		vi.fn(async (url: string, init?: RequestInit) => {
-			let body: unknown;
-			if (url.includes("/sources/")) body = sources;
-			else if (url.endsWith("/entries/saved-count")) body = { count: 0 };
-			else if (init?.method === "POST") {
+			if (url.includes("/sources/")) return okJson(sources);
+			if (url.endsWith("/entries/saved-count")) return okJson({ count: 0 });
+			if (init?.method === "POST") {
 				requests.push(init.body as string);
 				started = true;
-				body = job;
-			} else {
-				const status = new URL(url, "http://localhost").searchParams.get(
-					"status",
-				);
-				body = page(
-					started && (!status || status === "succeeded") ? [job] : [],
-				);
+				return okJson(job, undefined, 201);
 			}
-			return { ok: true, status: 200, json: async () => body };
+			const status = new URL(url, "http://localhost").searchParams.get(
+				"status",
+			);
+			return page(started && (!status || status === "succeeded") ? [job] : []);
 		}),
 	);
 	renderPage();
@@ -82,22 +75,18 @@ test("shows running and failed jobs from the API", async () => {
 	vi.stubGlobal(
 		"fetch",
 		vi.fn(async (url: string) => {
-			let body: unknown;
-			if (url.includes("/sources/")) body = sources;
-			else if (url.endsWith("/entries/saved-count")) body = { count: 0 };
-			else {
-				const status = new URL(url, "http://localhost").searchParams.get(
-					"status",
-				);
-				body = page(
-					status === "running"
-						? [{ ...job, status: "running" }]
-						: !status || status === "failed"
-							? [{ ...job, status: "failed", attempt: 3 }]
-							: [],
-				);
-			}
-			return { ok: true, status: 200, json: async () => body };
+			if (url.includes("/sources/")) return okJson(sources);
+			if (url.endsWith("/entries/saved-count")) return okJson({ count: 0 });
+			const status = new URL(url, "http://localhost").searchParams.get(
+				"status",
+			);
+			return page(
+				status === "running"
+					? [{ ...job, status: "running" }]
+					: !status || status === "failed"
+						? [{ ...job, status: "failed", attempt: 3 }]
+						: [],
+			);
 		}),
 	);
 	renderPage();
@@ -109,14 +98,10 @@ test("reports when a fetch cannot be started", async () => {
 	vi.stubGlobal(
 		"fetch",
 		vi.fn(async (url: string, init?: RequestInit) => {
-			if (init?.method === "POST")
-				return { ok: false, status: 500, json: async () => ({}) };
-			const body = url.includes("/sources/")
-				? sources
-				: url.endsWith("/entries/saved-count")
-					? { count: 0 }
-					: page();
-			return { ok: true, status: 200, json: async () => body };
+			if (init?.method === "POST") return failJson(500);
+			if (url.includes("/sources/")) return okJson(sources);
+			if (url.endsWith("/entries/saved-count")) return okJson({ count: 0 });
+			return page();
 		}),
 	);
 	renderPage();

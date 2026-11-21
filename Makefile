@@ -1,8 +1,10 @@
-.PHONY: help frontend hooks FORCE
+.PHONY: help frontend hooks generate-api-client check-api-client FORCE
 
 help:
 	@echo "make frontend - run React dev server"
 	@echo "make hooks    - install Git hooks (requires Lefthook)"
+	@echo "make generate-api-client - regenerate FE OpenAPI types from swagger.json"
+	@echo "make check-api-client    - fail if FE OpenAPI types drift from swagger.json"
 	@echo "Backend commands (run from root with make backend:<target>):"
 	@$(MAKE) --no-print-directory -C backend help
 
@@ -13,6 +15,12 @@ FORCE:
 
 frontend:
 	cd frontend && pnpm run dev
+
+generate-api-client:
+	cd frontend && pnpm openapi:generate
+
+check-api-client:
+	cd frontend && pnpm openapi:check
 
 hooks:
 	lefthook install
