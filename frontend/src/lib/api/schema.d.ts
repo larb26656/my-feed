@@ -202,6 +202,8 @@ export interface paths {
                     unread?: boolean;
                     /** @description Only saved Entries */
                     savedOnly?: boolean;
+                    /** @description Sort direction by publication date (or creation date) */
+                    sortDirection?: "asc" | "desc";
                 };
                 header?: never;
                 path?: never;

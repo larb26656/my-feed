@@ -4,6 +4,7 @@ export type EntryFilters = {
 	sourceId?: string;
 	savedOnly: boolean;
 	unread: boolean;
+	sortDirection: "asc" | "desc";
 };
 
 export const filters = ["All", "Unread"] as const;

@@ -48,9 +48,10 @@ func (req ingestEntryRequest) input() service.IngestEntryInput {
 
 type listEntriesQuery struct {
 	httpx.CursorPageOption
-	SourceID  *queryUUID `form:"sourceId"`
-	Unread    bool       `form:"unread"`
-	SavedOnly bool       `form:"savedOnly"`
+	SourceID      *queryUUID `form:"sourceId"`
+	Unread        bool       `form:"unread"`
+	SavedOnly     bool       `form:"savedOnly"`
+	SortDirection string     `form:"sortDirection" binding:"omitempty,oneof=asc desc"`
 }
 
 type queryUUID struct {
@@ -65,6 +66,7 @@ func (req listEntriesQuery) input() service.ListEntriesInput {
 	in := service.ListEntriesInput{PageSize: &req.PageSize}
 	in.Criteria.Unread = req.Unread
 	in.Criteria.SavedOnly = req.SavedOnly
+	in.Criteria.SortDirection = req.SortDirection
 	if req.SourceID != nil {
 		in.Criteria.SourceID = &req.SourceID.UUID
 	}

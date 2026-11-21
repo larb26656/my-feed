@@ -672,6 +672,19 @@
                         "schema": {
                             "type": "boolean"
                         }
+                    },
+                    {
+                        "description": "Sort direction by publication date (or creation date)",
+                        "in": "query",
+                        "name": "sortDirection",
+                        "schema": {
+                            "default": "desc",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ],
+                            "type": "string"
+                        }
                     }
                 ],
                 "responses": {

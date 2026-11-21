@@ -182,3 +182,38 @@ test("announces when the persisted Saved count cannot load", async () => {
 		"Saved count unavailable",
 	);
 });
+
+test("requests the selected sort direction from the API", async () => {
+	const calls: string[] = [];
+	vi.stubGlobal(
+		"fetch",
+		vi.fn(async (url: string) => {
+			calls.push(url);
+			if (url.includes("/sources/")) return okJson([]);
+			if (url.endsWith("/entries/saved-count")) return okJson({ count: 0 });
+			return okJson([], { pageSize: 10 });
+		}),
+	);
+	const client = new QueryClient({
+		defaultOptions: { queries: { retry: false } },
+	});
+	render(
+		<QueryClientProvider client={client}>
+			<FeedProvider>
+				<FeedPage />
+			</FeedProvider>
+		</QueryClientProvider>,
+	);
+	await waitFor(() =>
+		expect(calls.some((url) => url.includes("sortDirection=desc"))).toBe(true),
+	);
+	await userEvent
+		.setup()
+		.selectOptions(
+			screen.getByRole("combobox", { name: "Sort entries" }),
+			"asc",
+		);
+	await waitFor(() =>
+		expect(calls.some((url) => url.includes("sortDirection=asc"))).toBe(true),
+	);
+});

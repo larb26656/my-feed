@@ -66,12 +66,16 @@ func (r *Repository) ListEntries(ctx context.Context, after *repository.EntryLis
 	if criteria.Unread {
 		query += ` AND read_at IS NULL`
 	}
+	direction, op := "DESC", "<"
+	if criteria.SortDirection == "asc" {
+		direction, op = "ASC", ">"
+	}
 	if after != nil {
-		query += ` AND (COALESCE(published_at, created_at) < ? OR (COALESCE(published_at, created_at) = ? AND id < ?))`
+		query += ` AND (COALESCE(published_at, created_at) ` + op + ` ? OR (COALESCE(published_at, created_at) = ? AND id ` + op + ` ?))`
 		sortAt := after.SortAt.UTC().UnixNano()
 		args = append(args, sortAt, sortAt, after.ID.String())
 	}
-	query += ` ORDER BY COALESCE(published_at, created_at) DESC, id DESC LIMIT ?`
+	query += ` ORDER BY COALESCE(published_at, created_at) ` + direction + `, id ` + direction + ` LIMIT ?`
 	args = append(args, limit)
 	rows, err := r.q.QueryContext(ctx, query, args...)
 	if err != nil {

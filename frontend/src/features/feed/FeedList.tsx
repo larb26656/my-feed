@@ -15,7 +15,7 @@ export function FeedList({
 	onToggle: (entry: Entry, action: "read" | "save") => void;
 }) {
 	return (
-		<div>
+		<div className="flex flex-col gap-4">
 			{visible.length === 0 ? (
 				<NoDataState
 					illustration="feed"

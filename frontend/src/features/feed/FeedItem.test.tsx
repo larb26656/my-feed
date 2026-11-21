@@ -4,6 +4,21 @@ import { afterEach, expect, test, vi } from "vitest";
 import { FeedItem } from "./FeedItem";
 import type { Entry } from "./types";
 
+vi.mock("@tanstack/react-router", () => ({
+	Link: ({
+		children,
+		params,
+		...props
+	}: {
+		children: React.ReactNode;
+		params: { sourceId: string };
+	}) => (
+		<a href={`/sources/${params.sourceId}`} {...props}>
+			{children}
+		</a>
+	),
+}));
+
 afterEach(cleanup);
 
 const entry: Entry = {
@@ -38,4 +53,23 @@ test("keeps an Entry readable without a thumbnail", () => {
 		entry.link,
 	);
 	expect(container.querySelector('img[alt=""]')).toBeNull();
+});
+
+test("links the source name and avatar to its feed", () => {
+	render(
+		<FeedItem
+			entry={entry}
+			source={{ id: "source", name: "Example", type: "rss", active: true }}
+			disabled={false}
+			onToggle={vi.fn()}
+		/>,
+	);
+	expect(
+		screen.getByRole("link", { name: "Example" }).getAttribute("href"),
+	).toBe("/sources/source");
+	expect(
+		screen
+			.getByRole("link", { name: "View Example feed" })
+			.getAttribute("href"),
+	).toBe("/sources/source");
 });

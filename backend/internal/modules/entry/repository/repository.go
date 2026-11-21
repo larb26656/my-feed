@@ -9,16 +9,17 @@ import (
 	"github.com/larb26656/my-feed/backend/internal/platform/database"
 )
 
-// EntryListCursor is the decoded position in the newest-first Entry stream.
+// EntryListCursor is the decoded position in the ordered Entry stream.
 type EntryListCursor struct {
 	SortAt time.Time
 	ID     uuid.UUID
 }
 
 type EntryListCriteria struct {
-	SourceID  *uuid.UUID
-	Unread    bool
-	SavedOnly bool
+	SourceID      *uuid.UUID
+	Unread        bool
+	SavedOnly     bool
+	SortDirection string
 }
 
 type Repository interface {

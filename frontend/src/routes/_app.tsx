@@ -24,7 +24,7 @@ function AppLayout() {
 		<FeedProvider>
 			<div className="min-h-screen bg-background text-foreground md:grid md:grid-cols-[260px_minmax(0,1fr)]">
 				<DesktopSidebar />
-				<main className="min-w-0 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] md:pb-0">
+				<main className="min-w-0 bg-muted/50 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] md:pb-0 dark:bg-background">
 					<PageHeader />
 					<div className="mx-auto max-w-6xl px-5 py-7">
 						<Outlet />

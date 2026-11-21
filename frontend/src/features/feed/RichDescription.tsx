@@ -105,6 +105,9 @@ export function RichDescription({ html }: { html: string }) {
 				className={cn(
 					"space-y-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5",
 					!expanded && "max-h-[7.5em] overflow-hidden",
+					overflowing &&
+						!expanded &&
+						"[mask-image:linear-gradient(to_bottom,black_65%,transparent_100%)]",
 				)}
 				inert={overflowing && !expanded ? true : undefined}
 			>
@@ -117,7 +120,7 @@ export function RichDescription({ html }: { html: string }) {
 					type="button"
 					aria-expanded={expanded}
 					onClick={() => setExpanded(!expanded)}
-					className="mt-1 font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+					className="mt-1 font-medium text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
 				>
 					{expanded ? "See less" : "See more"}
 				</button>

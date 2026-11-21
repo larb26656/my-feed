@@ -13,7 +13,9 @@ export function useEntries(filters: EntryFilters) {
 		queryKey: entryKeys.list(filters),
 		initialPageParam: null as string | null,
 		queryFn: async ({ pageParam }): Promise<EntryPage> => {
-			const params = new URLSearchParams();
+			const params = new URLSearchParams({
+				sortDirection: filters.sortDirection,
+			});
 			if (filters.sourceId) params.set("sourceId", filters.sourceId);
 			if (filters.savedOnly) params.set("savedOnly", "true");
 			if (filters.unread) params.set("unread", "true");

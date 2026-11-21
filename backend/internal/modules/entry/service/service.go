@@ -164,6 +164,12 @@ type ListEntriesResult struct {
 }
 
 func (s *Service) ListEntries(ctx context.Context, in ListEntriesInput) (*ListEntriesResult, error) {
+	if in.Criteria.SortDirection == "" {
+		in.Criteria.SortDirection = "desc"
+	}
+	if in.Criteria.SortDirection != "asc" && in.Criteria.SortDirection != "desc" {
+		return nil, apperr.InvalidInput.New("invalid sort direction")
+	}
 	pageSize := DefaultEntryPageSize
 	if in.PageSize != nil && *in.PageSize >= 1 {
 		pageSize = *in.PageSize
@@ -201,15 +207,16 @@ func (s *Service) CountSavedEntries(ctx context.Context) (int, error) {
 }
 
 type entryCursorPayload struct {
-	SortAt    time.Time  `json:"sortAt"`
-	ID        uuid.UUID  `json:"id"`
-	SourceID  *uuid.UUID `json:"sourceId"`
-	Unread    bool       `json:"unread"`
-	SavedOnly bool       `json:"savedOnly"`
+	SortAt        time.Time  `json:"sortAt"`
+	ID            uuid.UUID  `json:"id"`
+	SourceID      *uuid.UUID `json:"sourceId"`
+	Unread        bool       `json:"unread"`
+	SavedOnly     bool       `json:"savedOnly"`
+	SortDirection string     `json:"sortDirection,omitempty"`
 }
 
 func encodeEntryCursor(sortAt time.Time, id uuid.UUID, criteria repository.EntryListCriteria) (string, error) {
-	return cursor.Encode(entryCursorPayload{SortAt: sortAt.UTC(), ID: id, SourceID: criteria.SourceID, Unread: criteria.Unread, SavedOnly: criteria.SavedOnly})
+	return cursor.Encode(entryCursorPayload{SortAt: sortAt.UTC(), ID: id, SourceID: criteria.SourceID, Unread: criteria.Unread, SavedOnly: criteria.SavedOnly, SortDirection: criteria.SortDirection})
 }
 
 func decodeEntryCursor(token string, criteria repository.EntryListCriteria) (*repository.EntryListCursor, error) {
@@ -217,7 +224,10 @@ func decodeEntryCursor(token string, criteria repository.EntryListCriteria) (*re
 	if err := cursor.Decode(token, &payload); err != nil || payload.SortAt.IsZero() || payload.ID == uuid.Nil {
 		return nil, apperr.InvalidInput.New("invalid cursor")
 	}
-	if (payload.SourceID == nil) != (criteria.SourceID == nil) || (payload.SourceID != nil && *payload.SourceID != *criteria.SourceID) || payload.Unread != criteria.Unread || payload.SavedOnly != criteria.SavedOnly {
+	if payload.SortDirection == "" {
+		payload.SortDirection = "desc"
+	}
+	if payload.SortDirection != criteria.SortDirection || (payload.SourceID == nil) != (criteria.SourceID == nil) || (payload.SourceID != nil && *payload.SourceID != *criteria.SourceID) || payload.Unread != criteria.Unread || payload.SavedOnly != criteria.SavedOnly {
 		return nil, apperr.InvalidInput.New("cursor does not match criteria")
 	}
 	return &repository.EntryListCursor{SortAt: payload.SortAt.UTC(), ID: payload.ID}, nil

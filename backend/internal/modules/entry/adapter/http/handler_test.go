@@ -596,3 +596,24 @@ func decodeFailure(t *testing.T, response *httptest.ResponseRecorder) httpx.Erro
 	require.False(t, body.Success)
 	return body.Error
 }
+
+func TestOldestFirstPaginationAndCursorDirection(t *testing.T) {
+	router := api.New(t)
+	sourceID := rssSource(t, router)
+	var ids []string
+	for i := 0; i < 3; i++ {
+		article := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sourceID, "title": "News", "link": fmt.Sprintf("https://example.test/oldest-%d", i), "publishedAt": "2025-01-01T00:00:00Z"}, 201))
+		ids = append(ids, article.ID)
+	}
+	sort.Strings(ids)
+	first := decodePage(t, testkit.Request(t, router, "GET", "/api/v1/entries/?pageSize=2&sortDirection=asc", nil, 200))
+	require.Len(t, first.Data, 2)
+	require.Equal(t, ids[:2], []string{first.Data[0].ID, first.Data[1].ID})
+	require.NotEmpty(t, first.Meta.NextCursor)
+	cursor := url.QueryEscape(first.Meta.NextCursor)
+	second := decodePage(t, testkit.Request(t, router, "GET", "/api/v1/entries/?pageSize=2&sortDirection=asc&cursor="+cursor, nil, 200))
+	require.Len(t, second.Data, 1)
+	require.Equal(t, ids[2], second.Data[0].ID)
+	testkit.Request(t, router, "GET", "/api/v1/entries/?sortDirection=desc&cursor="+cursor, nil, 400)
+	testkit.Request(t, router, "GET", "/api/v1/entries/?sortDirection=invalid", nil, 400)
+}

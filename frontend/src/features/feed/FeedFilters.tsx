@@ -6,13 +6,17 @@ import { type FeedFilter, filters } from "./types";
 export function FeedFilters({
 	filter,
 	setFilter,
+	sortDirection,
+	setSortDirection,
 }: {
 	filter: FeedFilter;
 	setFilter: (filter: FeedFilter) => void;
+	sortDirection: "asc" | "desc";
+	setSortDirection: (direction: "asc" | "desc") => void;
 }) {
 	return (
-		<div className="flex items-center justify-between px-3 py-2">
-			<div className="flex items-center gap-1">
+		<div className="mb-4 flex flex-wrap items-center justify-between gap-2 py-2">
+			<div className="flex flex-wrap items-center gap-1">
 				{filters.map((item) => (
 					<Button
 						key={item}
@@ -29,9 +33,25 @@ export function FeedFilters({
 						{item}
 					</Button>
 				))}
+				<Link
+					to="/saved"
+					className={buttonVariants({ variant: "outline", size: "sm" })}
+				>
+					Saved
+				</Link>
 			</div>
 			<div className="flex items-center gap-3">
-				<span className="text-xs text-muted-foreground">Newest first ↓</span>
+				<select
+					aria-label="Sort entries"
+					value={sortDirection}
+					onChange={(event) =>
+						setSortDirection(event.target.value as "asc" | "desc")
+					}
+					className="min-h-10 rounded-md bg-transparent px-2 text-xs text-muted-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-primary"
+				>
+					<option value="desc">Newest first</option>
+					<option value="asc">Oldest first</option>
+				</select>
 				<div className="h-6 border-l border-border/70" aria-hidden="true" />
 				<Link
 					to="/record-link"
