@@ -20,10 +20,9 @@ type updateSourceRequest struct {
 }
 type listSourcesQuery struct {
 	httpx.PageOption
-	IncludeDeactivated *bool  `form:"includeDeactivated"`
-	NameLike           string `form:"nameLike"`
-	TypeEqual          string `form:"typeEqual" binding:"omitempty,oneof=rss youtube manual"`
-	ActiveEqual        *bool  `form:"activeEqual"`
-	SortBy             string `form:"sortBy" binding:"oneof=name type active createdAt"`
-	SortDirection      string `form:"sortDirection" binding:"oneof=asc desc"`
+	NameLike      string `form:"nameLike"`
+	TypeEqual     string `form:"typeEqual" binding:"omitempty,oneof=rss youtube manual"`
+	ActiveEqual   *bool  `form:"activeEqual"`
+	SortBy        string `form:"sortBy" binding:"oneof=name type active createdAt"`
+	SortDirection string `form:"sortDirection" binding:"oneof=asc desc"`
 }

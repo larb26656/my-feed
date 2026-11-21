@@ -59,7 +59,7 @@ Name new criteria fields for the property and comparison they perform: use `Name
 
 Initialize `httpx.PageOption` with `httpx.NewPageOption()` before binding the query. The defaults are `page=1` and `pageSize=10`. Apply the same filters to the page query and the total count, and pass the total before pagination to `httpx.Page`. The helper computes `totalPages` from the total and page size.
 
-The Source list accepts `nameLike` (case-insensitive literal substring), `typeEqual` (`rss`, `youtube`, or `manual`), and `activeEqual` (`true` or `false`). Without a status filter it returns active Sources; `includeDeactivated=true` includes both statuses. `includeDeactivated=false` conflicts with `activeEqual=false`. Set `sortBy` to `name`, `type`, `active`, or `createdAt`, and `sortDirection` to `asc` or `desc`; the default is `createdAt` ascending, with ID as the tie-breaker.
+The Source list accepts `nameLike` (case-insensitive literal substring), `typeEqual` (`rss`, `youtube`, or `manual`), and `activeEqual` (`true` or `false`). Without `activeEqual`, it returns Sources of both statuses. Set `sortBy` to `name`, `type`, `active`, or `createdAt`, and `sortDirection` to `asc` or `desc`; the default is `createdAt` ascending, with ID as the tie-breaker.
 
 ### Cursors
 

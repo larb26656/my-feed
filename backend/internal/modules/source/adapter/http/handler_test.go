@@ -76,18 +76,19 @@ func TestPausingAnRSSSourceIsIdempotent(t *testing.T) {
 	require.Equal(t, first, repeated)
 }
 
-func TestDefaultSourceListOmitsPausedSubscriptions(t *testing.T) {
+func TestDefaultSourceListIncludesPausedSubscriptions(t *testing.T) {
 	// Arrange
 	router := api.New(t)
 	subscription := createRSSSource(t, router, "News", "https://example.test/rss")
 	testkit.Request(t, router, "POST", "/api/v1/sources/"+subscription.ID+"/deactivate", nil, 200)
 
 	// Act
-	active := decodeSuccess[[]source](t, testkit.Request(t, router, "GET", "/api/v1/sources/", nil, 200))
+	all := decodeSuccess[[]source](t, testkit.Request(t, router, "GET", "/api/v1/sources/", nil, 200))
 
 	// Assert
-	require.Len(t, active, 1)
-	require.Equal(t, "manual", active[0].Type)
+	require.Len(t, all, 2)
+	require.Equal(t, subscription.ID, all[1].ID)
+	require.False(t, all[1].Active)
 }
 
 func TestSourceListReturnsRequestedPageAndTotal(t *testing.T) {
@@ -166,7 +167,7 @@ func TestSourceListSortsNamesDescending(t *testing.T) {
 }
 
 func TestSourceListRejectsInvalidQueries(t *testing.T) {
-	for _, query := range []string{"page=0", "pageSize=101", "typeEqual=unknown", "activeEqual=maybe", "sortBy=unknown", "sortDirection=sideways", "includeDeactivated=false&activeEqual=false"} {
+	for _, query := range []string{"page=0", "pageSize=101", "typeEqual=unknown", "activeEqual=maybe", "sortBy=unknown", "sortDirection=sideways"} {
 		t.Run(query, func(t *testing.T) {
 			// Arrange
 			router := api.New(t)
@@ -178,24 +179,18 @@ func TestSourceListRejectsInvalidQueries(t *testing.T) {
 	}
 }
 
-func TestSourceListCanIncludePausedSubscriptions(t *testing.T) {
+func TestSourceListCanFilterActiveSubscriptions(t *testing.T) {
 	// Arrange
 	router := api.New(t)
 	subscription := createRSSSource(t, router, "News", "https://example.test/rss")
 	testkit.Request(t, router, "POST", "/api/v1/sources/"+subscription.ID+"/deactivate", nil, 200)
 
 	// Act
-	all := decodeSuccess[[]source](t, testkit.Request(t, router, "GET", "/api/v1/sources/?includeDeactivated=true", nil, 200))
+	active := decodeSuccess[[]source](t, testkit.Request(t, router, "GET", "/api/v1/sources/?activeEqual=true", nil, 200))
 
 	// Assert
-	require.Len(t, all, 2)
-	for _, item := range all {
-		if item.ID == subscription.ID {
-			require.False(t, item.Active)
-			return
-		}
-	}
-	t.Fatal("paused subscription must be included")
+	require.Len(t, active, 1)
+	require.Equal(t, "manual", active[0].Type)
 }
 
 func TestPausedSourcesRemainAccessibleByID(t *testing.T) {
