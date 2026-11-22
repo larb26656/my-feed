@@ -62,7 +62,7 @@ export function FeedPage({
 						to="/sources"
 						className={buttonVariants({
 							variant: "ghost",
-							className: "ml-1 mt-4 mb-4 md:-ml-3 md:mt-0",
+							className: "ml-1 mt-2 mb-2 md:-ml-3 md:mt-0",
 						})}
 					>
 						<ArrowLeft data-icon="inline-start" />
@@ -81,6 +81,7 @@ export function FeedPage({
 				<FeedFilters
 					sortDirection={sortDirection}
 					setSortDirection={setSortDirection}
+					className={sourceId ? "mb-2 py-1" : undefined}
 				/>
 				{query.isLoading ? (
 					<FeedSkeleton />
