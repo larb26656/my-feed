@@ -121,7 +121,20 @@ export function AppSidebar({
 				aria-label="Main navigation"
 			>
 				<NavItem
-					onClick={onClose}
+					onClick={(event) => {
+						if (
+							path === "/" &&
+							event.button === 0 &&
+							!event.metaKey &&
+							!event.ctrlKey &&
+							!event.shiftKey &&
+							!event.altKey
+						) {
+							event.preventDefault();
+							window.scrollTo({ top: 0, behavior: "smooth" });
+						}
+						onClose?.();
+					}}
 					to="/"
 					active={path === "/"}
 					activeOptions={{ exact: true }}

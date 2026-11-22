@@ -77,6 +77,20 @@ function FloatingNavigation({ pathname }: { pathname: string }) {
 							to={to}
 							activeOptions={{ exact: to === "/" }}
 							aria-label={label}
+							onClick={(event) => {
+								if (
+									to === "/" &&
+									active &&
+									event.button === 0 &&
+									!event.metaKey &&
+									!event.ctrlKey &&
+									!event.shiftKey &&
+									!event.altKey
+								) {
+									event.preventDefault();
+									window.scrollTo({ top: 0, behavior: "smooth" });
+								}
+							}}
 							aria-current={active ? "page" : undefined}
 							className={cn(
 								"flex min-h-12 min-w-12 items-center justify-center gap-2 rounded-full px-3 text-sm font-medium outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
