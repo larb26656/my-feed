@@ -143,6 +143,9 @@ func (r *Repository) CreateSource(ctx context.Context, s *domain.Source) error {
 		if s.Type == domain.TypeYouTube {
 			return apperr.ResourceConflict.Wrap(err, "youtube channel already in use")
 		}
+		if s.Type == domain.TypeBluesky {
+			return apperr.ResourceConflict.Wrap(err, "bluesky profile already in use")
+		}
 		return apperr.ResourceConflict.Wrap(err, "rss url already in use")
 	}
 	return err
@@ -192,6 +195,9 @@ func (r *Repository) UpdateSource(ctx context.Context, s *domain.Source) error {
 	if database.IsUniqueConstraintViolation(err) {
 		if s.Type == domain.TypeYouTube {
 			return apperr.ResourceConflict.Wrap(err, "youtube channel already in use")
+		}
+		if s.Type == domain.TypeBluesky {
+			return apperr.ResourceConflict.Wrap(err, "bluesky profile already in use")
 		}
 		return apperr.ResourceConflict.Wrap(err, "rss url already in use")
 	}

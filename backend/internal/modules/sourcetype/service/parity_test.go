@@ -25,7 +25,7 @@ func TestSharedConfigCases(t *testing.T) {
 	registry, err := service.New(rss.Definition(nil), youtube.Definition(nil), custom)
 	require.NoError(t, err)
 	for _, tc := range cases {
-		_, _, err := registry.Prepare(tc.Type, tc.Config)
+		_, _, err := registry.Prepare(t.Context(), tc.Type, tc.Config)
 		require.Equal(t, tc.Valid, err == nil, "%s: %v", tc.Type, tc.Config)
 	}
 }

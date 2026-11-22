@@ -47,7 +47,7 @@ func TestNormalizeTrimsAndFingerprintsTagAndUsername(t *testing.T) {
 			// Arrange
 			normalize := devto.Definition(nil).Normalize
 			// Act
-			config, fingerprint, err := normalize(map[string]any{"kind": tc.kind, "value": tc.value})
+			config, fingerprint, err := normalize(context.Background(), map[string]any{"kind": tc.kind, "value": tc.value})
 			// Assert
 			require.NoError(t, err)
 			require.Equal(t, map[string]any{"kind": tc.kind, "value": tc.wantValue}, config)
@@ -71,7 +71,7 @@ func TestNormalizeRejectsInvalidKindOrValue(t *testing.T) {
 			// Arrange
 			normalize := devto.Definition(nil).Normalize
 			// Act
-			config, fingerprint, err := normalize(tc.config)
+			config, fingerprint, err := normalize(context.Background(), tc.config)
 			// Assert
 			require.Nil(t, config)
 			require.Empty(t, fingerprint)

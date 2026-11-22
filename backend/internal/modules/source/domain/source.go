@@ -15,6 +15,7 @@ type Type string
 const (
 	TypeRSS     Type = "rss"
 	TypeYouTube Type = "youtube"
+	TypeBluesky Type = "bluesky"
 	TypeManual  Type = "manual"
 
 	// SavedLinksName is the canonical display name of the system manual singleton.
@@ -63,6 +64,9 @@ func (s *Source) setConfig(config map[string]any, key string) {
 
 // UpdateConfig atomically changes the name and prepared config of a fetchable Source.
 func (s *Source) UpdateConfig(name string, config map[string]any, key string) error {
+	if s.Type == TypeBluesky && key != s.Key {
+		return apperr.InvalidInput.New("bluesky profile cannot be changed")
+	}
 	if err := s.Rename(name); err != nil {
 		return err
 	}

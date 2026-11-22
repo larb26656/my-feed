@@ -235,3 +235,16 @@ func TestFetchableSourceOwnsPreparedConfigChanges(t *testing.T) {
 	require.Equal(t, map[string]any{"slug": "second"}, source.Config)
 	require.Equal(t, "second", source.Key)
 }
+
+func TestBlueskySourceRejectsProfileIdentityChange(t *testing.T) {
+	source, err := domain.NewFetchableSource("Alice", domain.TypeBluesky, map[string]any{"did": "did:plc:one"}, "did:plc:one")
+	require.NoError(t, err)
+	require.NoError(t, source.UpdateConfig("Renamed", map[string]any{"did": "did:plc:one"}, "did:plc:one"))
+	require.Equal(t, "Renamed", source.Name)
+	err = source.UpdateConfig("Renamed", map[string]any{"did": "did:plc:two"}, "did:plc:two")
+	var failure *apperr.AppError
+	require.ErrorAs(t, err, &failure)
+	require.Equal(t, apperr.InvalidInput.Code, failure.Code)
+	require.ErrorContains(t, err, "bluesky profile cannot be changed")
+	require.Equal(t, "did:plc:one", source.Key)
+}

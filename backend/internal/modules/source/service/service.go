@@ -58,7 +58,7 @@ func (s *Service) CreateSource(ctx context.Context, in CreateSourceInput) (*sour
 	if s.types == nil {
 		return nil, apperr.InvalidInput.New("source type registry unavailable")
 	}
-	config, key, err := s.types.Prepare(string(typ), in.Config)
+	config, key, err := s.types.Prepare(ctx, string(typ), in.Config)
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +166,7 @@ func (s *Service) UpdateSource(ctx context.Context, id uuid.UUID, in UpdateSourc
 		if s.types == nil {
 			return nil, apperr.InvalidInput.New("source type registry unavailable")
 		}
-		config, key, err := s.types.Prepare(string(src.Type), in.Config)
+		config, key, err := s.types.Prepare(ctx, string(src.Type), in.Config)
 		if err != nil {
 			return nil, err
 		}
