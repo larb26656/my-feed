@@ -22,9 +22,8 @@ export type Source = {
 	id: string;
 	name: string;
 	type: string;
+	config?: Record<string, unknown>;
 	active: boolean;
-	rssUrl?: string | null;
-	youtubeChannelId?: string | null;
 	createdAt?: string;
 	updatedAt?: string;
 	profileImageId?: string | null;

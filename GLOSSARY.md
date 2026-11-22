@@ -20,11 +20,20 @@ _Avoid_: subscription, channel, soft delete
 The permanent removal of an active or deactivated fetchable Source and all its Entries, including Saved Entries. The manual Source is permanent.
 
 **Source Type**:
-The kind of Source, which determines how Entries arrive and what configuration it needs (`rss`, `manual`, or `youtube`, which follows one YouTube channel). The `rss` type accepts both RSS and Atom documents from a URL; the document format does not define a separate Source Type. The type is fixed when the Source is created.
+The kind of Source, which determines how Entries arrive and what configuration it needs (`rss`, `manual`, `youtube`, `bluesky`, `medium`, or `devto`). A `youtube` Source follows one YouTube channel, and a `bluesky` Source follows one public Bluesky profile. The `rss` type accepts both RSS and Atom documents from a URL; the document format does not define a separate Source Type. The type is fixed when the Source is created.
 _Avoid_: source kind, provider, connector
 
 **Source Config**:
 The type-specific settings that describe where a Source gets its Entries, such as an RSS feed URL or a YouTube Channel ID. The reader can change these settings for a fetchable Source while keeping its identity, Source Type, and existing Entries.
+
+**Bluesky Source**:
+A Source that follows one public Bluesky profile across handle changes. Its Entries come from the profile's own top-level posts, including quote posts.
+
+**Medium Source**:
+A Source that follows one Medium Profile by username or one Medium Publication by its publication slug.
+
+**DEV.to Source**:
+A Source that follows one tag or one account on DEV.to. An account can be an individual or an organization and is selected by username.
 
 **Source Profile Image**:
 An optional image chosen by the reader to represent a fetchable Source, whether active or deactivated. The manual Source cannot have a Source Profile Image.

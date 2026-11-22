@@ -27,7 +27,7 @@ const youtubeSource = {
 	id: "yt",
 	name: "Channel",
 	type: "youtube",
-	youtubeChannelId: "UC1234567890123456789012",
+	config: { channelId: "UC1234567890123456789012" },
 	active: true,
 };
 
@@ -39,6 +39,22 @@ function isSourcesList(url: string, init?: RequestInit) {
 
 test("edits only the name of a YouTube Source", async () => {
 	const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+		if (url.includes("source-types"))
+			return okJson({
+				types: [
+					{
+						code: "youtube",
+						label: "YouTube",
+						schema: {
+							type: "object",
+							properties: { channelId: { type: "string" } },
+						},
+						ui: {
+							channelId: { label: "YouTube channel ID or URL", widget: "text" },
+						},
+					},
+				],
+			});
 		if (init?.method === "PATCH") {
 			return okJson({ ...youtubeSource, name: "Renamed" });
 		}
@@ -67,13 +83,14 @@ test("edits only the name of a YouTube Source", async () => {
 		await screen.findByRole("button", { name: "Actions for Channel" }),
 	);
 	await user.click(screen.getByRole("menuitem", { name: "Edit source" }));
+	await screen.findByLabelText("YouTube channel ID or URL");
 	const name = screen.getByLabelText("Source name");
 	await user.clear(name);
 	await user.type(name, "Renamed");
 	expect(
-		screen.getByText("YouTube channel ID: UC1234567890123456789012"),
-	).toBeTruthy();
-	expect(screen.queryByLabelText("YouTube channel ID or URL")).toBeNull();
+		(screen.getByLabelText("YouTube channel ID or URL") as HTMLInputElement)
+			.value,
+	).toBe("UC1234567890123456789012");
 	await user.click(screen.getByRole("button", { name: "Save source" }));
 	await waitFor(() =>
 		expect(

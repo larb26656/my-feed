@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 import { failJson, okJson } from "#/lib/api/test-helpers";
 import { SourceDialog } from "./SourceDialog";
+import { withSourceTypes } from "./sourceTypesTestFixture";
 
 vi.mock("react-easy-crop", () => ({
 	default: ({
@@ -61,7 +62,7 @@ test.each([
 				: okJson({});
 		return okJson([]);
 	});
-	vi.stubGlobal("fetch", fetchMock);
+	vi.stubGlobal("fetch", withSourceTypes(fetchMock));
 	const onClose = vi.fn();
 	render(
 		<QueryClientProvider
@@ -81,7 +82,7 @@ test.each([
 		);
 	} else {
 		await user.type(
-			screen.getByLabelText("RSS / Atom feed URL"),
+			await screen.findByLabelText("RSS / Atom feed URL"),
 			"https://example.com/feed",
 		);
 	}
@@ -133,7 +134,7 @@ test("updates preview presentation when the name and cropped image change", asyn
 			entry: { title: "Preview entry", link: "https://example.test/entry" },
 		}),
 	);
-	vi.stubGlobal("fetch", fetchMock);
+	vi.stubGlobal("fetch", withSourceTypes(fetchMock));
 	render(
 		<QueryClientProvider
 			client={
@@ -144,7 +145,7 @@ test("updates preview presentation when the name and cropped image change", asyn
 		</QueryClientProvider>,
 	);
 	await user.type(
-		screen.getByLabelText("RSS / Atom feed URL"),
+		await screen.findByLabelText("RSS / Atom feed URL"),
 		"https://example.test/feed",
 	);
 	await user.click(screen.getByRole("button", { name: "Test fetch" }));

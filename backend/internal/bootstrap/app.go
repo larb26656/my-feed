@@ -27,18 +27,20 @@ import (
 	fetchsqlite "github.com/larb26656/my-feed/backend/internal/modules/fetch/adapter/sqlite"
 	fetchsvc "github.com/larb26656/my-feed/backend/internal/modules/fetch/service"
 	filestorage "github.com/larb26656/my-feed/backend/internal/modules/file/service"
-	obtainrss "github.com/larb26656/my-feed/backend/internal/modules/obtain/adapter/rss"
-	obtainyoutube "github.com/larb26656/my-feed/backend/internal/modules/obtain/adapter/youtube"
-	obtainapi "github.com/larb26656/my-feed/backend/internal/modules/obtain/api"
-	obtain "github.com/larb26656/my-feed/backend/internal/modules/obtain/service"
 	sourcehttp "github.com/larb26656/my-feed/backend/internal/modules/source/adapter/http"
 	sourcesqlite "github.com/larb26656/my-feed/backend/internal/modules/source/adapter/sqlite"
 	sourcesvc "github.com/larb26656/my-feed/backend/internal/modules/source/service"
 	sourcelifecycle "github.com/larb26656/my-feed/backend/internal/modules/sourcelifecycle/service"
+	sourcedevto "github.com/larb26656/my-feed/backend/internal/modules/sourcetype/adapter/devto"
+	typehttp "github.com/larb26656/my-feed/backend/internal/modules/sourcetype/adapter/http"
+	sourcerss "github.com/larb26656/my-feed/backend/internal/modules/sourcetype/adapter/rss"
+	sourceyoutube "github.com/larb26656/my-feed/backend/internal/modules/sourcetype/adapter/youtube"
+	typesvc "github.com/larb26656/my-feed/backend/internal/modules/sourcetype/service"
 	"github.com/larb26656/my-feed/backend/internal/platform/apidocs"
 	"github.com/larb26656/my-feed/backend/internal/platform/database"
 	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
 	"github.com/larb26656/my-feed/backend/internal/platform/http/middleware"
+	"github.com/larb26656/my-feed/backend/internal/platform/outbound"
 )
 
 type realClock struct{}
@@ -70,6 +72,13 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 	sourceService := sourcesvc.New(sourceRepo)
 	sourceService.SetFileStorage(filestorage.New(cfg.UploadsDir))
 
+	client := outbound.NewClient(http.DefaultClient)
+	typeRegistry, err := typesvc.New(sourcerss.Definition(client), sourceyoutube.Definition(client), sourcedevto.Definition(client))
+	if err != nil {
+		return nil, errors.Join(fmt.Errorf("register source types: %w", err), pool.Close())
+	}
+	sourceService.SetSourceTypes(typeRegistry)
+
 	// init default source
 	if _, err := sourceService.EnsureSavedLinks(ctx); err != nil {
 		return nil, errors.Join(fmt.Errorf("ensure saved links source: %w", err), pool.Close())
@@ -78,7 +87,7 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 	entryRepo := entrysqlite.NewRepository(pool.DB)
 	entryService := entrysvc.New(entryRepo, sourceService)
 
-	obtainRegistry := newObtainRegistry(http.DefaultClient)
+	obtainRegistry := typeRegistry
 	sourceService.SetObtainer(obtainRegistry)
 
 	fetchRepo := fetchsqlite.NewRepository(pool.DB)
@@ -132,6 +141,7 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 	sourceLifecycle := sourcelifecycle.New(pool, sourceService, fetchService)
 	sourceHandler := sourcehttp.NewHandler(sourceService, sourceLifecycle)
 	sourceHandler.RegisterRoutes(protected.Group("/sources"))
+	typehttp.RegisterRoutes(protected, typeRegistry)
 	entryhttp.NewHandler(entryService).RegisterRoutes(protected.Group("/entries"))
 	fetchhttp.NewHandler(fetchService).RegisterRoutes(protected.Group("/fetch-jobs"))
 
@@ -139,13 +149,6 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 	r.Any("/mcp", middleware.Authenticate(cfg.Auth.JWTSecret, cfg.APIKey), gin.WrapH(mcpHandler))
 
 	return &App{Pool: pool, Router: r}, nil
-}
-
-func newObtainRegistry(client *http.Client) *obtain.Registry {
-	registry := obtain.NewRegistry()
-	registry.Register(obtainapi.ProviderRSS, obtainrss.New(client))
-	registry.Register(obtainapi.ProviderYouTube, obtainyoutube.New(client))
-	return registry
 }
 
 func (a *App) Close() {

@@ -23,7 +23,7 @@ type entry struct {
 func rssSource(t *testing.T, router http.Handler) string {
 	t.Helper()
 	response := testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]any{
-		"name": "Daily news", "type": "rss", "rssUrl": "https://example.test/rss",
+		"name": "Daily news", "type": "rss", "config": map[string]any{"url": "https://example.test/rss"},
 	}, 201)
 	return decodeSuccess[struct{ ID string }](t, response).ID
 }

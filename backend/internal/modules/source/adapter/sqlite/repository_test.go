@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/larb26656/my-feed/backend/internal/modules/source/domain"
@@ -142,4 +143,35 @@ func TestSQLiteReturnsNotFoundForAMissingSource(t *testing.T) {
 	var failure *apperr.AppError
 	require.ErrorAs(t, err, &failure)
 	require.Equal(t, apperr.ResourceNotFound.Code, failure.Code)
+}
+
+func TestSQLiteReadsStoredRSSConfig(t *testing.T) {
+	pool := testkit.NewDatabase(t)
+	repo := NewRepository(pool.DB)
+	src, err := domain.NewRSSSource("Feed", "https://old.example/feed")
+	require.NoError(t, err)
+	require.NoError(t, repo.CreateSource(context.Background(), src))
+	_, err = pool.Exec(`UPDATE sources SET config = ? WHERE id = ?`, `{"url":"https://new.example/feed"}`, src.ID.String())
+	require.NoError(t, err)
+	got, err := repo.GetSourceByID(context.Background(), src.ID)
+	require.NoError(t, err)
+	require.Equal(t, "https://new.example/feed", got.RSSURL)
+}
+
+func TestSQLiteStoresRegisteredTypeConfigAndEnforcesPerTypeKey(t *testing.T) {
+	pool := testkit.NewDatabase(t)
+	repo := NewRepository(pool.DB)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	first := &domain.Source{ID: uuid.New(), Name: "Custom", Type: "custom", Config: map[string]any{"slug": "same", "limit": float64(5)}, Key: "same", Active: true, CreatedAt: now, UpdatedAt: now}
+	require.NoError(t, repo.CreateSource(ctx, first))
+	got, err := repo.GetSourceByID(ctx, first.ID)
+	require.NoError(t, err)
+	require.Equal(t, first.Config, got.Config)
+	require.Equal(t, first.Key, got.Key)
+	duplicate := *first
+	duplicate.ID = uuid.New()
+	require.Error(t, repo.CreateSource(ctx, &duplicate))
+	duplicate.Type = "other"
+	require.NoError(t, repo.CreateSource(ctx, &duplicate))
 }

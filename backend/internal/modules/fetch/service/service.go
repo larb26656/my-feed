@@ -12,8 +12,8 @@ import (
 	fetchapi "github.com/larb26656/my-feed/backend/internal/modules/fetch/api"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/domain"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/repository"
-	obtainapi "github.com/larb26656/my-feed/backend/internal/modules/obtain/api"
 	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
+	obtainapi "github.com/larb26656/my-feed/backend/internal/modules/sourcetype/api"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	"github.com/larb26656/my-feed/backend/internal/platform/cursor"
 	"github.com/larb26656/my-feed/backend/internal/platform/database"
@@ -225,7 +225,7 @@ func (s *Service) CreateManualFetchJob(ctx context.Context, sourceID uuid.UUID) 
 	if err != nil {
 		return nil, err
 	}
-	if src.Type != sourceapi.SourceTypeRSS && src.Type != sourceapi.SourceTypeYouTube {
+	if src.Type == sourceapi.SourceTypeManual {
 		return nil, apperr.InvalidInput.New("fetch jobs can only target fetchable sources")
 	}
 	if !src.Active {
@@ -295,9 +295,8 @@ func (s *Service) ExecuteFetchJob(ctx context.Context, jobID uuid.UUID) (*domain
 	}
 
 	items, err := s.obtain.Obtain(ctx, &obtainapi.Input{
-		Type:             obtainapi.Provider(src.Type),
-		RSSURL:           src.RSSURL,
-		YouTubeChannelID: src.YouTubeChannelID,
+		Config: src.Config,
+		Type:   obtainapi.Provider(src.Type),
 	})
 	if err != nil {
 		return s.failOrRetry(ctx, job, err)

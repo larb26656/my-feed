@@ -11,7 +11,6 @@ type PreviewEntry struct {
 }
 
 type PreviewInput struct {
-	Type             string
-	RSSURL           string
-	YouTubeChannelID string
+	Config map[string]any
+	Type   string
 }

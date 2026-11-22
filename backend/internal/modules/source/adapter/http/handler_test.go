@@ -10,24 +10,25 @@ import (
 	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
 	"github.com/larb26656/my-feed/backend/internal/testkit"
 	"github.com/larb26656/my-feed/backend/internal/testkit/api"
+	"github.com/larb26656/my-feed/backend/internal/testkit/customtype"
 	"github.com/stretchr/testify/require"
 )
 
 type source struct {
 	ID, Name, Type, CreatedAt, UpdatedAt string
-	RSSURL                               *string
+	Config                               map[string]any
 	Active                               bool
 }
 
 func createRSSSource(t *testing.T, router http.Handler, name, feedURL string) source {
 	t.Helper()
-	return decodeSuccess[source](t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]string{"name": name, "type": "rss", "rssUrl": feedURL}, 201))
+	return decodeSuccess[source](t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]any{"name": name, "type": "rss", "config": map[string]any{"url": feedURL}}, 201))
 }
 
 func TestSubscribingToRSSReturnsNormalizedSourceDetails(t *testing.T) {
 	// Arrange
 	router := api.New(t)
-	input := map[string]string{"name": " Daily news ", "type": "rss", "rssUrl": " https://example.test/rss "}
+	input := map[string]any{"name": " Daily news ", "type": "rss", "config": map[string]any{"url": " https://example.test/rss "}}
 
 	// Act
 	created := decodeSuccess[source](t, testkit.Request(t, router, "POST", "/api/v1/sources/", input, 201))
@@ -36,8 +37,8 @@ func TestSubscribingToRSSReturnsNormalizedSourceDetails(t *testing.T) {
 	require.NotEmpty(t, created.ID)
 	require.Equal(t, "Daily news", created.Name)
 	require.Equal(t, "rss", created.Type)
-	require.NotNil(t, created.RSSURL)
-	require.Equal(t, "https://example.test/rss", *created.RSSURL)
+	require.Contains(t, created.Config, "url")
+	require.Equal(t, "https://example.test/rss", created.Config["url"])
 	require.True(t, created.Active)
 }
 
@@ -48,15 +49,15 @@ func TestEditingASubscriptionPersistsItsNewNameAndFeedURL(t *testing.T) {
 	path := "/api/v1/sources/" + original.ID
 
 	// Act
-	updated := decodeSuccess[source](t, testkit.Request(t, router, "PATCH", path, map[string]string{"name": "Weekly news", "rssUrl": "https://example.test/weekly"}, 200))
+	updated := decodeSuccess[source](t, testkit.Request(t, router, "PATCH", path, map[string]any{"name": "Weekly news", "config": map[string]any{"url": "https://example.test/weekly"}}, 200))
 	got := decodeSuccess[source](t, testkit.Request(t, router, "GET", path, nil, 200))
 
 	// Assert
 	require.Equal(t, original.ID, got.ID)
 	require.Equal(t, original.CreatedAt, got.CreatedAt)
 	require.Equal(t, "Weekly news", got.Name)
-	require.NotNil(t, got.RSSURL)
-	require.Equal(t, "https://example.test/weekly", *got.RSSURL)
+	require.Contains(t, got.Config, "url")
+	require.Equal(t, "https://example.test/weekly", got.Config["url"])
 	require.Equal(t, "rss", got.Type)
 	require.Equal(t, updated, got)
 }
@@ -239,10 +240,10 @@ func TestResumingAnAlreadyActiveSourceIsIdempotent(t *testing.T) {
 
 func TestInvalidSubscriptionsReturnValidationErrorsWithoutCreatingSources(t *testing.T) {
 	for _, scenario := range []struct{ name, body, message string }{
-		{"blank name", `{"name":" ","type":"rss","rssUrl":"https://example.test/rss"}`, "name is required"},
-		{"blank feed URL", `{"name":"News","type":"rss","rssUrl":" "}`, "rss url is required"},
-		{"reader cannot create manual source", `{"name":"Bookmarks","type":"manual"}`, "manual sources cannot be created by the reader"},
-		{"unsupported type", `{"name":"News","type":"unknown"}`, "source type must be rss or youtube"},
+		{"blank name", `{"name":" ","type":"rss","config":{"url":"https://example.test/rss"}}`, "name is required"},
+		{"blank feed URL", `{"name":"News","type":"rss","config":{"url":" "}}`, "invalid source config"},
+		{"reader cannot create manual source", `{"name":"Bookmarks","type":"manual","config":{}}`, "manual sources cannot be created by the reader"},
+		{"unsupported type", `{"name":"News","type":"unknown","config":{}}`, "unknown source type"},
 		{"malformed JSON", `{`, "invalid json body"},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
@@ -270,7 +271,7 @@ func TestSubscribingToAnExistingFeedURLReturnsConflict(t *testing.T) {
 	subscription := createRSSSource(t, router, "Daily", "https://example.test/daily")
 
 	// Act
-	failure := decodeFailure(t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]string{"name": "Another name", "type": "rss", "rssUrl": *subscription.RSSURL}, 409))
+	failure := decodeFailure(t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]any{"name": "Another name", "type": "rss", "config": map[string]any{"url": subscription.Config["url"]}}, 409))
 
 	// Assert
 	require.Equal(t, "CONFLICT", failure.Code)
@@ -284,7 +285,7 @@ func TestAnEditConflictingWithAnotherFeedLeavesTheSubscriptionUnchanged(t *testi
 	path := "/api/v1/sources/" + second.ID
 
 	// Act
-	failure := decodeFailure(t, testkit.Request(t, router, "PATCH", path, map[string]string{"name": "Changed", "rssUrl": *first.RSSURL}, 409))
+	failure := decodeFailure(t, testkit.Request(t, router, "PATCH", path, map[string]any{"name": "Changed", "config": map[string]any{"url": first.Config["url"]}}, 409))
 	got := decodeSuccess[source](t, testkit.Request(t, router, "GET", path, nil, 200))
 
 	// Assert
@@ -298,18 +299,18 @@ func TestRenamingASubscriptionAllowsKeepingItsFeedURL(t *testing.T) {
 	subscription := createRSSSource(t, router, "News", "https://example.test/rss")
 
 	// Act
-	renamed := decodeSuccess[source](t, testkit.Request(t, router, "PATCH", "/api/v1/sources/"+subscription.ID, map[string]string{"name": "Renamed", "rssUrl": *subscription.RSSURL}, 200))
+	renamed := decodeSuccess[source](t, testkit.Request(t, router, "PATCH", "/api/v1/sources/"+subscription.ID, map[string]any{"name": "Renamed", "config": map[string]any{"url": subscription.Config["url"]}}, 200))
 
 	// Assert
 	require.Equal(t, "Renamed", renamed.Name)
-	require.Equal(t, subscription.RSSURL, renamed.RSSURL)
+	require.Equal(t, subscription.Config, renamed.Config)
 	require.Equal(t, subscription.ID, renamed.ID)
 }
 
 func TestInvalidEditsLeaveTheSubscriptionUnchanged(t *testing.T) {
 	for _, scenario := range []struct{ name, body string }{
-		{"blank name", `{"name":" ","rssUrl":"https://example.test/new"}`},
-		{"blank feed URL", `{"name":"Changed","rssUrl":" "}`},
+		{"blank name", `{"name":" ","config":{"url":"https://example.test/new"}}`},
+		{"blank feed URL", `{"name":"Changed","config":{"url":" "}}`},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
 			// Arrange
@@ -339,7 +340,7 @@ func TestTheSystemSavedLinksSourceIsVisibleOnStartup(t *testing.T) {
 	require.Len(t, sources, 1)
 	require.Equal(t, "Saved links", sources[0].Name)
 	require.Equal(t, "manual", sources[0].Type)
-	require.Nil(t, sources[0].RSSURL)
+	require.Empty(t, sources[0].Config)
 }
 
 func TestReaderCannotEditOrToggleTheManualSource(t *testing.T) {
@@ -352,7 +353,7 @@ func TestReaderCannotEditOrToggleTheManualSource(t *testing.T) {
 			path := "/api/v1/sources/" + sources[0].ID
 
 			// Act
-			failure := decodeFailure(t, testkit.Request(t, router, action.method, path+action.suffix, map[string]string{"name": "Changed", "rssUrl": "https://example.test/rss"}, 409))
+			failure := decodeFailure(t, testkit.Request(t, router, action.method, path+action.suffix, map[string]any{"name": "Changed", "config": map[string]any{"url": "https://example.test/rss"}}, 409))
 			got := decodeSuccess[source](t, testkit.Request(t, router, "GET", path, nil, 200))
 
 			// Assert
@@ -375,7 +376,7 @@ func TestUnknownSourceRequestsReturnUsefulErrors(t *testing.T) {
 				router := api.New(t)
 
 				// Act
-				failure := decodeFailure(t, testkit.Request(t, router, action.method, "/api/v1/sources/"+scenario.id+action.suffix, map[string]string{"name": "News", "rssUrl": "https://example.test/rss"}, scenario.status))
+				failure := decodeFailure(t, testkit.Request(t, router, action.method, "/api/v1/sources/"+scenario.id+action.suffix, map[string]any{"name": "News", "config": map[string]any{"url": "https://example.test/rss"}}, scenario.status))
 
 				// Assert
 				require.Equal(t, scenario.code, failure.Code)
@@ -388,20 +389,26 @@ func TestYouTubeChannelURLNormalizesToChannelID(t *testing.T) {
 	// Arrange
 	router := api.New(t)
 	// Act
-	created := decodeSuccess[struct{ YouTubeChannelID string }](t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]string{"name": "Channel", "type": "youtube", "youtubeChannelId": " https://www.youtube.com/channel/UC1234567890123456789012 "}, 201))
+	created := decodeSuccess[struct{ Config map[string]any }](t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]any{"name": "Channel", "type": "youtube", "config": map[string]any{"channelId": " https://www.youtube.com/channel/UC1234567890123456789012 "}}, 201))
 	// Assert
-	require.Equal(t, "UC1234567890123456789012", created.YouTubeChannelID)
+	require.Equal(t, "UC1234567890123456789012", created.Config["channelId"])
 }
 
 func TestRenamingYouTubeSourcePreservesChannel(t *testing.T) {
 	// Arrange
 	router := api.New(t)
-	created := decodeSuccess[struct{ ID, YouTubeChannelID string }](t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]string{"name": "Channel", "type": "youtube", "youtubeChannelId": "UC1234567890123456789012"}, 201))
+	created := decodeSuccess[struct {
+		ID     string
+		Config map[string]any
+	}](t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]any{"name": "Channel", "type": "youtube", "config": map[string]any{"channelId": "UC1234567890123456789012"}}, 201))
 	// Act
-	got := decodeSuccess[struct{ ID, Name, YouTubeChannelID string }](t, testkit.Request(t, router, "PATCH", "/api/v1/sources/"+created.ID, map[string]string{"name": " Renamed "}, 200))
+	got := decodeSuccess[struct {
+		ID, Name string
+		Config   map[string]any
+	}](t, testkit.Request(t, router, "PATCH", "/api/v1/sources/"+created.ID, map[string]string{"name": " Renamed "}, 200))
 	// Assert
 	require.Equal(t, created.ID, got.ID)
-	require.Equal(t, created.YouTubeChannelID, got.YouTubeChannelID)
+	require.Equal(t, created.Config["channelId"], got.Config["channelId"])
 	require.Equal(t, "Renamed", got.Name)
 }
 
@@ -411,10 +418,10 @@ func TestInvalidYouTubeChannelInputsAreRejected(t *testing.T) {
 			// Arrange
 			router := api.New(t)
 			// Act
-			failure := decodeFailure(t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]string{"name": "Channel", "type": "youtube", "youtubeChannelId": input}, 400))
+			failure := decodeFailure(t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]any{"name": "Channel", "type": "youtube", "config": map[string]any{"channelId": input}}, 400))
 			// Assert
 			require.Equal(t, "VALIDATION", failure.Code)
-			require.Contains(t, failure.Message, "channel ID")
+			require.Equal(t, "invalid source config", failure.Message)
 			require.Len(t, decodeSuccess[[]source](t, testkit.Request(t, router, "GET", "/api/v1/sources/", nil, 200)), 1)
 		})
 	}
@@ -423,10 +430,10 @@ func TestInvalidYouTubeChannelInputsAreRejected(t *testing.T) {
 func TestDuplicateYouTubeChannelConflictsEvenWhenDeactivated(t *testing.T) {
 	// Arrange
 	router := api.New(t)
-	created := decodeSuccess[source](t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]string{"name": "Channel", "type": "youtube", "youtubeChannelId": "UC1234567890123456789012"}, 201))
+	created := decodeSuccess[source](t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]any{"name": "Channel", "type": "youtube", "config": map[string]any{"channelId": "UC1234567890123456789012"}}, 201))
 	testkit.Request(t, router, "POST", "/api/v1/sources/"+created.ID+"/deactivate", nil, 200)
 	// Act
-	failure := decodeFailure(t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]string{"name": "Duplicate", "type": "youtube", "youtubeChannelId": "https://www.youtube.com/channel/UC1234567890123456789012"}, 409))
+	failure := decodeFailure(t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]any{"name": "Duplicate", "type": "youtube", "config": map[string]any{"channelId": "https://www.youtube.com/channel/UC1234567890123456789012"}}, 409))
 	// Assert
 	require.Equal(t, "CONFLICT", failure.Code)
 	got := decodeSuccess[source](t, testkit.Request(t, router, "GET", "/api/v1/sources/"+created.ID, nil, 200))
@@ -438,7 +445,7 @@ func TestYouTubeRetargetingIsRejected(t *testing.T) {
 		t.Run(fmt.Sprint(changes), func(t *testing.T) {
 			// Arrange
 			router := api.New(t)
-			created := decodeSuccess[source](t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]string{"name": "Channel", "type": "youtube", "youtubeChannelId": "UC1234567890123456789012"}, 201))
+			created := decodeSuccess[source](t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]any{"name": "Channel", "type": "youtube", "config": map[string]any{"channelId": "UC1234567890123456789012"}}, 201))
 			// Act
 			failure := decodeFailure(t, testkit.Request(t, router, "PATCH", "/api/v1/sources/"+created.ID, changes, 400))
 			// Assert
@@ -469,7 +476,7 @@ func TestPreviewRSSReturnsFirstEntryWithoutPersisting(t *testing.T) {
 	}))
 	defer origin.Close()
 	router := api.New(t)
-	response := testkit.Request(t, router, "POST", "/api/v1/sources/preview", map[string]string{"type": "rss", "rssUrl": origin.URL}, 200)
+	response := testkit.Request(t, router, "POST", "/api/v1/sources/preview", map[string]any{"type": "rss", "config": map[string]any{"url": origin.URL}}, 200)
 	result := testkit.Decode[httpx.SuccessResponse[map[string]any]](t, response)
 	require.Equal(t, "First", result.Data["entry"].(map[string]any)["title"])
 	require.NotContains(t, result.Data["entry"].(map[string]any), "publishedAt")
@@ -496,7 +503,7 @@ func TestPreviewAtomAndEmptyAndFailures(t *testing.T) {
 			}))
 			defer origin.Close()
 			router := api.New(t)
-			response := testkit.Request(t, router, "POST", "/api/v1/sources/preview", map[string]string{"type": "rss", "rssUrl": origin.URL}, tc.wantStatus)
+			response := testkit.Request(t, router, "POST", "/api/v1/sources/preview", map[string]any{"type": "rss", "config": map[string]any{"url": origin.URL}}, tc.wantStatus)
 			if tc.wantStatus != 200 {
 				return
 			}
@@ -508,4 +515,133 @@ func TestPreviewAtomAndEmptyAndFailures(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReaderDiscoversRSSConfiguration(t *testing.T) {
+	router := api.New(t)
+	response := testkit.Request(t, router, "GET", "/api/v1/source-types", nil, 200)
+	result := testkit.Decode[httpx.SuccessResponse[struct {
+		Types []struct {
+			Code   string         `json:"code"`
+			Label  string         `json:"label"`
+			Schema map[string]any `json:"schema"`
+			UI     map[string]any `json:"ui"`
+		} `json:"types"`
+	}]](t, response)
+	require.NotEmpty(t, result.Data.Types)
+	require.Equal(t, "rss", result.Data.Types[0].Code)
+	require.NotEmpty(t, result.Data.Types[0].Label)
+	require.Equal(t, "https://json-schema.org/draft/2020-12/schema", result.Data.Types[0].Schema["$schema"])
+	require.NotEmpty(t, result.Data.Types[0].UI)
+}
+
+func TestCreatingRSSFromConfigNormalizesAndRejectsInvalidInput(t *testing.T) {
+	router := api.New(t)
+	response := testkit.Request(t, router, "POST", "/api/v1/sources", map[string]any{"type": "rss", "name": "News", "config": map[string]any{"url": " https://example.org/feed "}}, 201)
+	result := testkit.Decode[httpx.SuccessResponse[struct {
+		Config map[string]any `json:"config"`
+	}]](t, response)
+	require.Equal(t, "https://example.org/feed", result.Data.Config["url"])
+	testkit.Request(t, router, "POST", "/api/v1/sources", map[string]any{"type": "unknown", "name": "Bad", "config": map[string]any{}}, 400)
+	for _, config := range []map[string]any{{}, {"url": "ftp://example.org"}, {"url": "https://example.org", "extra": true}} {
+		testkit.Request(t, router, "POST", "/api/v1/sources", map[string]any{"type": "rss", "name": "Bad", "config": config}, 400)
+	}
+}
+
+func TestUnknownConfigPropertyIdentifiesTheField(t *testing.T) {
+	router := api.New(t)
+	response := testkit.Request(t, router, "POST", "/api/v1/sources", map[string]any{"name": "News", "type": "rss", "config": map[string]any{"url": "https://example.test", "extra": true}}, 400)
+	result := testkit.Decode[struct {
+		Error struct {
+			Detail struct {
+				Fields map[string]string `json:"fields"`
+			} `json:"detail"`
+		} `json:"error"`
+	}](t, response)
+	require.Contains(t, result.Error.Detail.Fields, "extra")
+}
+
+func TestInvalidRSSConfigIdentifiesTheField(t *testing.T) {
+	router := api.New(t)
+	response := testkit.Request(t, router, "POST", "/api/v1/sources", map[string]any{"name": "News", "type": "rss", "config": map[string]any{}}, 400)
+	result := testkit.Decode[struct {
+		Error struct {
+			Code   string `json:"code"`
+			Detail struct {
+				Fields map[string]string `json:"fields"`
+			} `json:"detail"`
+		} `json:"error"`
+	}](t, response)
+	require.Equal(t, "VALIDATION", result.Error.Code)
+	require.Contains(t, result.Error.Detail.Fields, "url")
+}
+
+func TestCreatingYouTubeFromConfigNormalizesAndConflicts(t *testing.T) {
+	router := api.New(t)
+	response := testkit.Request(t, router, "POST", "/api/v1/sources", map[string]any{"type": "youtube", "name": "Channel", "config": map[string]any{"channelId": " https://www.youtube.com/channel/UC1234567890123456789012 "}}, 201)
+	result := testkit.Decode[httpx.SuccessResponse[struct {
+		Config map[string]any `json:"config"`
+	}]](t, response)
+	require.Equal(t, "UC1234567890123456789012", result.Data.Config["channelId"])
+	testkit.Request(t, router, "POST", "/api/v1/sources", map[string]any{"type": "youtube", "name": "Duplicate", "config": map[string]any{"channelId": "UC1234567890123456789012"}}, 409)
+	for _, config := range []map[string]any{{}, {"channelId": "invalid"}, {"channelId": "UC1234567890123456789012", "extra": true}} {
+		testkit.Request(t, router, "POST", "/api/v1/sources", map[string]any{"type": "youtube", "name": "Bad", "config": config}, 400)
+	}
+}
+
+func TestEditSourceConfigNormalizesAndReservesOrigin(t *testing.T) {
+	router := api.New(t)
+	first := createRSSSource(t, router, "First", "https://example.test/first")
+	second := createRSSSource(t, router, "Second", "https://example.test/second")
+	path := "/api/v1/sources/" + first.ID
+	testkit.Request(t, router, "PATCH", path, map[string]any{"name": "Changed", "config": map[string]any{"url": " https://example.test/new "}}, 200)
+	got := decodeSuccess[source](t, testkit.Request(t, router, "GET", path, nil, 200))
+	require.Equal(t, "https://example.test/new", got.Config["url"])
+	testkit.Request(t, router, "PATCH", path, map[string]any{"name": "Conflict", "config": map[string]any{"url": second.Config["url"]}}, 409)
+	got = decodeSuccess[source](t, testkit.Request(t, router, "GET", path, nil, 200))
+	require.Equal(t, "Changed", got.Name)
+	require.Equal(t, "https://example.test/new", got.Config["url"])
+}
+
+func TestEditYouTubeConfigCanonicalizesAndRejectsInvalidInput(t *testing.T) {
+	router := api.New(t)
+	created := decodeSuccess[source](t, testkit.Request(t, router, "POST", "/api/v1/sources/", map[string]any{"name": "Channel", "type": "youtube", "config": map[string]any{"channelId": "UC1234567890123456789012"}}, 201))
+	path := "/api/v1/sources/" + created.ID
+	testkit.Request(t, router, "PATCH", path, map[string]any{"name": "Channel", "config": map[string]any{"channelId": " https://www.youtube.com/channel/UCabcdefghijklmnopqrstuv "}}, 200)
+	got := decodeSuccess[struct{ Config map[string]any }](t, testkit.Request(t, router, "GET", path, nil, 200))
+	require.Equal(t, "UCabcdefghijklmnopqrstuv", got.Config["channelId"])
+	testkit.Request(t, router, "PATCH", path, map[string]any{"name": "Channel", "config": map[string]any{"channelId": "bad"}}, 400)
+}
+
+func TestRegisteredTypeCreateEditAndPreview(t *testing.T) {
+	definition := customtype.Definition(t)
+	router := api.NewWithDefinitions(t, t.TempDir(), definition)
+	discovered := testkit.Decode[httpx.SuccessResponse[struct {
+		Types []struct {
+			Code string `json:"code"`
+		} `json:"types"`
+	}]](t, testkit.Request(t, router, "GET", "/api/v1/source-types", nil, 200))
+	require.Equal(t, "custom", discovered.Data.Types[2].Code)
+	preview := testkit.Request(t, router, "POST", "/api/v1/sources/preview", map[string]any{"type": "custom", "config": customtype.Input("ok-alpha")}, 200)
+	result := testkit.Decode[httpx.SuccessResponse[map[string]any]](t, preview)
+	require.Equal(t, "ok-alpha", result.Data["entry"].(map[string]any)["title"])
+	created := testkit.Decode[httpx.SuccessResponse[struct {
+		ID     string         `json:"id"`
+		Config map[string]any `json:"config"`
+	}]](t, testkit.Request(t, router, "POST", "/api/v1/sources", map[string]any{"name": "Custom", "type": "custom", "config": customtype.Input("ok-alpha")}, 201))
+	require.Equal(t, "ok-alpha", created.Data.Config["text"])
+	updated := testkit.Decode[httpx.SuccessResponse[struct {
+		Config map[string]any `json:"config"`
+	}]](t, testkit.Request(t, router, "PATCH", "/api/v1/sources/"+created.Data.ID, map[string]any{"name": "Custom", "config": customtype.Input("ok-beta")}, 200))
+	require.Equal(t, "ok-beta", updated.Data.Config["text"])
+	response := testkit.Request(t, router, "GET", "/api/v1/sources?typeEqual=custom", nil, 200)
+	listed := testkit.Decode[httpx.SuccessResponse[[]map[string]any]](t, response)
+	require.Len(t, listed.Data, 1)
+	require.Equal(t, "custom", listed.Data[0]["type"])
+}
+
+func TestCreateAndPreviewRequireConfig(t *testing.T) {
+	router := api.New(t)
+	testkit.Request(t, router, "POST", "/api/v1/sources", map[string]any{"name": "News", "type": "rss", "rssUrl": "https://example.test/feed"}, 400)
+	testkit.Request(t, router, "POST", "/api/v1/sources/preview", map[string]any{"type": "rss", "rssUrl": "https://example.test/feed"}, 400)
 }

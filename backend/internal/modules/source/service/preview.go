@@ -2,45 +2,22 @@ package service
 
 import (
 	"context"
-	"net/url"
 	"time"
 
-	obtainapi "github.com/larb26656/my-feed/backend/internal/modules/obtain/api"
 	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
-	"github.com/larb26656/my-feed/backend/internal/modules/source/domain"
+	obtainapi "github.com/larb26656/my-feed/backend/internal/modules/sourcetype/api"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 )
 
-func validatePreview(in sourceapi.PreviewInput) (*obtainapi.Input, error) {
-	var ref obtainapi.Input
-	switch in.Type {
-	case "rss":
-		src, err := domain.NewRSSSource("preview", in.RSSURL)
-		if err != nil {
-			return nil, err
-		}
-		u, err := url.Parse(src.RSSURL)
-		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-			return nil, apperr.InvalidInput.New("invalid rss feed url")
-		}
-		ref = obtainapi.Input{Type: obtainapi.ProviderRSS, RSSURL: src.RSSURL}
-	case "youtube":
-		src, err := domain.NewYouTubeSource("preview", in.YouTubeChannelID)
-		if err != nil {
-			return nil, err
-		}
-		ref = obtainapi.Input{Type: obtainapi.ProviderYouTube, YouTubeChannelID: src.YouTubeChannelID}
-	default:
-		return nil, apperr.InvalidInput.New("source type must be rss or youtube")
-	}
-	return &ref, nil
-}
-
 func (s *Service) Preview(ctx context.Context, in sourceapi.PreviewInput) (*sourceapi.PreviewEntry, error) {
-	ref, err := validatePreview(in)
+	if s.types == nil {
+		return nil, apperr.InvalidInput.New("source type registry unavailable")
+	}
+	config, _, err := s.types.Prepare(in.Type, in.Config)
 	if err != nil {
 		return nil, err
 	}
+	ref := &obtainapi.Input{Type: obtainapi.Provider(in.Type), Config: config}
 	if s.obtain == nil {
 		return nil, apperr.InvalidInput.New("preview is unavailable")
 	}

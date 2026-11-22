@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
@@ -11,13 +12,7 @@ import {
 	SelectValue,
 } from "#/components/ui/select";
 import type { SourceFilters } from "#/hooks/queries";
-
-const sourceTypes = [
-	{ value: "all", label: "All types" },
-	{ value: "rss", label: "RSS" },
-	{ value: "youtube", label: "YouTube" },
-	{ value: "manual", label: "Manual" },
-];
+import { api } from "#/lib/api";
 
 export function SourcesSearch({
 	initialName = "",
@@ -28,6 +23,17 @@ export function SourcesSearch({
 	initialType?: string;
 	onSearch: (filters: SourceFilters) => void;
 }) {
+	const { data } = useQuery({
+		queryKey: ["source-types"],
+		queryFn: async () =>
+			(await api<{ types: { code: string; label: string }[] }>("/source-types"))
+				.data.types,
+	});
+	const sourceTypes = [
+		{ value: "all", label: "All types" },
+		...(data ?? []).map((item) => ({ value: item.code, label: item.label })),
+		{ value: "manual", label: "Manual" },
+	];
 	const [name, setName] = useState(initialName);
 	const [type, setType] = useState(initialType);
 	return (

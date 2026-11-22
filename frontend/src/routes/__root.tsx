@@ -35,12 +35,12 @@ function NotFound() {
 	);
 }
 
-function GlobalError({ error, reset }: { error: Error; reset: () => void }) {
+function GlobalError({ error, reset }: { error: unknown; reset: () => void }) {
 	return (
 		<main className="bg-background text-foreground">
 			<ErrorState
 				size="screen"
-				error={error}
+				error={error instanceof Error ? error : String(error)}
 				title="Unexpected error"
 				message="We could not display this page. Try again or return to the feed"
 				action={

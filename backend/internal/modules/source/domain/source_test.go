@@ -224,3 +224,14 @@ func TestNewYouTubeSourceRejectsInvalidChannelID(t *testing.T) {
 	require.ErrorAs(t, err, &failure)
 	require.Equal(t, apperr.InvalidInput.Code, failure.Code)
 }
+
+func TestFetchableSourceOwnsPreparedConfigChanges(t *testing.T) {
+	source, err := domain.NewFetchableSource(" News ", "custom", map[string]any{"slug": "first"}, "first")
+	require.NoError(t, err)
+	require.Equal(t, "News", source.Name)
+	require.Equal(t, "first", source.Key)
+	require.NoError(t, source.UpdateConfig("Renamed", map[string]any{"slug": "second"}, "second"))
+	require.Equal(t, "Renamed", source.Name)
+	require.Equal(t, map[string]any{"slug": "second"}, source.Config)
+	require.Equal(t, "second", source.Key)
+}

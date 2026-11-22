@@ -22,6 +22,8 @@ const (
 )
 
 type Source struct {
+	Config           map[string]any
+	Key              string
 	ProfileImageID   string
 	ID               uuid.UUID
 	Name             string
@@ -31,6 +33,41 @@ type Source struct {
 	Active           bool
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
+}
+
+// NewFetchableSource constructs a Source from a registry-prepared config.
+func NewFetchableSource(name string, typ Type, config map[string]any, key string) (*Source, error) {
+	if typ == TypeManual || typ == "" {
+		return nil, apperr.InvalidInput.New("invalid fetchable source type")
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, apperr.InvalidInput.New("name is required")
+	}
+	now := time.Now().UTC()
+	s := &Source{ID: uuid.New(), Name: name, Type: typ, Active: true, CreatedAt: now, UpdatedAt: now}
+	s.setConfig(config, key)
+	return s, nil
+}
+
+func (s *Source) setConfig(config map[string]any, key string) {
+	s.Config, s.Key = config, key
+	// The historical columns are kept in sync until their removal in a future migration.
+	switch s.Type {
+	case TypeRSS:
+		s.RSSURL, _ = config["url"].(string)
+	case TypeYouTube:
+		s.YouTubeChannelID, _ = config["channelId"].(string)
+	}
+}
+
+// UpdateConfig atomically changes the name and prepared config of a fetchable Source.
+func (s *Source) UpdateConfig(name string, config map[string]any, key string) error {
+	if err := s.Rename(name); err != nil {
+		return err
+	}
+	s.setConfig(config, key)
+	return nil
 }
 
 // NewRSSSource creates a fetchable RSS Source. Type is fixed at construction.
@@ -43,16 +80,7 @@ func NewRSSSource(name, feedURL string) (*Source, error) {
 	if feedURL == "" {
 		return nil, apperr.InvalidInput.New("rss url is required")
 	}
-	now := time.Now().UTC()
-	return &Source{
-		ID:        uuid.New(),
-		Name:      name,
-		Type:      TypeRSS,
-		RSSURL:    feedURL,
-		Active:    true,
-		CreatedAt: now,
-		UpdatedAt: now,
-	}, nil
+	return NewFetchableSource(name, TypeRSS, map[string]any{"url": feedURL}, feedURL)
 }
 
 // NewYouTubeSource creates a Source for a canonical channel ID.
@@ -65,8 +93,7 @@ func NewYouTubeSource(name, channelID string) (*Source, error) {
 	if !regexp.MustCompile(`^UC[A-Za-z0-9_-]{22}$`).MatchString(channelID) {
 		return nil, apperr.InvalidInput.New("enter a YouTube channel ID starting with UC or a canonical https://www.youtube.com/channel/ URL")
 	}
-	now := time.Now().UTC()
-	return &Source{ID: uuid.New(), Name: name, Type: TypeYouTube, YouTubeChannelID: channelID, Active: true, CreatedAt: now, UpdatedAt: now}, nil
+	return NewFetchableSource(name, TypeYouTube, map[string]any{"channelId": channelID}, channelID)
 }
 
 // NewManualSource creates a system manual Source. Type is fixed at construction.
@@ -78,9 +105,10 @@ func NewManualSource(name string) (*Source, error) {
 	}
 	now := time.Now().UTC()
 	return &Source{
-		ID:        uuid.New(),
-		Name:      name,
-		Type:      TypeManual,
+		ID:     uuid.New(),
+		Name:   name,
+		Type:   TypeManual,
+		Config: map[string]any{}, Key: "singleton",
 		Active:    true,
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -132,7 +160,23 @@ func (s *Source) UpdateDetails(name, feedURL string) error {
 		return apperr.InvalidInput.New("youtube channel cannot be changed")
 	}
 	s.Name = name
-	s.RSSURL = feedURL
+	if s.Type == TypeRSS {
+		s.setConfig(map[string]any{"url": feedURL}, feedURL)
+	}
+	s.UpdatedAt = time.Now().UTC()
+	return nil
+}
+
+// Rename updates a fetchable Source without revalidating its stored config.
+func (s *Source) Rename(name string) error {
+	if s.Type == TypeManual {
+		return ErrManualSourceImmutable.New("manual sources cannot be edited")
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return apperr.InvalidInput.New("name is required")
+	}
+	s.Name = name
 	s.UpdatedAt = time.Now().UTC()
 	return nil
 }

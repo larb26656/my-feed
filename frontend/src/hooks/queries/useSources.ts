@@ -81,42 +81,34 @@ export function useSaveSource() {
 	return useMutation({
 		mutationFn: async ({
 			id,
+			includeConfig,
 			...values
 		}: {
 			id?: string;
+			includeConfig?: boolean;
 			name: string;
-			rssUrl: string;
-			type: "rss" | "youtube";
-			youtubeChannelId: string;
+			type: string;
+			config: Record<string, unknown>;
 		}) => {
 			if (id) {
 				const { data } = await api<Source>(`/sources/${id}`, {
 					method: "PATCH",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify(
-						values.type === "youtube"
-							? { name: values.name }
-							: { name: values.name, rssUrl: values.rssUrl },
-					),
+					body: JSON.stringify({
+						name: values.name,
+						...(includeConfig ? { config: values.config } : {}),
+					}),
 				});
 				return data;
 			}
 			const { data } = await api<Source>("/sources/", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(
-					values.type === "youtube"
-						? {
-								name: values.name,
-								type: values.type,
-								youtubeChannelId: values.youtubeChannelId.trim(),
-							}
-						: {
-								name: values.name,
-								type: values.type,
-								rssUrl: values.rssUrl,
-							},
-				),
+				body: JSON.stringify({
+					name: values.name,
+					type: values.type,
+					config: values.config,
+				}),
 			});
 			return data;
 		},
@@ -151,8 +143,7 @@ export function usePreviewSource() {
 			...values
 		}: {
 			type: string;
-			rssUrl: string;
-			youtubeChannelId: string;
+			config: Record<string, unknown>;
 			signal: AbortSignal;
 		}) =>
 			api<{

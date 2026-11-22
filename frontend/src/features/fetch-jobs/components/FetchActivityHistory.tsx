@@ -60,7 +60,7 @@ export function FetchActivityHistory<TPageSize extends number>({
 			if (tab === "failed" && job.status !== "failed") return false;
 			const source = sourceById.get(job.sourceId);
 			const value =
-				`${source?.name ?? ""} ${source?.rssUrl ?? ""}`.toLowerCase();
+				`${source?.name ?? ""} ${typeof source?.config?.url === "string" ? source.config.url : ""}`.toLowerCase();
 			return value.includes(search.trim().toLowerCase());
 		},
 	);

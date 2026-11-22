@@ -1,7 +1,14 @@
+import { ajvResolver } from "@hookform/resolvers/ajv";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import Ajv2020 from "ajv/dist/2020";
 import { useEffect, useRef, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import {
+	Controller,
+	type FieldErrors,
+	type Resolver,
+	useForm,
+} from "react-hook-form";
 import { z } from "zod";
 import { Button } from "#/components/ui/button";
 import {
@@ -13,12 +20,12 @@ import {
 } from "#/components/ui/dialog";
 import {
 	Field,
-	FieldDescription,
 	FieldError,
 	FieldGroup,
 	FieldLabel,
 } from "#/components/ui/field";
 import { Input } from "#/components/ui/input";
+
 import { toastManager } from "#/components/ui/toaster";
 import { FeedItem } from "#/features/feed/FeedItem";
 import type { Source } from "#/features/feed/types";
@@ -27,37 +34,20 @@ import { api } from "#/lib/api";
 import type { components } from "#/lib/api/schema";
 import { sourceKeys } from "#/lib/query-keys";
 import { ImageCropPicker, prepareImage, useImageCrop } from "./ImageCropPicker";
+import {
+	SourceConfigFields,
+	sourceConfigDefaults,
+	supportsSourceConfigFields,
+} from "./SourceConfigFields";
 
 type PreviewEntry =
 	components["schemas"]["internal_modules_source_adapter_http.previewEntryResponse"];
 
-const sourceSchema = z
-	.object({
-		name: z.string().trim().min(1, "Please enter a source name"),
-		type: z.enum(["rss", "youtube"]),
-		rssUrl: z.string(),
-		youtubeChannelId: z.string(),
-	})
-	.superRefine((value, ctx) => {
-		if (value.type === "rss" && !z.url().safeParse(value.rssUrl).success)
-			ctx.addIssue({
-				code: "custom",
-				path: ["rssUrl"],
-				message: "Please enter a valid RSS / Atom URL",
-			});
-		if (
-			value.type === "youtube" &&
-			!/^(?:https:\/\/www\.youtube\.com\/channel\/)?UC[A-Za-z0-9_-]{22}$/.test(
-				value.youtubeChannelId.trim(),
-			)
-		)
-			ctx.addIssue({
-				code: "custom",
-				path: ["youtubeChannelId"],
-				message:
-					"Enter a channel ID starting with UC or a canonical YouTube channel URL",
-			});
-	});
+const sourceSchema = z.object({
+	name: z.string().trim().min(1, "Please enter a source name"),
+	type: z.string().min(1),
+	config: z.record(z.string(), z.any()),
+});
 type SourceForm = z.infer<typeof sourceSchema>;
 
 export function SourceDialog({
@@ -67,15 +57,143 @@ export function SourceDialog({
 	editing: Source | null;
 	onClose: () => void;
 }) {
-	const form = useForm<SourceForm>({
-		resolver: zodResolver(sourceSchema),
-		defaultValues: {
-			name: editing?.name ?? "",
-			type: editing?.type === "youtube" ? "youtube" : "rss",
-			rssUrl: editing?.rssUrl ?? "",
-			youtubeChannelId: editing?.youtubeChannelId ?? "",
+	const sourceTypes = useQuery({
+		queryKey: ["source-types"],
+		enabled: true,
+		queryFn: async () => {
+			const { data } = await api<{
+				types: {
+					code: string;
+					label: string;
+					schema: Record<string, unknown>;
+					ui: Record<
+						string,
+						{
+							label: string;
+							widget: string;
+							description?: string;
+							error?: string;
+						}
+					>;
+				}[];
+			}>("/source-types");
+			if (!Array.isArray(data.types))
+				throw new Error("Invalid Source Type metadata");
+			return data.types;
 		},
 	});
+	const previewValidation = useRef(false);
+	const resolver: Resolver<SourceForm> = async (values, context, options) => {
+		const result = await zodResolver(sourceSchema)(values, context, options);
+		const errors: FieldErrors<SourceForm> = result.errors;
+		const changed =
+			!editing ||
+			JSON.stringify(values.config) !== JSON.stringify(editing.config ?? {});
+		if (changed || previewValidation.current) {
+			const definition = sourceTypes.data?.find(
+				(item) => item.code === values.type,
+			);
+			try {
+				if (
+					!definition ||
+					!supportsSourceConfigFields(definition.schema, definition.ui)
+				)
+					throw new Error("unsupported");
+				// The resolver package uses AJV's Draft 7 class. Our supported
+				// flat keywords have identical semantics in Draft 7 and 2020-12;
+				// validate the published schema with AJV 2020-12 as well.
+				const validate = new Ajv2020({ allErrors: true }).compile(
+					definition.schema,
+				);
+				const valid2020 = validate(values.config);
+				const { $schema: _draft, ...compatibleSchema } = definition.schema;
+				const configResolver = ajvResolver(
+					{
+						type: "object",
+						properties: { config: compatibleSchema },
+						required: ["config"],
+					} as never,
+					{ allErrors: true },
+					{ mode: "sync" },
+				);
+				const resolved = await configResolver(values, context, options);
+				if (!valid2020 || resolved.errors.config) {
+					const fieldErrors: Record<string, { type: string; message: string }> =
+						{};
+					const resolverErrors = resolved.errors.config as
+						| Record<string, { type?: string; message?: string }>
+						| undefined;
+					for (const [key, error] of Object.entries(resolverErrors ?? {})) {
+						const type = error.type ?? "validate";
+						fieldErrors[key || "root"] = {
+							type,
+							message:
+								definition.ui[key]?.error ??
+								(type === "required"
+									? "Required"
+									: "Please enter a valid value"),
+						};
+					}
+					// Preserve Draft 2020-12 errors if the resolver's Draft 7 engine
+					// ever disagrees with the supported-schema validation.
+					if (!valid2020 && Object.keys(fieldErrors).length === 0) {
+						for (const error of validate.errors ?? []) {
+							const key =
+								error.keyword === "required"
+									? String(error.params.missingProperty)
+									: error.instancePath.slice(1);
+							fieldErrors[key || "root"] = {
+								type: error.keyword,
+								message:
+									definition.ui[key]?.error ??
+									(error.keyword === "required"
+										? "Required"
+										: "Please enter a valid value"),
+							};
+						}
+					}
+					errors.config = fieldErrors;
+				}
+			} catch {
+				errors.config = {
+					root: {
+						type: "validate",
+						message: "This Source Type configuration is unsupported",
+					},
+				};
+			}
+		}
+		return Object.keys(errors).length
+			? { values: {}, errors }
+			: { values: result.values as SourceForm, errors: {} };
+	};
+	const form = useForm<SourceForm>({
+		resolver,
+		defaultValues: {
+			name: editing?.name ?? "",
+			type: editing?.type ?? "",
+			config: editing?.config ?? {},
+		},
+	});
+	const selectedType = form.watch("type");
+	const definition = sourceTypes.data?.find(
+		(item) => item.code === selectedType,
+	);
+	useEffect(() => {
+		if (!editing && sourceTypes.data?.length && !form.getValues("type")) {
+			form.setValue("type", sourceTypes.data[0].code);
+			form.setValue("config", sourceConfigDefaults(sourceTypes.data[0]));
+		}
+	}, [sourceTypes.data, editing, form]);
+	async function validateConfig() {
+		previewValidation.current = true;
+		try {
+			return await form.trigger("config");
+		} finally {
+			previewValidation.current = false;
+		}
+	}
+
 	const mutation = useSaveSource();
 	const previewMutation = usePreviewSource();
 
@@ -125,24 +243,8 @@ export function SourceDialog({
 		setPreviewStatus("idle");
 	}
 	async function testFetch() {
+		if (!(await validateConfig())) return;
 		const values = form.getValues();
-		const field = values.type === "rss" ? "rssUrl" : "youtubeChannelId";
-		const valid =
-			values.type === "rss"
-				? z.url().safeParse(values.rssUrl).success
-				: /^(?:https:\/\/www\.youtube\.com\/channel\/)?UC[A-Za-z0-9_-]{22}$/.test(
-						values.youtubeChannelId.trim(),
-					);
-		if (!valid) {
-			form.setError(field, {
-				message:
-					values.type === "rss"
-						? "Please enter a valid RSS / Atom URL"
-						: "Enter a valid YouTube channel ID or URL",
-			});
-			return;
-		}
-		form.clearErrors(field);
 		clearPreview();
 		const current = generation.current;
 		const abort = new AbortController();
@@ -151,8 +253,7 @@ export function SourceDialog({
 		try {
 			const result = await previewMutation.mutateAsync({
 				type: values.type,
-				rssUrl: values.rssUrl,
-				youtubeChannelId: values.youtubeChannelId,
+				config: values.config,
 				signal: abort.signal,
 			});
 			if (generation.current !== current) return;
@@ -175,12 +276,21 @@ export function SourceDialog({
 		onClose();
 	};
 	async function save(values: SourceForm) {
+		const configChanged =
+			!editing ||
+			JSON.stringify(values.config) !== JSON.stringify(editing.config ?? {});
+
 		setPending(true);
 		setUploadError("");
 		let sourceCreated = Boolean(created);
 		try {
 			const source =
-				created ?? (await mutation.mutateAsync({ ...values, id: editing?.id }));
+				created ??
+				(await mutation.mutateAsync({
+					...values,
+					id: editing?.id,
+					includeConfig: configChanged,
+				}));
 			if (!editing && (cropState.image || created)) {
 				setCreated(source);
 				sourceCreated = true;
@@ -233,7 +343,19 @@ export function SourceDialog({
 							name={form.watch("name")}
 						/>
 					)}
-					<fieldset disabled={Boolean(created) || pending} className="contents">
+					{sourceTypes.isPending && <p>Loading Source Types…</p>}
+					{sourceTypes.isError && (
+						<p role="alert">Could not load Source Types. Please try again.</p>
+					)}
+					<fieldset
+						disabled={
+							Boolean(created) ||
+							pending ||
+							sourceTypes.isPending ||
+							sourceTypes.isError
+						}
+						className="contents"
+					>
 						<FieldGroup>
 							<Controller
 								name="name"
@@ -265,102 +387,38 @@ export function SourceDialog({
 										Source type
 									</legend>
 									<div className="flex gap-4">
-										<label>
-											<input
-												type="radio"
-												value="rss"
-												{...form.register("type", { onChange: clearPreview })}
-											/>{" "}
-											RSS feed
-										</label>
-										<label>
-											<input
-												type="radio"
-												value="youtube"
-												{...form.register("type", { onChange: clearPreview })}
-											/>{" "}
-											YouTube
-										</label>
+										{sourceTypes.data?.map((type) => (
+											<label key={type.code}>
+												<input
+													type="radio"
+													value={type.code}
+													{...form.register("type", {
+														onChange: () => {
+															form.setValue(
+																"config",
+																sourceConfigDefaults(type),
+															);
+															form.clearErrors();
+															clearPreview();
+														},
+													})}
+												/>{" "}
+												{type.label}
+											</label>
+										))}
 									</div>
 								</fieldset>
 							)}
-							{form.watch("type") === "rss" ? (
-								<Controller
-									name="rssUrl"
+							{definition && (
+								<SourceConfigFields
+									definition={definition}
 									control={form.control}
-									render={({ field, fieldState }) => (
-										<Field data-invalid={fieldState.invalid}>
-											<FieldLabel htmlFor="source-rss-url">
-												RSS / Atom feed URL
-											</FieldLabel>
-											<Input
-												{...field}
-												id="source-rss-url"
-												onChange={(event) => {
-													field.onChange(event);
-													clearPreview();
-												}}
-												type="url"
-												aria-invalid={fieldState.invalid}
-												aria-describedby={
-													fieldState.invalid
-														? "source-rss-url-error"
-														: undefined
-												}
-											/>
-
-											{fieldState.invalid && (
-												<FieldError
-													id="source-rss-url-error"
-													errors={[fieldState.error]}
-												/>
-											)}
-										</Field>
-									)}
+									clearPreview={clearPreview}
 								/>
-							) : editing ? (
-								<p className="text-sm">
-									YouTube channel ID: {editing.youtubeChannelId}
-								</p>
-							) : (
-								<>
-									<Controller
-										name="youtubeChannelId"
-										control={form.control}
-										render={({ field, fieldState }) => (
-											<Field data-invalid={fieldState.invalid}>
-												<FieldLabel htmlFor="source-youtube-id">
-													YouTube channel ID or URL
-												</FieldLabel>
-												<Input
-													{...field}
-													id="source-youtube-id"
-													onChange={(event) => {
-														field.onChange(event);
-														clearPreview();
-													}}
-													aria-invalid={fieldState.invalid}
-													aria-describedby={
-														fieldState.invalid
-															? "source-youtube-id-error"
-															: undefined
-													}
-												/>
-												<FieldDescription>
-													Enter a channel ID starting with UC or a canonical
-													https://www.youtube.com/channel/ URL. Handles and
-													custom URLs are not supported.
-												</FieldDescription>
-												{fieldState.invalid && (
-													<FieldError
-														id="source-youtube-id-error"
-														errors={[fieldState.error]}
-													/>
-												)}
-											</Field>
-										)}
-									/>
-								</>
+							)}
+							{typeof form.formState.errors.config?.root?.message ===
+								"string" && (
+								<p role="alert">{form.formState.errors.config.root.message}</p>
 							)}
 						</FieldGroup>
 					</fieldset>
@@ -370,7 +428,11 @@ export function SourceDialog({
 							<Button
 								type="button"
 								variant="outline"
-								disabled={previewStatus === "pending"}
+								disabled={
+									previewStatus === "pending" ||
+									sourceTypes.isPending ||
+									sourceTypes.isError
+								}
 								onClick={() => void testFetch()}
 							>
 								{previewStatus === "pending" ? "Testing..." : "Test fetch"}
@@ -422,7 +484,12 @@ export function SourceDialog({
 						</Button>
 						<Button
 							type="submit"
-							disabled={pending || Boolean(cropState.image && !cropState.area)}
+							disabled={
+								pending ||
+								sourceTypes.isPending ||
+								sourceTypes.isError ||
+								Boolean(cropState.image && !cropState.area)
+							}
 						>
 							{pending
 								? "Saving..."

@@ -32,7 +32,7 @@ test("unwraps success data and meta from the envelope", async () => {
 test("attaches access token from localStorage before API key", async () => {
 	setTokens("access-from-login", "refresh");
 	vi.stubEnv("VITE_MY_FEED_API_KEY", "dev-secret");
-	const fetchMock = vi.fn(async () => ({
+	const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => ({
 		ok: true,
 		status: 200,
 		json: async () => ({ success: true, data: [] }),
@@ -49,7 +49,7 @@ test("attaches access token from localStorage before API key", async () => {
 
 test("attaches Bearer token when VITE_MY_FEED_API_KEY is set", async () => {
 	vi.stubEnv("VITE_MY_FEED_API_KEY", "dev-secret");
-	const fetchMock = vi.fn(async () => ({
+	const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => ({
 		ok: true,
 		status: 200,
 		json: async () => ({ success: true, data: [] }),
@@ -83,7 +83,7 @@ test("omits Authorization when no access token or API key", async () => {
 test("refreshes once on 401 then retries", async () => {
 	setTokens("stale-access", "refresh-token");
 	let entriesCalls = 0;
-	const fetchMock = vi.fn(async (url: string) => {
+	const fetchMock = vi.fn(async (url: string, _init?: RequestInit) => {
 		if (String(url).includes("/auth/refresh")) {
 			return {
 				ok: true,

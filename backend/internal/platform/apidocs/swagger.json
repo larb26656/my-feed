@@ -1,6 +1,25 @@
 {
     "components": {
         "schemas": {
+            "github_com_larb26656_my-feed_backend_internal_modules_sourcetype_api.Definition": {
+                "properties": {
+                    "code": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "schema": {
+                        "additionalProperties": {},
+                        "type": "object"
+                    },
+                    "ui": {
+                        "additionalProperties": {},
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
             "github_com_larb26656_my-feed_backend_internal_platform_http.CursorMeta": {
                 "properties": {
                     "nextCursor": {
@@ -128,6 +147,18 @@
                 "properties": {
                     "data": {
                         "$ref": "#/components/schemas/internal_modules_source_adapter_http.sourceResponse"
+                    },
+                    "meta": {},
+                    "success": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_sourcetype_adapter_http_typesResponse": {
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/internal_modules_sourcetype_adapter_http.typesResponse"
                     },
                     "meta": {},
                     "success": {
@@ -403,20 +434,19 @@
             },
             "internal_modules_source_adapter_http.createSourceRequest": {
                 "properties": {
-                    "name": {
-                        "type": "string"
+                    "config": {
+                        "additionalProperties": {},
+                        "type": "object"
                     },
-                    "rssUrl": {
+                    "name": {
                         "type": "string"
                     },
                     "type": {
                         "type": "string"
-                    },
-                    "youtubeChannelId": {
-                        "type": "string"
                     }
                 },
                 "required": [
+                    "config",
                     "name",
                     "type"
                 ],
@@ -463,17 +493,16 @@
             },
             "internal_modules_source_adapter_http.previewSourceRequest": {
                 "properties": {
-                    "rssUrl": {
-                        "type": "string"
+                    "config": {
+                        "additionalProperties": {},
+                        "type": "object"
                     },
                     "type": {
-                        "type": "string"
-                    },
-                    "youtubeChannelId": {
                         "type": "string"
                     }
                 },
                 "required": [
+                    "config",
                     "type"
                 ],
                 "type": "object"
@@ -482,6 +511,10 @@
                 "properties": {
                     "active": {
                         "type": "boolean"
+                    },
+                    "config": {
+                        "additionalProperties": {},
+                        "type": "object"
                     },
                     "createdAt": {
                         "type": "string"
@@ -498,19 +531,10 @@
                             "null"
                         ]
                     },
-                    "rssUrl": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
-                    },
                     "type": {
                         "type": "string"
                     },
                     "updatedAt": {
-                        "type": "string"
-                    },
-                    "youtubeChannelId": {
                         "type": "string"
                     }
                 },
@@ -518,16 +542,29 @@
             },
             "internal_modules_source_adapter_http.updateSourceRequest": {
                 "properties": {
-                    "name": {
-                        "type": "string"
+                    "config": {
+                        "additionalProperties": {},
+                        "type": "object"
                     },
-                    "rssUrl": {
+                    "name": {
                         "type": "string"
                     }
                 },
                 "required": [
                     "name"
                 ],
+                "type": "object"
+            },
+            "internal_modules_sourcetype_adapter_http.typesResponse": {
+                "properties": {
+                    "types": {
+                        "items": {
+                            "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_modules_sourcetype_api.Definition"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
                 "type": "object"
             }
         }
@@ -1640,6 +1677,26 @@
                 ]
             }
         },
+        "/api/v1/source-types": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_sourcetype_adapter_http_typesResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "summary": "List Source Types",
+                "tags": [
+                    "Sources"
+                ]
+            }
+        },
         "/api/v1/sources": {
             "get": {
                 "parameters": [
@@ -1677,11 +1734,6 @@
                         "in": "query",
                         "name": "typeEqual",
                         "schema": {
-                            "enum": [
-                                "rss",
-                                "youtube",
-                                "manual"
-                            ],
                             "type": "string"
                         }
                     },
@@ -1966,7 +2018,7 @@
                 ]
             },
             "patch": {
-                "description": "Source type and YouTube channel ID cannot be changed.",
+                "description": "Source type cannot be changed.",
                 "parameters": [
                     {
                         "description": "Resource ID",

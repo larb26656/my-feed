@@ -1,0 +1,161 @@
+[
+  {
+    "type": "youtube",
+    "config": {
+      "channelId": "UC1234567890123456789012"
+    },
+    "valid": true
+  },
+  {
+    "type": "youtube",
+    "config": {
+      "channelId": "  https://www.youtube.com/channel/UC1234567890123456789012  "
+    },
+    "valid": true
+  },
+  {
+    "type": "youtube",
+    "config": {
+      "channelId": "@handle"
+    },
+    "valid": false
+  },
+  {
+    "type": "youtube",
+    "config": {},
+    "valid": false
+  },
+  {
+    "type": "youtube",
+    "config": {
+      "channelId": "UC1234567890123456789012",
+      "extra": true
+    },
+    "valid": false
+  },
+  {
+    "type": "rss",
+    "config": {
+      "url": " https://example.org/feed "
+    },
+    "valid": true
+  },
+  {
+    "type": "rss",
+    "config": {
+      "url": "ftp://example.org"
+    },
+    "valid": false
+  },
+  {
+    "type": "rss",
+    "config": {},
+    "valid": false
+  },
+  {
+    "type": "custom",
+    "config": {
+      "text": "ok-value",
+      "url": "https://example.test",
+      "count": 3,
+      "choice": 2,
+      "enabled": true
+    },
+    "valid": true
+  },
+  {
+    "type": "custom",
+    "config": {
+      "text": "bad",
+      "url": "https://example.test",
+      "count": 3,
+      "choice": 2,
+      "enabled": true
+    },
+    "valid": false
+  },
+  {
+    "type": "custom",
+    "config": {
+      "text": "ok-value",
+      "url": "ftp://example.test",
+      "count": 3,
+      "choice": 2,
+      "enabled": true
+    },
+    "valid": false
+  },
+  {
+    "type": "custom",
+    "config": {
+      "text": "ok-value",
+      "url": "https://example.test",
+      "count": 11,
+      "choice": 2,
+      "enabled": true
+    },
+    "valid": false
+  },
+  {
+    "type": "custom",
+    "config": {
+      "text": "ok-value",
+      "url": "https://example.test",
+      "count": 0,
+      "choice": 2,
+      "enabled": true
+    },
+    "valid": false
+  },
+  {
+    "type": "custom",
+    "config": {
+      "text": "ok-value",
+      "url": "https://example.test",
+      "count": 3,
+      "choice": 3,
+      "enabled": true
+    },
+    "valid": false
+  },
+  {
+    "type": "custom",
+    "config": {
+      "text": "ok-value",
+      "url": "https://example.test",
+      "count": 3,
+      "choice": 2,
+      "enabled": "true"
+    },
+    "valid": false
+  },
+  {
+    "type": "custom",
+    "config": {
+      "url": "https://example.test",
+      "count": 3,
+      "choice": 2,
+      "enabled": true
+    },
+    "valid": false
+  },
+  {
+    "type": "custom",
+    "config": {
+      "text": "ok-value",
+      "url": "https://example.test",
+      "count": 3,
+      "choice": 2,
+      "enabled": true,
+      "extra": true
+    },
+    "valid": false
+  },
+  {
+    "type": "rss",
+    "config": {
+      "url": "https://:443"
+    },
+    "valid": false
+  }
+]

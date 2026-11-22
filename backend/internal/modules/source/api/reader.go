@@ -17,6 +17,7 @@ const (
 
 // SourceRef is the Source data exposed to other modules.
 type SourceRef struct {
+	Config           map[string]any
 	ID               uuid.UUID
 	Type             SourceType
 	Active           bool

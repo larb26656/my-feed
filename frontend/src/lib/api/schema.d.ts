@@ -1077,6 +1077,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/source-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Source Types */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_sourcetype_adapter_http_typesResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sources": {
         parameters: {
             query?: never;
@@ -1095,7 +1131,7 @@ export interface paths {
                     /** @description Case-insensitive substring match on Source name */
                     nameLike?: string;
                     /** @description Exact Source Type */
-                    typeEqual?: "rss" | "youtube" | "manual";
+                    typeEqual?: string;
                     /** @description Filter by active status; omit to include both */
                     activeEqual?: boolean;
                     /** @description Sort field */
@@ -1349,7 +1385,7 @@ export interface paths {
         head?: never;
         /**
          * Update Source
-         * @description Source type and YouTube channel ID cannot be changed.
+         * @description Source type cannot be changed.
          */
         patch: {
             parameters: {
@@ -1699,6 +1735,16 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        "github_com_larb26656_my-feed_backend_internal_modules_sourcetype_api.Definition": {
+            code?: string;
+            label?: string;
+            schema?: {
+                [key: string]: unknown;
+            };
+            ui?: {
+                [key: string]: unknown;
+            };
+        };
         "github_com_larb26656_my-feed_backend_internal_platform_http.CursorMeta": {
             nextCursor?: string;
             pageSize?: number;
@@ -1750,6 +1796,11 @@ export interface components {
         };
         "github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_source_adapter_http_sourceResponse": {
             data?: components["schemas"]["internal_modules_source_adapter_http.sourceResponse"];
+            meta?: unknown;
+            success?: boolean;
+        };
+        "github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_sourcetype_adapter_http_typesResponse": {
+            data?: components["schemas"]["internal_modules_sourcetype_adapter_http.typesResponse"];
             meta?: unknown;
             success?: boolean;
         };
@@ -1835,10 +1886,11 @@ export interface components {
             success?: boolean;
         };
         "internal_modules_source_adapter_http.createSourceRequest": {
+            config: {
+                [key: string]: unknown;
+            };
             name: string;
-            rssUrl?: string;
             type: string;
-            youtubeChannelId?: string;
         };
         "internal_modules_source_adapter_http.previewEntryResponse": {
             description?: string;
@@ -1851,24 +1903,31 @@ export interface components {
             entry?: components["schemas"]["internal_modules_source_adapter_http.previewEntryResponse"] | null;
         };
         "internal_modules_source_adapter_http.previewSourceRequest": {
-            rssUrl?: string;
+            config: {
+                [key: string]: unknown;
+            };
             type: string;
-            youtubeChannelId?: string;
         };
         "internal_modules_source_adapter_http.sourceResponse": {
             active?: boolean;
+            config?: {
+                [key: string]: unknown;
+            };
             createdAt?: string;
             id?: string;
             name?: string;
             profileImageId?: string | null;
-            rssUrl?: string | null;
             type?: string;
             updatedAt?: string;
-            youtubeChannelId?: string;
         };
         "internal_modules_source_adapter_http.updateSourceRequest": {
+            config?: {
+                [key: string]: unknown;
+            };
             name: string;
-            rssUrl?: string;
+        };
+        "internal_modules_sourcetype_adapter_http.typesResponse": {
+            types?: components["schemas"]["github_com_larb26656_my-feed_backend_internal_modules_sourcetype_api.Definition"][];
         };
     };
     responses: never;

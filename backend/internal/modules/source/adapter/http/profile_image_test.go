@@ -14,6 +14,8 @@ import (
 	sourcehttp "github.com/larb26656/my-feed/backend/internal/modules/source/adapter/http"
 	sourcesqlite "github.com/larb26656/my-feed/backend/internal/modules/source/adapter/sqlite"
 	sourcesvc "github.com/larb26656/my-feed/backend/internal/modules/source/service"
+	rss "github.com/larb26656/my-feed/backend/internal/modules/sourcetype/adapter/rss"
+	typesvc "github.com/larb26656/my-feed/backend/internal/modules/sourcetype/service"
 	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
 	"github.com/larb26656/my-feed/backend/internal/testkit"
 	"github.com/larb26656/my-feed/backend/internal/testkit/api"
@@ -207,6 +209,9 @@ func TestReplacementDatabaseFailurePreservesExistingImage(t *testing.T) {
 	// Arrange
 	pool := testkit.NewDatabase(t)
 	svc := sourcesvc.New(sourcesqlite.NewRepository(pool.DB))
+	registry, err := typesvc.New(rss.Definition(nil))
+	require.NoError(t, err)
+	svc.SetSourceTypes(registry)
 	svc.SetFileStorage(filestorage.New(t.TempDir()))
 	router := httpx.NewRouter()
 	sourcehttp.NewHandler(svc, svc).RegisterRoutes(router.Group("/api/v1/sources"))
@@ -217,7 +222,7 @@ func TestReplacementDatabaseFailurePreservesExistingImage(t *testing.T) {
 	initial := httptest.NewRecorder()
 	router.ServeHTTP(initial, httptest.NewRequest("PUT", path, bytes.NewReader(data.Bytes())))
 	require.Equal(t, 200, initial.Code)
-	_, err := pool.Exec(`CREATE TRIGGER fail_image_update BEFORE UPDATE OF profile_image_id ON sources BEGIN SELECT RAISE(FAIL, 'injected failure'); END`)
+	_, err = pool.Exec(`CREATE TRIGGER fail_image_update BEFORE UPDATE OF profile_image_id ON sources BEGIN SELECT RAISE(FAIL, 'injected failure'); END`)
 	require.NoError(t, err)
 	// Act
 	failed := httptest.NewRecorder()

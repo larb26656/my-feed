@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["text", "url", "count", "choice", "enabled"],
+  "properties": {
+    "text": { "type": "string", "pattern": "^ok" },
+    "url": { "type": "string", "pattern": "^https?://" },
+    "count": { "type": "number", "minimum": 1, "maximum": 10, "default": 3 },
+    "choice": { "type": "integer", "enum": [1, 2] },
+    "enabled": { "type": "boolean", "default": false }
+  }
+}

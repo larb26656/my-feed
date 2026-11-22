@@ -16,17 +16,18 @@ import (
 
 	"github.com/google/uuid"
 
-	obtainapi "github.com/larb26656/my-feed/backend/internal/modules/obtain/api"
 	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
 	"github.com/larb26656/my-feed/backend/internal/modules/source/domain"
 	"github.com/larb26656/my-feed/backend/internal/modules/source/repository"
+	typeapi "github.com/larb26656/my-feed/backend/internal/modules/sourcetype/api"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	"github.com/larb26656/my-feed/backend/internal/platform/database"
 )
 
 type Service struct {
 	repo    repository.Repository
-	obtain  obtainapi.Obtainer
+	types   typeapi.Preparer
+	obtain  typeapi.Obtainer
 	files   fileapi.Storage
 	imageMu *sync.Mutex
 }
@@ -35,44 +36,40 @@ func New(repo repository.Repository) *Service {
 	return &Service{repo: repo, imageMu: &sync.Mutex{}}
 }
 
-func (s *Service) SetObtainer(obtain obtainapi.Obtainer) {
+func (s *Service) SetSourceTypes(types typeapi.Preparer) { s.types = types }
+
+func (s *Service) SetObtainer(obtain typeapi.Obtainer) {
 	s.obtain = obtain
 }
 
 var _ sourceapi.TransactionalLifecycle = (*Service)(nil)
 
 func (s *Service) WithTx(tx database.Transaction) sourceapi.Lifecycle {
-	return &Service{repo: s.repo.WithTx(tx), obtain: s.obtain, files: s.files, imageMu: s.imageMu}
+	return &Service{repo: s.repo.WithTx(tx), types: s.types, obtain: s.obtain, files: s.files, imageMu: s.imageMu}
 }
 
 type CreateSourceInput = sourceapi.CreateSourceInput
 
 func (s *Service) CreateSource(ctx context.Context, in CreateSourceInput) (*sourceapi.Source, error) {
 	typ := domain.Type(strings.TrimSpace(in.Type))
-	switch typ {
-	case domain.TypeManual:
+	if typ == domain.TypeManual {
 		return nil, apperr.InvalidInput.New("manual sources cannot be created by the reader")
-	case domain.TypeYouTube:
-		src, err := domain.NewYouTubeSource(in.Name, in.YouTubeChannelID)
-		if err != nil {
-			return nil, err
-		}
-		if err := s.repo.CreateSource(ctx, src); err != nil {
-			return nil, err
-		}
-		return lifecycleSnapshot(src), nil
-	case domain.TypeRSS:
-		src, err := domain.NewRSSSource(in.Name, in.RSSURL)
-		if err != nil {
-			return nil, err
-		}
-		if err := s.repo.CreateSource(ctx, src); err != nil {
-			return nil, err
-		}
-		return lifecycleSnapshot(src), nil
-	default:
-		return nil, apperr.InvalidInput.New("source type must be rss or youtube")
 	}
+	if s.types == nil {
+		return nil, apperr.InvalidInput.New("source type registry unavailable")
+	}
+	config, key, err := s.types.Prepare(string(typ), in.Config)
+	if err != nil {
+		return nil, err
+	}
+	src, err := domain.NewFetchableSource(in.Name, typ, config, key)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.repo.CreateSource(ctx, src); err != nil {
+		return nil, err
+	}
+	return lifecycleSnapshot(src), nil
 }
 
 func (s *Service) GetSource(ctx context.Context, id uuid.UUID) (*domain.Source, error) {
@@ -90,6 +87,21 @@ type ListSourcesPageInput struct {
 }
 
 func (s *Service) ListSourcesPage(ctx context.Context, in ListSourcesPageInput) ([]*domain.Source, int64, error) {
+	if in.TypeEqual != "" && in.TypeEqual != string(domain.TypeManual) {
+		valid := false
+		if catalog, ok := s.types.(typeapi.Catalog); ok {
+			for _, definition := range catalog.Definitions() {
+				if definition.Code == in.TypeEqual {
+					valid = true
+					break
+				}
+			}
+		}
+		if !valid {
+			return nil, 0, apperr.InvalidInput.New("unknown source type")
+		}
+	}
+
 	if in.Page < 1 || in.PageSize < 1 || in.PageSize > 100 {
 		return nil, 0, apperr.InvalidInput.New("invalid source page")
 	}
@@ -138,8 +150,8 @@ func (s *Service) ReactivateSource(ctx context.Context, id uuid.UUID) (*domain.S
 }
 
 type UpdateSourceInput struct {
+	Config map[string]any
 	Name   string
-	RSSURL string
 }
 
 func (s *Service) UpdateSource(ctx context.Context, id uuid.UUID, in UpdateSourceInput) (*domain.Source, error) {
@@ -147,9 +159,24 @@ func (s *Service) UpdateSource(ctx context.Context, id uuid.UUID, in UpdateSourc
 	if err != nil {
 		return nil, err
 	}
-	if err := src.UpdateDetails(in.Name, in.RSSURL); err != nil {
+	if in.Config != nil {
+		if src.Type == domain.TypeManual {
+			return nil, domain.ErrManualSourceImmutable.New("manual sources cannot be edited")
+		}
+		if s.types == nil {
+			return nil, apperr.InvalidInput.New("source type registry unavailable")
+		}
+		config, key, err := s.types.Prepare(string(src.Type), in.Config)
+		if err != nil {
+			return nil, err
+		}
+		if err := src.UpdateConfig(in.Name, config, key); err != nil {
+			return nil, err
+		}
+	} else if err := src.Rename(in.Name); err != nil {
 		return nil, err
 	}
+
 	if err := s.repo.UpdateSource(ctx, src); err != nil {
 		return nil, err
 	}
@@ -191,6 +218,7 @@ func isConflict(err error) bool {
 
 func lifecycleSnapshot(src *domain.Source) *sourceapi.Source {
 	return &sourceapi.Source{
+		Config:           src.Config,
 		ProfileImageID:   src.ProfileImageID,
 		ID:               src.ID,
 		Name:             src.Name,

@@ -11,6 +11,7 @@ import (
 
 // Source is the public snapshot returned by lifecycle operations.
 type Source struct {
+	Config           map[string]any
 	ProfileImageID   string
 	ID               uuid.UUID
 	Name             string
@@ -23,10 +24,9 @@ type Source struct {
 }
 
 type CreateSourceInput struct {
-	Name             string
-	Type             string
-	RSSURL           string
-	YouTubeChannelID string
+	Config map[string]any
+	Name   string
+	Type   string
 }
 
 // Lifecycle exposes the Source operations that participate in cross-module transactions.

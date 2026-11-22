@@ -6,6 +6,7 @@ import type { ComponentProps } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 import { failJson, okJson } from "#/lib/api/test-helpers";
 import { SourcesPage } from "./SourcesPage";
+import { sourceTypesResponse, withSourceTypes } from "./sourceTypesTestFixture";
 
 vi.mock("@tanstack/react-router", () => ({
 	Link: ({
@@ -94,6 +95,7 @@ test("creates an RSS Source and shows it in management after success", async () 
 	vi.stubGlobal(
 		"fetch",
 		vi.fn(async (url: string, init?: RequestInit) => {
+			if (url.includes("/source-types")) return sourceTypesResponse();
 			if (init?.method === "POST" && isSourcesList(url, { method: "GET" })) {
 				const input = JSON.parse(String(init.body));
 				sources.push({ id: "new-source", ...input, active: true });
@@ -129,7 +131,7 @@ test("creates an RSS Source and shows it in management after success", async () 
 		expect(JSON.parse(String(request?.[1]?.body))).toEqual({
 			name: "Engineering Blog",
 			type: "rss",
-			rssUrl: "https://example.com/feed.xml",
+			config: { url: "https://example.com/feed.xml" },
 		});
 	});
 });
@@ -139,7 +141,7 @@ test("edits the supported Source fields and refreshes management", async () => {
 		id: "source-1",
 		name: "Old name",
 		type: "rss",
-		rssUrl: "https://example.com/old.xml",
+		config: { url: "https://example.com/old.xml" },
 		active: true,
 	};
 	const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
@@ -153,7 +155,7 @@ test("edits the supported Source fields and refreshes management", async () => {
 		}
 		return okJson(source);
 	});
-	vi.stubGlobal("fetch", fetchMock);
+	vi.stubGlobal("fetch", withSourceTypes(fetchMock));
 	renderPage();
 	const user = userEvent.setup();
 	await user.click(
@@ -172,16 +174,20 @@ test("edits the supported Source fields and refreshes management", async () => {
 	expect(patchCall?.[0]).toBe("/api/v1/sources/source-1");
 	expect(JSON.parse(String(patchCall?.[1]?.body))).toEqual({
 		name: "New name",
-		rssUrl: "https://example.com/old.xml",
 	});
 });
 
 test("shows field validation and server submission errors", async () => {
-	const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-		if (isSourcesList(url, init)) return okJson([], listMeta(0));
-		return okJson([]);
-	});
-	vi.stubGlobal("fetch", fetchMock);
+	const fetchMock = vi.fn(
+		async (
+			url: string,
+			init?: RequestInit,
+		): Promise<ReturnType<typeof okJson> | ReturnType<typeof failJson>> => {
+			if (isSourcesList(url, init)) return okJson([], listMeta(0));
+			return okJson([]);
+		},
+	);
+	vi.stubGlobal("fetch", withSourceTypes(fetchMock));
 	renderPage();
 	const user = userEvent.setup();
 	await user.click(await screen.findByRole("button", { name: "Add Source" }));
@@ -225,7 +231,7 @@ test("moves Sources between Active and Inactive tabs", async () => {
 		}
 		return okJson([]);
 	});
-	vi.stubGlobal("fetch", fetchMock);
+	vi.stubGlobal("fetch", withSourceTypes(fetchMock));
 	renderPage();
 	const user = userEvent.setup();
 	await screen.findByRole("link", { name: "Engineering Blog" });
@@ -275,7 +281,7 @@ test("paginates Active Sources with the shared DataTable controls", async () => 
 		name: `Source ${index + 1}`,
 		type: "rss",
 		active: true,
-		rssUrl: `https://example.com/${index + 1}.xml`,
+		config: { url: `https://example.com/${index + 1}.xml` },
 	}));
 	vi.stubGlobal(
 		"fetch",
@@ -316,7 +322,7 @@ test("shows an activation failure without changing a Source", async () => {
 		}
 		return okJson([source]);
 	});
-	vi.stubGlobal("fetch", fetchMock);
+	vi.stubGlobal("fetch", withSourceTypes(fetchMock));
 	renderPage();
 	const user = userEvent.setup();
 	await user.click(
@@ -338,7 +344,7 @@ test("sends search criteria and resets the page", async () => {
 		if (isSourcesList(url, init)) return okJson([], listMeta(20));
 		return okJson([]);
 	});
-	vi.stubGlobal("fetch", fetchMock);
+	vi.stubGlobal("fetch", withSourceTypes(fetchMock));
 	renderPage();
 	const user = userEvent.setup();
 	await screen.findByRole("table", { name: "active sources" });

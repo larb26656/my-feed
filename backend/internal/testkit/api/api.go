@@ -6,10 +6,8 @@ import (
 	"net/http"
 	"testing"
 
-	rss "github.com/larb26656/my-feed/backend/internal/modules/obtain/adapter/rss"
-	youtube "github.com/larb26656/my-feed/backend/internal/modules/obtain/adapter/youtube"
-	obtainapi "github.com/larb26656/my-feed/backend/internal/modules/obtain/api"
-	obtain "github.com/larb26656/my-feed/backend/internal/modules/obtain/service"
+	rss "github.com/larb26656/my-feed/backend/internal/modules/sourcetype/adapter/rss"
+	sourceyoutube "github.com/larb26656/my-feed/backend/internal/modules/sourcetype/adapter/youtube"
 
 	"github.com/gin-gonic/gin"
 	entryhttp "github.com/larb26656/my-feed/backend/internal/modules/entry/adapter/http"
@@ -19,6 +17,9 @@ import (
 	sourcehttp "github.com/larb26656/my-feed/backend/internal/modules/source/adapter/http"
 	sourcesqlite "github.com/larb26656/my-feed/backend/internal/modules/source/adapter/sqlite"
 	sourcesvc "github.com/larb26656/my-feed/backend/internal/modules/source/service"
+	typehttp "github.com/larb26656/my-feed/backend/internal/modules/sourcetype/adapter/http"
+	typeapi "github.com/larb26656/my-feed/backend/internal/modules/sourcetype/api"
+	typesvc "github.com/larb26656/my-feed/backend/internal/modules/sourcetype/service"
 	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
 	"github.com/larb26656/my-feed/backend/internal/testkit"
 	"github.com/stretchr/testify/require"
@@ -32,6 +33,10 @@ func New(t testing.TB) *gin.Engine {
 }
 
 func NewWithUploads(t testing.TB, uploads string) *gin.Engine {
+	return NewWithDefinitions(t, uploads)
+}
+
+func NewWithDefinitions(t testing.TB, uploads string, extra ...typeapi.Definition) *gin.Engine {
 	t.Helper()
 	pool := testkit.NewDatabase(t)
 	sourceRepo := sourcesqlite.NewRepository(pool.DB)
@@ -41,12 +46,13 @@ func NewWithUploads(t testing.TB, uploads string) *gin.Engine {
 	require.NoError(t, err)
 	entries := entrysvc.New(entrysqlite.NewRepository(pool.DB), sources)
 	router := httpx.NewRouter()
-	registry := obtain.NewRegistry()
-	registry.Register(obtainapi.ProviderRSS, rss.New(http.DefaultClient))
-	registry.Register(obtainapi.ProviderYouTube, youtube.New(http.DefaultClient))
-	sources.SetObtainer(registry)
 	handler := sourcehttp.NewHandler(sources, sources)
 	handler.RegisterRoutes(router.Group("/api/v1/sources"))
+	typeRegistry, err := typesvc.New(append([]typeapi.Definition{rss.Definition(http.DefaultClient), sourceyoutube.Definition(http.DefaultClient)}, extra...)...)
+	require.NoError(t, err)
+	sources.SetSourceTypes(typeRegistry)
+	sources.SetObtainer(typeRegistry)
+	typehttp.RegisterRoutes(router.Group("/api/v1"), typeRegistry)
 	entryhttp.NewHandler(entries).RegisterRoutes(router.Group("/api/v1/entries"))
 	return router
 }

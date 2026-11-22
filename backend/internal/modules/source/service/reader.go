@@ -37,7 +37,7 @@ func (s *Service) ListActiveFetchable(ctx context.Context) ([]sourceapi.SourceRe
 	}
 	out := make([]sourceapi.SourceRef, 0, len(list))
 	for _, src := range list {
-		if src.Type != domain.TypeRSS && src.Type != domain.TypeYouTube {
+		if src.Type == domain.TypeManual {
 			continue
 		}
 		out = append(out, *toSourceRef(src))
@@ -47,6 +47,7 @@ func (s *Service) ListActiveFetchable(ctx context.Context) ([]sourceapi.SourceRe
 
 func toSourceRef(src *domain.Source) *sourceapi.SourceRef {
 	return &sourceapi.SourceRef{
+		Config:           src.Config,
 		ID:               src.ID,
 		Type:             sourceapi.SourceType(src.Type),
 		Active:           src.Active,

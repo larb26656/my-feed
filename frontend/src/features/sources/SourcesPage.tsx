@@ -27,8 +27,9 @@ const pageSizeOptions = [
 ] as const satisfies readonly SourcesPageSize[];
 
 function sourceDetail(source: Source) {
-	if (source.type === "youtube") return source.youtubeChannelId ?? "—";
-	if (source.type === "rss") return source.rssUrl ?? "—";
+	const value =
+		source.type === "youtube" ? source.config?.channelId : source.config?.url;
+	if (typeof value === "string") return value;
 	return "—";
 }
 

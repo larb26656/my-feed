@@ -6,6 +6,7 @@ import type { ComponentProps } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 import { failJson, okJson } from "#/lib/api/test-helpers";
 import { SourcesPage } from "./SourcesPage";
+import { sourceTypesResponse, withSourceTypes } from "./sourceTypesTestFixture";
 
 vi.mock("@tanstack/react-router", () => ({
 	Link: ({
@@ -65,7 +66,7 @@ test("adds a YouTube Source using its channel ID", async () => {
 		}
 		return emptyList(url, init);
 	});
-	vi.stubGlobal("fetch", fetchMock);
+	vi.stubGlobal("fetch", withSourceTypes(fetchMock));
 	renderPage();
 	const user = userEvent.setup();
 	await user.click(await screen.findByRole("button", { name: "Add Source" }));
@@ -87,7 +88,7 @@ test("adds a YouTube Source using its channel ID", async () => {
 	expect(JSON.parse(String(postCall?.[1]?.body))).toEqual({
 		name: "Channel",
 		type: "youtube",
-		youtubeChannelId: "UC1234567890123456789012",
+		config: { channelId: "UC1234567890123456789012" },
 	});
 });
 
@@ -103,7 +104,7 @@ test("accepts a canonical channel URL", async () => {
 		}
 		return emptyList(url, init);
 	});
-	vi.stubGlobal("fetch", fetchMock);
+	vi.stubGlobal("fetch", withSourceTypes(fetchMock));
 	renderPage();
 	const user = userEvent.setup();
 	await user.click(await screen.findByRole("button", { name: "Add Source" }));
@@ -125,7 +126,7 @@ test("explains supported inputs and rejects a handle", async () => {
 	const fetchMock = vi.fn(async (url: string, init?: RequestInit) =>
 		emptyList(url, init),
 	);
-	vi.stubGlobal("fetch", fetchMock);
+	vi.stubGlobal("fetch", withSourceTypes(fetchMock));
 	renderPage();
 	const user = userEvent.setup();
 	await user.click(await screen.findByRole("button", { name: "Add Source" }));
@@ -153,6 +154,7 @@ test("shows duplicate channel conflict", async () => {
 	vi.stubGlobal(
 		"fetch",
 		vi.fn(async (url: string, init?: RequestInit) => {
+			if (url.includes("/source-types")) return sourceTypesResponse();
 			if (init?.method === "POST") {
 				return failJson(409, {
 					code: "CONFLICT",
@@ -189,7 +191,7 @@ test("previews an RSS entry without a Source name and clears it when the URL cha
 			});
 		return emptyList(url, init);
 	});
-	vi.stubGlobal("fetch", fetchMock);
+	vi.stubGlobal("fetch", withSourceTypes(fetchMock));
 	renderPage();
 	const user = userEvent.setup();
 	await user.click(await screen.findByRole("button", { name: "Add Source" }));
@@ -198,6 +200,13 @@ test("previews an RSS entry without a Source name and clears it when the URL cha
 		"https://example.test/feed",
 	);
 	await user.click(screen.getByRole("button", { name: "Test fetch" }));
+	const previewCall = fetchMock.mock.calls.find(([url]) =>
+		url.endsWith("/sources/preview"),
+	);
+	expect(JSON.parse(String(previewCall?.[1]?.body))).toEqual({
+		type: "rss",
+		config: { url: "https://example.test/feed" },
+	});
 	const title = await screen.findByRole("link", { name: "First entry" });
 	expect(title.getAttribute("target")).toBe("_blank");
 	expect(screen.queryByRole("button", { name: "Copy link" })).toBeNull();
@@ -214,7 +223,7 @@ test("discards a late preview even after the URL changes back", async () => {
 			});
 		return Promise.resolve(emptyList(url, init));
 	});
-	vi.stubGlobal("fetch", fetchMock);
+	vi.stubGlobal("fetch", withSourceTypes(fetchMock));
 	renderPage();
 	const user = userEvent.setup();
 	await user.click(await screen.findByRole("button", { name: "Add Source" }));
@@ -246,7 +255,7 @@ test("previews a canonical YouTube channel without a Source name and clears on c
 			});
 		return emptyList(url, init);
 	});
-	vi.stubGlobal("fetch", fetchMock);
+	vi.stubGlobal("fetch", withSourceTypes(fetchMock));
 	renderPage();
 	const user = userEvent.setup();
 	await user.click(await screen.findByRole("button", { name: "Add Source" }));
@@ -265,8 +274,9 @@ test("previews a canonical YouTube channel without a Source name and clears on c
 	);
 	expect(JSON.parse(String(call?.[1]?.body))).toMatchObject({
 		type: "youtube",
-		youtubeChannelId:
-			"https://www.youtube.com/channel/UC1234567890123456789012",
+		config: {
+			channelId: "https://www.youtube.com/channel/UC1234567890123456789012",
+		},
 	});
 	await user.type(input, "x");
 	expect(screen.queryByText("Video preview")).toBeNull();
@@ -277,6 +287,7 @@ test("discards a YouTube preview after switching Source Type away and back", asy
 	vi.stubGlobal(
 		"fetch",
 		vi.fn((url: string, init?: RequestInit) => {
+			if (url.includes("/source-types")) return sourceTypesResponse();
 			if (url.endsWith("/sources/preview"))
 				return new Promise<ReturnType<typeof okJson>>((resolve) => {
 					resolvePreview = resolve;
@@ -324,7 +335,7 @@ test.each([
 		}
 		return emptyList(url, init);
 	});
-	vi.stubGlobal("fetch", fetchMock);
+	vi.stubGlobal("fetch", withSourceTypes(fetchMock));
 	renderPage();
 	const user = userEvent.setup();
 	await user.click(await screen.findByRole("button", { name: "Add Source" }));
@@ -360,7 +371,7 @@ test.each([
 				: failJson(400, { code: "VALIDATION", message: "Origin failed" });
 		return emptyList(url, init);
 	});
-	vi.stubGlobal("fetch", fetchMock);
+	vi.stubGlobal("fetch", withSourceTypes(fetchMock));
 	renderPage();
 	const user = userEvent.setup();
 	await user.click(await screen.findByRole("button", { name: "Add Source" }));
@@ -381,4 +392,61 @@ test.each([
 			),
 		).toBe(true),
 	);
+});
+
+test("renders a discovered type with defaults and submits its config", async () => {
+	const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+		if (url.includes("/source-types"))
+			return okJson({
+				types: [
+					{
+						code: "example",
+						label: "Example",
+						schema: {
+							$schema: "https://json-schema.org/draft/2020-12/schema",
+							type: "object",
+							additionalProperties: false,
+							properties: {
+								topic: { type: "string", default: "news" },
+								limit: { type: "number", default: 3 },
+								enabled: { type: "boolean", default: true },
+								mode: {
+									type: "string",
+									enum: ["short", "long"],
+									default: "short",
+								},
+							},
+							required: ["topic"],
+						},
+						ui: {
+							topic: { label: "Topic", widget: "text" },
+							limit: { label: "Limit", widget: "number" },
+							enabled: { label: "Enabled", widget: "checkbox" },
+							mode: { label: "Mode", widget: "select" },
+						},
+					},
+				],
+			});
+		if (init?.method === "POST")
+			return okJson({ id: "new", name: "Test", type: "example", active: true });
+		return emptyList(url, init);
+	});
+	vi.stubGlobal("fetch", fetchMock);
+	renderPage();
+	const user = userEvent.setup();
+	await user.click(await screen.findByRole("button", { name: "Add Source" }));
+	expect(await screen.findByLabelText("Topic")).toHaveProperty("value", "news");
+	await user.type(screen.getByLabelText("Source name"), "Test");
+	await user.click(screen.getByRole("button", { name: "Save source" }));
+	await waitFor(() =>
+		expect(
+			fetchMock.mock.calls.some(([, init]) => init?.method === "POST"),
+		).toBe(true),
+	);
+	const call = fetchMock.mock.calls.find(([, init]) => init?.method === "POST");
+	expect(JSON.parse(String(call?.[1]?.body))).toEqual({
+		name: "Test",
+		type: "example",
+		config: { topic: "news", limit: 3, enabled: true, mode: "short" },
+	});
 });

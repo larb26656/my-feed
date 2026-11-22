@@ -35,7 +35,7 @@ func TestPreviewRouteYouTubeAndPersistence(t *testing.T) {
 	}
 	before := counts()
 	for _, input := range []string{"UC1234567890123456789012", "https://www.youtube.com/channel/UC1234567890123456789012"} {
-		body, err := json.Marshal(map[string]string{"type": "youtube", "youtubeChannelId": input})
+		body, err := json.Marshal(map[string]any{"type": "youtube", "config": map[string]any{"channelId": input}})
 		require.NoError(t, err)
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/sources/preview", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
@@ -56,7 +56,7 @@ func TestPreviewRouteYouTubeAndPersistence(t *testing.T) {
 	}
 	require.Equal(t, before, counts())
 	denied := httptest.NewRecorder()
-	app.Router.ServeHTTP(denied, httptest.NewRequest(http.MethodPost, "/api/v1/sources/preview", strings.NewReader(`{"type":"rss","rssUrl":"https://example.test"}`)))
+	app.Router.ServeHTTP(denied, httptest.NewRequest(http.MethodPost, "/api/v1/sources/preview", strings.NewReader(`{"type":"rss","config":{"url":"https://example.test"}}`)))
 	require.Equal(t, http.StatusUnauthorized, denied.Code)
 }
 
@@ -64,8 +64,10 @@ func TestPreviewRouteRejectsInvalidConfiguration(t *testing.T) {
 	app := newTestApp(t, "test-secret")
 	defer app.Close()
 	for _, input := range []string{
-		`{"type":"rss","rssUrl":"not a URL"}`,
-		`{"type":"youtube","youtubeChannelId":"invalid"}`,
+		`{"type":"rss","config":{"url":"not a URL"}}`,
+		`{"type":"youtube","config":{"channelId":"invalid"}}`,
+		`{"type":"youtube","config":{}}`,
+		`{"type":"youtube","config":{"channelId":"UC1234567890123456789012","extra":true}}`,
 		`{"type":"unknown"}`,
 	} {
 		t.Run(input, func(t *testing.T) {
@@ -77,4 +79,116 @@ func TestPreviewRouteRejectsInvalidConfiguration(t *testing.T) {
 			require.Equal(t, http.StatusBadRequest, w.Code, w.Body.String())
 		})
 	}
+}
+
+func TestPreviewRSSConfigUsesCreateValidation(t *testing.T) {
+	app := newTestApp(t, "test-secret")
+	defer app.Close()
+	old := http.DefaultClient.Transport
+	t.Cleanup(func() { http.DefaultClient.Transport = old })
+	http.DefaultClient.Transport = previewTransport(func(r *http.Request) (*http.Response, error) {
+		require.Contains(t, []string{"https://example.test/feed", "https://example.test/empty"}, r.URL.String())
+		body := `<rss version="2.0"><channel><title>Feed</title><item><title>First</title><link>https://example.test/first</link></item><item><title>Second</title><link>https://example.test/second</link></item></channel></rss>`
+		if r.URL.Path == "/empty" {
+			body = `<rss version="2.0"><channel><title>Empty</title></channel></rss>`
+		}
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
+	})
+	counts := func() []int {
+		result := make([]int, 3)
+		for i, q := range []string{"SELECT count(*) FROM sources", "SELECT count(*) FROM entries", "SELECT count(*) FROM fetch_jobs"} {
+			require.NoError(t, app.Pool.DB.QueryRow(q).Scan(&result[i]))
+		}
+		return result
+	}
+	before := counts()
+	for _, tc := range []struct {
+		body   string
+		status int
+		entry  string
+	}{
+		{`{"type":"rss","config":{"url":" https://example.test/feed "}}`, http.StatusOK, `"title":"First"`},
+		{`{"type":"rss","config":{"url":"https://example.test/empty"}}`, http.StatusOK, `"entry":null`},
+		{`{"type":"rss","config":{"url":"https://example.test/feed","extra":true}}`, http.StatusBadRequest, ""},
+	} {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/sources/preview", strings.NewReader(tc.body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer test-secret")
+		w := httptest.NewRecorder()
+		app.Router.ServeHTTP(w, req)
+		require.Equal(t, tc.status, w.Code, w.Body.String())
+		if tc.entry != "" {
+			require.Contains(t, w.Body.String(), tc.entry)
+		}
+	}
+	require.Equal(t, before, counts())
+}
+
+func TestPreviewRejectsRedirectToPrivateAddress(t *testing.T) {
+	app := newTestApp(t, "test-secret")
+	defer app.Close()
+	old := http.DefaultClient.Transport
+	t.Cleanup(func() { http.DefaultClient.Transport = old })
+	http.DefaultClient.Transport = previewTransport(func(r *http.Request) (*http.Response, error) {
+		require.NotEqual(t, "127.0.0.1", r.URL.Hostname())
+		return &http.Response{StatusCode: http.StatusFound, Header: http.Header{"Location": []string{"http://127.0.0.1/internal"}}, Body: io.NopCloser(strings.NewReader(""))}, nil
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/sources/preview", strings.NewReader(`{"type":"rss","config":{"url":"https://example.test/feed"}}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer test-secret")
+	w := httptest.NewRecorder()
+	app.Router.ServeHTTP(w, req)
+	require.Equal(t, http.StatusBadRequest, w.Code, w.Body.String())
+}
+
+func TestDevToPreviewAndSourceIdentity(t *testing.T) {
+	app := newTestApp(t, "test-secret")
+	defer app.Close()
+
+	old := http.DefaultClient.Transport
+	t.Cleanup(func() { http.DefaultClient.Transport = old })
+	http.DefaultClient.Transport = previewTransport(func(r *http.Request) (*http.Response, error) {
+		require.Equal(t, http.MethodGet, r.Method)
+		require.Equal(t, "dev.to", r.URL.Host)
+		require.Equal(t, "/api/articles", r.URL.Path)
+		require.Equal(t, "application/vnd.forem.api-v1+json", r.Header.Get("Accept"))
+		require.Empty(t, r.Header.Get("api-key"))
+		query := r.URL.Query()
+		require.Equal(t, "1", query.Get("page"))
+		require.Equal(t, "30", query.Get("per_page"))
+		require.Len(t, query, 3)
+		if query.Has("tag") {
+			require.Equal(t, "go", query.Get("tag"))
+		} else {
+			require.Equal(t, "go", query.Get("username"))
+		}
+		body := `[{"title":"Go article","url":"https://dev.to/go/article","canonical_url":"https://example.test/article","description":"About Go","cover_image":"https://example.test/cover.jpg","published_at":"2025-01-02T03:04:05Z"}]`
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body))}, nil
+	})
+
+	post := func(path, config string, want int) string {
+		t.Helper()
+		body := `{"type":"devto","name":"DEV.to","config":` + config + `}`
+		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer test-secret")
+		w := httptest.NewRecorder()
+		app.Router.ServeHTTP(w, req)
+		require.Equal(t, want, w.Code, w.Body.String())
+		return w.Body.String()
+	}
+
+	const sources = "/api/v1/sources"
+	const tag = `{"kind":"tag","value":" #Go "}`
+	const username = `{"kind":"username","value":" @Go "}`
+	for _, config := range []string{tag, username} {
+		preview := post(sources+"/preview", config, http.StatusOK)
+		require.Contains(t, preview, `"link":"https://dev.to/go/article"`)
+		require.Contains(t, preview, `"description":"About Go"`)
+		require.Contains(t, preview, `"thumbnail":"https://example.test/cover.jpg"`)
+	}
+	post(sources+"/preview", `{"kind":"tag","value":"@go"}`, http.StatusBadRequest)
+	post(sources, tag, http.StatusCreated)
+	post(sources, `{"kind":"tag","value":"go"}`, http.StatusConflict)
+	post(sources, username, http.StatusCreated)
 }

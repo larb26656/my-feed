@@ -6,13 +6,22 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
+
+	typeapi "github.com/larb26656/my-feed/backend/internal/modules/sourcetype/api"
 
 	"github.com/mmcdole/gofeed"
 
-	obtainapi "github.com/larb26656/my-feed/backend/internal/modules/obtain/api"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 )
+
+type Config struct{ URL string }
+
+func decodeConfig(values map[string]any) Config {
+	url, _ := values["url"].(string)
+	return Config{URL: url}
+}
 
 // HTTPClient is the narrow HTTP seam used to fetch a feed document.
 type HTTPClient interface {
@@ -31,11 +40,12 @@ func New(client HTTPClient) *Adapter {
 	return &Adapter{client: client}
 }
 
-func (a *Adapter) Obtain(ctx context.Context, source *obtainapi.Input) ([]obtainapi.PreparedEntry, error) {
+func (a *Adapter) Obtain(ctx context.Context, source *typeapi.Input) ([]typeapi.PreparedEntry, error) {
 	if source == nil {
 		return nil, apperr.InvalidInput.New("source is required")
 	}
-	feedURL := strings.TrimSpace(source.RSSURL)
+	config := decodeConfig(source.Config)
+	feedURL := strings.TrimSpace(config.URL)
 	if feedURL == "" {
 		return nil, apperr.InvalidInput.New("rss feed url is required")
 	}
@@ -65,7 +75,7 @@ func (a *Adapter) Obtain(ctx context.Context, source *obtainapi.Input) ([]obtain
 	if err != nil {
 		return nil, apperr.InvalidInput.New("invalid or unsupported feed document")
 	}
-	entries := make([]obtainapi.PreparedEntry, 0, len(feed.Items))
+	entries := make([]typeapi.PreparedEntry, 0, len(feed.Items))
 	for _, item := range feed.Items {
 		title, link := strings.TrimSpace(item.Title), strings.TrimSpace(item.Link)
 		if title == "" || link == "" {
@@ -75,7 +85,7 @@ func (a *Adapter) Obtain(ctx context.Context, source *obtainapi.Input) ([]obtain
 		if description == "" {
 			description = strings.TrimSpace(item.Content)
 		}
-		entry := obtainapi.PreparedEntry{Title: title, Link: link, Description: description, PublishedAt: item.PublishedParsed}
+		entry := typeapi.PreparedEntry{Title: title, Link: link, Description: description, PublishedAt: item.PublishedParsed}
 		if item.Image != nil && strings.TrimSpace(item.Image.URL) != "" {
 			thumbnail := strings.TrimSpace(item.Image.URL)
 			entry.Thumbnail = &thumbnail
@@ -91,4 +101,22 @@ func (a *Adapter) Obtain(ctx context.Context, source *obtainapi.Input) ([]obtain
 		entries = append(entries, entry)
 	}
 	return entries, nil
+}
+
+// Definition keeps the accepted configuration and its obtain behavior together.
+func Definition(client HTTPClient) typeapi.Definition {
+	return typeapi.Definition{Code: "rss", Label: "RSS feed", Schema: map[string]any{
+		"$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object", "additionalProperties": false,
+		"properties": map[string]any{"url": map[string]any{"type": "string", "pattern": `^\s*https?://([^\s/@]+@)?(\[[0-9a-fA-F:.]+\]|[^\s/:?#@\[\]]+)(:[0-9]+)?([/?#][^\s]*)?\s*$`}}, "required": []any{"url"},
+	}, UI: map[string]any{"url": map[string]any{"label": "RSS / Atom feed URL", "widget": "url", "error": "Please enter a valid RSS / Atom URL"}}, Normalize: normalize, Obtainer: New(client)}
+}
+
+func normalize(config map[string]any) (map[string]any, string, error) {
+	typed := decodeConfig(config)
+	feed := strings.TrimSpace(typed.URL)
+	parsed, err := url.Parse(feed)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Hostname() == "" {
+		return nil, "", apperr.InvalidInput.New("invalid rss feed url").WithDetail(map[string]any{"field": "config.url"})
+	}
+	return map[string]any{"url": feed}, feed, nil
 }

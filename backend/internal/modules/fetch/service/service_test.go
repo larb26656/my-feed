@@ -14,8 +14,8 @@ import (
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/domain"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/repository"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/service"
-	obtainapi "github.com/larb26656/my-feed/backend/internal/modules/obtain/api"
 	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
+	obtainapi "github.com/larb26656/my-feed/backend/internal/modules/sourcetype/api"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	"github.com/larb26656/my-feed/backend/internal/platform/database"
 )

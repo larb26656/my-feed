@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	obtainapi "github.com/larb26656/my-feed/backend/internal/modules/obtain/api"
+	obtainapi "github.com/larb26656/my-feed/backend/internal/modules/sourcetype/api"
 	"github.com/stretchr/testify/require"
 
-	"github.com/larb26656/my-feed/backend/internal/modules/obtain/adapter/youtube"
+	"github.com/larb26656/my-feed/backend/internal/modules/sourcetype/adapter/youtube"
 )
 
 type client struct{}
@@ -27,7 +27,7 @@ func TestObtainChannelEntries(t *testing.T) {
 	// Arrange
 	adapter := youtube.New(client{})
 	// Act
-	entries, err := adapter.Obtain(context.Background(), &obtainapi.Input{YouTubeChannelID: "UC1234567890123456789012"})
+	entries, err := adapter.Obtain(context.Background(), &obtainapi.Input{Config: map[string]any{"channelId": "UC1234567890123456789012"}})
 	// Assert
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
@@ -66,7 +66,7 @@ func TestObtainRecognizesEmptyAndRejectsInvalidDocuments(t *testing.T) {
 			// Arrange
 			adapter := youtube.New(responseClient{body: tc.body, status: 200})
 			// Act
-			entries, err := adapter.Obtain(context.Background(), &obtainapi.Input{YouTubeChannelID: "UC1234567890123456789012"})
+			entries, err := adapter.Obtain(context.Background(), &obtainapi.Input{Config: map[string]any{"channelId": "UC1234567890123456789012"}})
 			// Assert
 			if tc.wantError {
 				require.Error(t, err)
@@ -87,7 +87,7 @@ func TestObtainReportsRequestFailures(t *testing.T) {
 			// Arrange
 			adapter := youtube.New(tc.client)
 			// Act
-			_, err := adapter.Obtain(context.Background(), &obtainapi.Input{YouTubeChannelID: "UC1234567890123456789012"})
+			_, err := adapter.Obtain(context.Background(), &obtainapi.Input{Config: map[string]any{"channelId": "UC1234567890123456789012"}})
 			// Assert
 			require.Error(t, err)
 		})
@@ -98,7 +98,7 @@ func TestObtainAcceptsEntriesWithoutOptionalMetadata(t *testing.T) {
 	// Arrange
 	body := `<feed xmlns="http://www.w3.org/2005/Atom" xmlns:yt="http://www.youtube.com/xml/schemas/2015"><entry><yt:videoId>scheduled_1</yt:videoId><title>Scheduled stream</title></entry><entry><yt:videoId>live-2</yt:videoId><title>Live stream</title><published>2024-01-02T10:04:05+07:00</published></entry></feed>`
 	// Act
-	entries, err := youtube.New(responseClient{body: body, status: 200}).Obtain(context.Background(), &obtainapi.Input{YouTubeChannelID: "UC1234567890123456789012"})
+	entries, err := youtube.New(responseClient{body: body, status: 200}).Obtain(context.Background(), &obtainapi.Input{Config: map[string]any{"channelId": "UC1234567890123456789012"}})
 	require.NoError(t, err)
 	// Assert
 	require.Len(t, entries, 2)
@@ -121,7 +121,7 @@ func TestObtainRejectsMalformedEntries(t *testing.T) {
 			body := `<feed xmlns="http://www.w3.org/2005/Atom" xmlns:yt="http://www.youtube.com/xml/schemas/2015"><entry><yt:videoId>valid</yt:videoId><title>Valid</title></entry><entry>` + tc.entry + `</entry></feed>`
 			adapter := youtube.New(responseClient{body: body, status: 200})
 			// Act
-			entries, err := adapter.Obtain(context.Background(), &obtainapi.Input{YouTubeChannelID: "UC1234567890123456789012"})
+			entries, err := adapter.Obtain(context.Background(), &obtainapi.Input{Config: map[string]any{"channelId": "UC1234567890123456789012"}})
 			// Assert
 			require.ErrorContains(t, err, "invalid youtube feed entry")
 			require.Nil(t, entries)

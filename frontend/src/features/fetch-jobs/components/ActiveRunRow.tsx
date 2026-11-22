@@ -31,7 +31,9 @@ export function ActiveRunRow({
 					{source?.name ?? "Unknown source"}
 				</h3>
 				<p className="truncate text-sm text-muted-foreground">
-					{source?.rssUrl ?? "RSS source"}
+					{typeof source?.config?.url === "string"
+						? source.config.url
+						: "Source"}
 				</p>
 				<p className="mt-1 text-sm text-muted-foreground">{detail}</p>
 			</div>

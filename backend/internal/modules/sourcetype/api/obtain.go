@@ -23,9 +23,8 @@ const (
 
 // Input identifies external content to read.
 type Input struct {
-	Type             Provider
-	RSSURL           string
-	YouTubeChannelID string
+	Config map[string]any
+	Type   Provider
 }
 
 // Obtainer reads and normalizes entries from an external provider.

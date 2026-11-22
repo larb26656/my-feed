@@ -55,10 +55,9 @@ func (h *Handler) createSource(c *gin.Context) {
 		return
 	}
 	s, err := h.lifecycle.CreateSource(r.Context(), sourceapi.CreateSourceInput{
-		Name:             req.Name,
-		Type:             req.Type,
-		RSSURL:           req.RSSURL,
-		YouTubeChannelID: req.YouTubeChannelID,
+		Name:   req.Name,
+		Config: req.Config,
+		Type:   req.Type,
 	})
 	if err != nil {
 		_ = c.Error(err)
@@ -73,7 +72,7 @@ func (h *Handler) createSource(c *gin.Context) {
 // @Param page query int false "Page number" minimum(1) default(1)
 // @Param pageSize query int false "Page size" minimum(1) maximum(100) default(10)
 // @Param nameLike query string false "Case-insensitive substring match on Source name"
-// @Param typeEqual query string false "Exact Source Type" Enums(rss, youtube, manual)
+// @Param typeEqual query string false "Exact Source Type"
 // @Param activeEqual query bool false "Filter by active status; omit to include both"
 // @Param sortBy query string false "Sort field" Enums(name, type, active, createdAt) default(createdAt)
 // @Param sortDirection query string false "Sort direction" Enums(asc, desc) default(asc)
@@ -131,7 +130,7 @@ func (h *Handler) getSource(c *gin.Context) {
 }
 
 // @Summary Update Source
-// @Description Source type and YouTube channel ID cannot be changed.
+// @Description Source type cannot be changed.
 // @Tags Sources
 // @Produce json
 // @Accept json
@@ -156,7 +155,7 @@ func (h *Handler) updateSource(c *gin.Context) {
 	}
 	s, err := h.svc.UpdateSource(r.Context(), id, service.UpdateSourceInput{
 		Name:   req.Name,
-		RSSURL: req.RSSURL,
+		Config: req.Config,
 	})
 	if err != nil {
 		_ = c.Error(err)
@@ -304,7 +303,7 @@ func (h *Handler) previewSource(c *gin.Context) {
 	if !httpx.BindJSON(c, &req) {
 		return
 	}
-	entry, err := h.svc.Preview(c.Request.Context(), sourceapi.PreviewInput{Type: req.Type, RSSURL: req.RSSURL, YouTubeChannelID: req.YouTubeChannelID})
+	entry, err := h.svc.Preview(c.Request.Context(), sourceapi.PreviewInput{Type: req.Type, Config: req.Config})
 	if err != nil {
 		_ = c.Error(err)
 		return

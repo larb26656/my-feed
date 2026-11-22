@@ -34,7 +34,9 @@ export function FetchHistoryRow({
 						{source?.name ?? "Unknown source"}
 					</p>
 					<p className="truncate text-sm text-muted-foreground">
-						{source?.rssUrl ?? "RSS source"}
+						{typeof source?.config?.url === "string"
+							? source.config.url
+							: "Source"}
 					</p>
 				</div>
 				<div className="shrink-0 sm:w-44">
