@@ -28,38 +28,6 @@ function ManageSourcesLink({ sourceId }: { sourceId?: string }) {
 	);
 }
 
-function SourceBanner() {
-	return (
-		<div
-			aria-hidden="true"
-			className="absolute inset-0 bg-primary/15 dark:bg-primary/20"
-		>
-			<svg
-				aria-hidden="true"
-				className="h-full w-full text-primary"
-				viewBox="0 0 1200 320"
-				preserveAspectRatio="xMidYMid slice"
-			>
-				<path
-					fill="currentColor"
-					fillOpacity="0.45"
-					d="M0 70C180 130 320 20 520 62C760 112 900 20 1120 78C1160 90 1184 96 1200 92V0H0Z"
-				/>
-				<path
-					fill="currentColor"
-					fillOpacity="0.28"
-					d="M0 150C160 90 300 210 520 168C760 122 920 70 1200 150V230C980 180 820 270 560 220C300 170 140 220 0 190Z"
-				/>
-				<path
-					fill="currentColor"
-					fillOpacity="0.16"
-					d="M0 210C220 160 380 270 640 230C920 186 1040 250 1200 214V320H0C40 280 80 250 0 210Z"
-				/>
-			</svg>
-		</div>
-	);
-}
-
 export function SourceHeader({
 	source,
 	loading,
@@ -73,8 +41,7 @@ export function SourceHeader({
 
 	return (
 		<header className="border-b border-border [--avatar-ring:color-mix(in_oklch,var(--muted)_50%,var(--background))] md:mb-3 md:overflow-hidden md:rounded-xl md:border md:bg-card md:[--avatar-ring:var(--card)] dark:[--avatar-ring:var(--background)] md:dark:[--avatar-ring:var(--card)]">
-			<div className="relative h-24 md:h-28">
-				<SourceBanner />
+			<div className="relative h-24 bg-primary md:h-28">
 				<div className="absolute inset-x-0 bottom-0 z-10 flex translate-y-1/2 justify-center">
 					{source ? (
 						<SourceAvatar
