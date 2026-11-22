@@ -189,12 +189,25 @@ type postView struct {
 		Handle string `json:"handle"`
 	} `json:"author"`
 	Record postRecord `json:"record"`
+	Embed  *embedView `json:"embed"`
 }
 
 type postRecord struct {
 	Text      string         `json:"text"`
 	CreatedAt string         `json:"createdAt"`
 	Reply     map[string]any `json:"reply"`
+}
+
+type embedView struct {
+	Type   string `json:"$type"`
+	Images []struct {
+		Thumb string `json:"thumb"`
+	} `json:"images"`
+	Thumbnail string `json:"thumbnail"`
+	External  *struct {
+		Thumb string `json:"thumb"`
+	} `json:"external"`
+	Media *embedView `json:"media"`
 }
 
 func (item feedItem) eligible() bool {
@@ -214,16 +227,51 @@ func (item feedItem) toEntry() (api.PreparedEntry, bool) {
 	}
 	text := item.Post.Record.Text
 	title := firstLine(text)
+	if title == "" {
+		if handle := strings.TrimSpace(item.Post.Author.Handle); handle != "" {
+			title = "Post from @" + handle
+		}
+	}
 	entry := api.PreparedEntry{
 		Title:       title,
 		Link:        "https://bsky.app/profile/" + authorDID + "/post/" + rkey,
 		Description: text,
+	}
+	if thumb := item.Post.thumbnail(); thumb != "" {
+		entry.Thumbnail = &thumb
 	}
 	if published, err := time.Parse(time.RFC3339, strings.TrimSpace(item.Post.Record.CreatedAt)); err == nil {
 		published = published.UTC()
 		entry.PublishedAt = &published
 	}
 	return entry, true
+}
+
+func (p postView) thumbnail() string {
+	return embedThumbnail(p.Embed)
+}
+
+func embedThumbnail(embed *embedView) string {
+	if embed == nil {
+		return ""
+	}
+	switch embed.Type {
+	case "app.bsky.embed.images#view":
+		for _, img := range embed.Images {
+			if thumb := strings.TrimSpace(img.Thumb); thumb != "" {
+				return thumb
+			}
+		}
+	case "app.bsky.embed.video#view":
+		return strings.TrimSpace(embed.Thumbnail)
+	case "app.bsky.embed.external#view":
+		if embed.External != nil {
+			return strings.TrimSpace(embed.External.Thumb)
+		}
+	case "app.bsky.embed.recordWithMedia#view":
+		return embedThumbnail(embed.Media)
+	}
+	return ""
 }
 
 func firstLine(text string) string {

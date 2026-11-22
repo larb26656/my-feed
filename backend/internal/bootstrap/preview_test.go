@@ -340,3 +340,107 @@ func TestBlueskyPreviewEmptyEligibleFeedPersistsNothing(t *testing.T) {
 	require.Contains(t, w.Body.String(), `"entry":null`)
 	require.Equal(t, before, counts())
 }
+
+func TestBlueskyPreviewMapsThumbnailsAndTextlessPosts(t *testing.T) {
+	const did = "did:plc:z72i7hdynmk6r22z27h6tvur"
+	for _, tc := range []struct {
+		name, feed, wantTitle, wantThumb, wantLink string
+	}{
+		{
+			name: "first image thumbnail",
+			feed: `{
+  "feed": [{
+    "post": {
+      "uri": "at://` + did + `/app.bsky.feed.post/3images",
+      "author": {"did": "` + did + `", "handle": "alice.bsky.social"},
+      "record": {"$type": "app.bsky.feed.post", "text": "Photo post", "createdAt": "2026-11-18T00:00:00.000Z"},
+      "embed": {
+        "$type": "app.bsky.embed.images#view",
+        "images": [{"thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/first", "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/first", "alt": ""}]
+      }
+    }
+  }]
+}`,
+			wantTitle: "Photo post",
+			wantThumb: "https://cdn.bsky.app/img/feed_thumbnail/plain/first",
+			wantLink:  "https://bsky.app/profile/" + did + "/post/3images",
+		},
+		{
+			name: "video media cover",
+			feed: `{
+  "feed": [{
+    "post": {
+      "uri": "at://` + did + `/app.bsky.feed.post/3video",
+      "author": {"did": "` + did + `", "handle": "alice.bsky.social"},
+      "record": {"$type": "app.bsky.feed.post", "text": "Video post", "createdAt": "2026-11-18T00:00:00.000Z"},
+      "embed": {
+        "$type": "app.bsky.embed.video#view",
+        "thumbnail": "https://video.bsky.app/watch/cover.jpg"
+      }
+    }
+  }]
+}`,
+			wantTitle: "Video post",
+			wantThumb: "https://video.bsky.app/watch/cover.jpg",
+			wantLink:  "https://bsky.app/profile/" + did + "/post/3video",
+		},
+		{
+			name: "textless with fallback title",
+			feed: `{
+  "feed": [{
+    "post": {
+      "uri": "at://` + did + `/app.bsky.feed.post/3textless",
+      "author": {"did": "` + did + `", "handle": "alice.example.com"},
+      "record": {"$type": "app.bsky.feed.post", "text": "", "createdAt": "2026-11-18T00:00:00.000Z"},
+      "embed": {
+        "$type": "app.bsky.embed.images#view",
+        "images": [{"thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/textless", "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/textless", "alt": ""}]
+      }
+    }
+  }]
+}`,
+			wantTitle: "Post from @alice.example.com",
+			wantThumb: "https://cdn.bsky.app/img/feed_thumbnail/plain/textless",
+			wantLink:  "https://bsky.app/profile/" + did + "/post/3textless",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			app := newTestApp(t, "test-secret")
+			defer app.Close()
+			old := http.DefaultClient.Transport
+			t.Cleanup(func() { http.DefaultClient.Transport = old })
+			feed := tc.feed
+			http.DefaultClient.Transport = previewTransport(func(r *http.Request) (*http.Response, error) {
+				switch r.URL.Path {
+				case "/xrpc/com.atproto.identity.resolveHandle":
+					return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{"did":"` + did + `"}`))}, nil
+				case "/xrpc/app.bsky.feed.getAuthorFeed":
+					require.Equal(t, did, r.URL.Query().Get("actor"))
+					require.Equal(t, "50", r.URL.Query().Get("limit"))
+					return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(feed))}, nil
+				default:
+					t.Fatalf("unexpected path %s", r.URL.Path)
+					return nil, nil
+				}
+			})
+			// Act
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/sources/preview", strings.NewReader(`{"type":"bluesky","config":{"did":"alice.bsky.social"}}`))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", "Bearer test-secret")
+			w := httptest.NewRecorder()
+			app.Router.ServeHTTP(w, req)
+			// Assert
+			require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+			var response struct {
+				Data struct {
+					Entry struct{ Title, Link, Thumbnail string }
+				}
+			}
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+			require.Equal(t, tc.wantTitle, response.Data.Entry.Title)
+			require.Equal(t, tc.wantLink, response.Data.Entry.Link)
+			require.Equal(t, tc.wantThumb, response.Data.Entry.Thumbnail)
+		})
+	}
+}

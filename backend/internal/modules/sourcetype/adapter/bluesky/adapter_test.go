@@ -199,6 +199,216 @@ func TestObtainSkipsRepliesAndRepostsAndMapsTextPosts(t *testing.T) {
 	require.Equal(t, "https://bsky.app/profile/"+sampleDID+"/post/3original", entries[1].Link)
 }
 
+func TestObtainMapsFirstImageThumbnail(t *testing.T) {
+	// Arrange
+	const thumb = "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreiathumb"
+	body := `{
+  "feed": [{
+    "post": {
+      "uri": "at://` + sampleDID + `/app.bsky.feed.post/3images",
+      "author": {"did": "` + sampleDID + `", "handle": "alice.bsky.social"},
+      "record": {
+        "$type": "app.bsky.feed.post",
+        "text": "Encrypted DMs from your Bluesky profile—",
+        "createdAt": "2026-11-18T00:00:00.000Z",
+        "embed": {"$type": "app.bsky.embed.images"}
+      },
+      "embed": {
+        "$type": "app.bsky.embed.images#view",
+        "images": [
+          {"thumb": "` + thumb + `", "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/…", "alt": "first"},
+          {"thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/second", "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/second", "alt": "second"}
+        ]
+      }
+    }
+  }]
+}`
+	obtainer := bluesky.Definition(&responseClient{body: body}).Obtainer
+	// Act
+	entries, err := obtainer.Obtain(context.Background(), &obtainapi.Input{
+		Config: map[string]any{"did": sampleDID},
+	})
+	// Assert
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	require.Equal(t, "Encrypted DMs from your Bluesky profile—", entries[0].Title)
+	require.NotNil(t, entries[0].Thumbnail)
+	require.Equal(t, thumb, *entries[0].Thumbnail)
+}
+
+func TestObtainMapsVideoMediaCover(t *testing.T) {
+	// Arrange
+	const cover = "https://video.bsky.app/watch/did:plc:z72i7hdynmk6r22z27h6tvur/bafyvideothumb/thumbnail.jpg"
+	body := `{
+  "feed": [{
+    "post": {
+      "uri": "at://` + sampleDID + `/app.bsky.feed.post/3video",
+      "author": {"did": "` + sampleDID + `", "handle": "alice.bsky.social"},
+      "record": {
+        "$type": "app.bsky.feed.post",
+        "text": "Watch this",
+        "createdAt": "2026-11-18T00:00:00.000Z",
+        "embed": {"$type": "app.bsky.embed.video"}
+      },
+      "embed": {
+        "$type": "app.bsky.embed.video#view",
+        "thumbnail": "` + cover + `",
+        "playlist": "https://video.bsky.app/watch/…/playlist.m3u8"
+      }
+    }
+  }]
+}`
+	obtainer := bluesky.Definition(&responseClient{body: body}).Obtainer
+	// Act
+	entries, err := obtainer.Obtain(context.Background(), &obtainapi.Input{
+		Config: map[string]any{"did": sampleDID},
+	})
+	// Assert
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	require.NotNil(t, entries[0].Thumbnail)
+	require.Equal(t, cover, *entries[0].Thumbnail)
+}
+
+func TestObtainMapsExternalMediaCover(t *testing.T) {
+	// Arrange
+	const cover = "https://cdn.bsky.app/img/feed_thumbnail/plain/external-thumb"
+	body := `{
+  "feed": [{
+    "post": {
+      "uri": "at://` + sampleDID + `/app.bsky.feed.post/3external",
+      "author": {"did": "` + sampleDID + `", "handle": "alice.bsky.social"},
+      "record": {
+        "$type": "app.bsky.feed.post",
+        "text": "Link card",
+        "createdAt": "2026-11-18T00:00:00.000Z",
+        "embed": {"$type": "app.bsky.embed.external"}
+      },
+      "embed": {
+        "$type": "app.bsky.embed.external#view",
+        "external": {
+          "uri": "https://example.com/article",
+          "title": "Article",
+          "description": "Summary",
+          "thumb": "` + cover + `"
+        }
+      }
+    }
+  }]
+}`
+	obtainer := bluesky.Definition(&responseClient{body: body}).Obtainer
+	// Act
+	entries, err := obtainer.Obtain(context.Background(), &obtainapi.Input{
+		Config: map[string]any{"did": sampleDID},
+	})
+	// Assert
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	require.NotNil(t, entries[0].Thumbnail)
+	require.Equal(t, cover, *entries[0].Thumbnail)
+}
+
+func TestObtainMapsRecordWithMediaCover(t *testing.T) {
+	// Arrange
+	const thumb = "https://cdn.bsky.app/img/feed_thumbnail/plain/quote-media"
+	body := `{
+  "feed": [{
+    "post": {
+      "uri": "at://` + sampleDID + `/app.bsky.feed.post/3quoteMedia",
+      "author": {"did": "` + sampleDID + `", "handle": "alice.bsky.social"},
+      "record": {
+        "$type": "app.bsky.feed.post",
+        "text": "Quote with photo",
+        "createdAt": "2026-11-18T00:00:00.000Z",
+        "embed": {"$type": "app.bsky.embed.recordWithMedia"}
+      },
+      "embed": {
+        "$type": "app.bsky.embed.recordWithMedia#view",
+        "record": {"$type": "app.bsky.embed.record#view", "record": {}},
+        "media": {
+          "$type": "app.bsky.embed.images#view",
+          "images": [{"thumb": "` + thumb + `", "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/quote-media", "alt": ""}]
+        }
+      }
+    }
+  }]
+}`
+	obtainer := bluesky.Definition(&responseClient{body: body}).Obtainer
+	// Act
+	entries, err := obtainer.Obtain(context.Background(), &obtainapi.Input{
+		Config: map[string]any{"did": sampleDID},
+	})
+	// Assert
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	require.NotNil(t, entries[0].Thumbnail)
+	require.Equal(t, thumb, *entries[0].Thumbnail)
+}
+
+func TestObtainUsesProfileFallbackTitleForTextlessPosts(t *testing.T) {
+	// Arrange
+	const thumb = "https://cdn.bsky.app/img/feed_thumbnail/plain/textless"
+	body := `{
+  "feed": [{
+    "post": {
+      "uri": "at://` + sampleDID + `/app.bsky.feed.post/3textless",
+      "author": {"did": "` + sampleDID + `", "handle": "alice.example.com"},
+      "record": {
+        "$type": "app.bsky.feed.post",
+        "text": "",
+        "createdAt": "2026-11-18T00:00:00.000Z",
+        "embed": {"$type": "app.bsky.embed.images"}
+      },
+      "embed": {
+        "$type": "app.bsky.embed.images#view",
+        "images": [{"thumb": "` + thumb + `", "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/textless", "alt": ""}]
+      }
+    }
+  }]
+}`
+	obtainer := bluesky.Definition(&responseClient{body: body}).Obtainer
+	// Act
+	entries, err := obtainer.Obtain(context.Background(), &obtainapi.Input{
+		Config: map[string]any{"did": sampleDID},
+	})
+	// Assert
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	require.Equal(t, "Post from @alice.example.com", entries[0].Title)
+	require.Equal(t, "", entries[0].Description)
+	require.Equal(t, "https://bsky.app/profile/"+sampleDID+"/post/3textless", entries[0].Link)
+	require.NotNil(t, entries[0].Thumbnail)
+	require.Equal(t, thumb, *entries[0].Thumbnail)
+}
+
+func TestObtainKeepsTextlessPostWithoutThumbnail(t *testing.T) {
+	// Arrange
+	body := `{
+  "feed": [{
+    "post": {
+      "uri": "at://` + sampleDID + `/app.bsky.feed.post/3notext",
+      "author": {"did": "` + sampleDID + `", "handle": "alice.bsky.social"},
+      "record": {
+        "$type": "app.bsky.feed.post",
+        "text": "   ",
+        "createdAt": "2026-11-18T00:00:00.000Z"
+      }
+    }
+  }]
+}`
+	obtainer := bluesky.Definition(&responseClient{body: body}).Obtainer
+	// Act
+	entries, err := obtainer.Obtain(context.Background(), &obtainapi.Input{
+		Config: map[string]any{"did": sampleDID},
+	})
+	// Assert
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	require.Equal(t, "Post from @alice.bsky.social", entries[0].Title)
+	require.Nil(t, entries[0].Thumbnail)
+	require.Equal(t, "https://bsky.app/profile/"+sampleDID+"/post/3notext", entries[0].Link)
+}
+
 func TestObtainAcceptsEmptyEligibleFeed(t *testing.T) {
 	body := `{"feed":[{
       "post": {
