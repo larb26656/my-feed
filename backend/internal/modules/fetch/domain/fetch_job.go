@@ -56,10 +56,10 @@ func NewFetchJob(sourceID uuid.UUID) (*FetchJob, error) {
 // now must be at or after NextAttemptAt when a retry backoff is set.
 func (j *FetchJob) Claim(now time.Time) error {
 	if j.Status != StatusPending {
-		return ErrConflict.New("only pending fetch jobs can be claimed")
+		return apperr.ResourceConflict.New("only pending fetch jobs can be claimed")
 	}
 	if !j.NextAttemptAt.IsZero() && now.Before(j.NextAttemptAt) {
-		return ErrConflict.New("fetch job retry backoff has not elapsed")
+		return apperr.ResourceConflict.New("fetch job retry backoff has not elapsed")
 	}
 	j.Status = StatusRunning
 	j.Attempt++
@@ -71,7 +71,7 @@ func (j *FetchJob) Claim(now time.Time) error {
 // Succeed moves running → succeeded and records how many Entries were newly created.
 func (j *FetchJob) Succeed(entriesCreated int) error {
 	if j.Status != StatusRunning {
-		return ErrConflict.New("only running fetch jobs can succeed")
+		return apperr.ResourceConflict.New("only running fetch jobs can succeed")
 	}
 	if entriesCreated < 0 {
 		return apperr.InvalidInput.New("entries created cannot be negative")
@@ -85,7 +85,7 @@ func (j *FetchJob) Succeed(entriesCreated int) error {
 // Fail moves running → failed (terminal).
 func (j *FetchJob) Fail() error {
 	if j.Status != StatusRunning {
-		return ErrConflict.New("only running fetch jobs can fail")
+		return apperr.ResourceConflict.New("only running fetch jobs can fail")
 	}
 	j.Status = StatusFailed
 	j.NextAttemptAt = time.Time{}
@@ -97,10 +97,10 @@ func (j *FetchJob) Fail() error {
 // retries remaining. nextAttemptAt is when the job may be claimed again.
 func (j *FetchJob) ScheduleRetry(nextAttemptAt time.Time) error {
 	if j.Status != StatusRunning {
-		return ErrConflict.New("only running fetch jobs can schedule a retry")
+		return apperr.ResourceConflict.New("only running fetch jobs can schedule a retry")
 	}
 	if j.Attempt >= j.MaxAttempts {
-		return ErrConflict.New("fetch job has no attempts remaining")
+		return apperr.ResourceConflict.New("fetch job has no attempts remaining")
 	}
 	j.Status = StatusPending
 	j.NextAttemptAt = nextAttemptAt.UTC()
@@ -111,7 +111,7 @@ func (j *FetchJob) ScheduleRetry(nextAttemptAt time.Time) error {
 // FailPending moves pending → failed (Source deactivated before the job was claimed).
 func (j *FetchJob) FailPending() error {
 	if j.Status != StatusPending {
-		return ErrConflict.New("only pending fetch jobs can be failed without running")
+		return apperr.ResourceConflict.New("only pending fetch jobs can be failed without running")
 	}
 	j.Status = StatusFailed
 	j.UpdatedAt = time.Now().UTC()

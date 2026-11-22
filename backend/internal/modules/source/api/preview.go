@@ -1,14 +1,17 @@
 package api
 
-import "context"
+import "time"
+
+type PreviewEntry struct {
+	Title       string
+	Link        string
+	Description string
+	Thumbnail   *string
+	PublishedAt *time.Time
+}
 
 type PreviewInput struct {
 	Type             string
 	RSSURL           string
 	YouTubeChannelID string
-}
-
-// PreviewValidator validates an unsaved Source configuration for preview.
-type PreviewValidator interface {
-	ValidatePreview(context.Context, PreviewInput) (*SourceRef, error)
 }

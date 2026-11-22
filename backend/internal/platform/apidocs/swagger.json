@@ -112,10 +112,10 @@
                 },
                 "type": "object"
             },
-            "github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_source_adapter_http_sourceResponse": {
+            "github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_source_adapter_http_previewResponse": {
                 "properties": {
                     "data": {
-                        "$ref": "#/components/schemas/internal_modules_source_adapter_http.sourceResponse"
+                        "$ref": "#/components/schemas/internal_modules_source_adapter_http.previewResponse"
                     },
                     "meta": {},
                     "success": {
@@ -124,10 +124,10 @@
                 },
                 "type": "object"
             },
-            "github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_sourcepreview_adapter_http_previewResponse": {
+            "github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_source_adapter_http_sourceResponse": {
                 "properties": {
                     "data": {
-                        "$ref": "#/components/schemas/internal_modules_sourcepreview_adapter_http.previewResponse"
+                        "$ref": "#/components/schemas/internal_modules_source_adapter_http.sourceResponse"
                     },
                     "meta": {},
                     "success": {
@@ -422,6 +422,62 @@
                 ],
                 "type": "object"
             },
+            "internal_modules_source_adapter_http.previewEntryResponse": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "link": {
+                        "type": "string"
+                    },
+                    "publishedAt": {
+                        "type": "string"
+                    },
+                    "thumbnail": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "link",
+                    "title"
+                ],
+                "type": "object"
+            },
+            "internal_modules_source_adapter_http.previewResponse": {
+                "properties": {
+                    "entry": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/internal_modules_source_adapter_http.previewEntryResponse"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    }
+                },
+                "type": "object"
+            },
+            "internal_modules_source_adapter_http.previewSourceRequest": {
+                "properties": {
+                    "rssUrl": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "youtubeChannelId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "type"
+                ],
+                "type": "object"
+            },
             "internal_modules_source_adapter_http.sourceResponse": {
                 "properties": {
                     "active": {
@@ -471,62 +527,6 @@
                 },
                 "required": [
                     "name"
-                ],
-                "type": "object"
-            },
-            "internal_modules_sourcepreview_adapter_http.previewEntryResponse": {
-                "properties": {
-                    "description": {
-                        "type": "string"
-                    },
-                    "link": {
-                        "type": "string"
-                    },
-                    "publishedAt": {
-                        "type": "string"
-                    },
-                    "thumbnail": {
-                        "type": "string"
-                    },
-                    "title": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "link",
-                    "title"
-                ],
-                "type": "object"
-            },
-            "internal_modules_sourcepreview_adapter_http.previewResponse": {
-                "properties": {
-                    "entry": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/internal_modules_sourcepreview_adapter_http.previewEntryResponse"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ]
-                    }
-                },
-                "type": "object"
-            },
-            "internal_modules_sourcepreview_adapter_http.previewSourceRequest": {
-                "properties": {
-                    "rssUrl": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "type": "string"
-                    },
-                    "youtubeChannelId": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "type"
                 ],
                 "type": "object"
             }
@@ -1857,7 +1857,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/internal_modules_sourcepreview_adapter_http.previewSourceRequest",
+                                "$ref": "#/components/schemas/internal_modules_source_adapter_http.previewSourceRequest",
                                 "summary": "request",
                                 "description": "Source configuration"
                             }
@@ -1871,7 +1871,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_sourcepreview_adapter_http_previewResponse"
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_source_adapter_http_previewResponse"
                                 }
                             }
                         },

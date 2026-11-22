@@ -1245,7 +1245,7 @@ export interface paths {
             /** @description Source configuration */
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["internal_modules_sourcepreview_adapter_http.previewSourceRequest"];
+                    "application/json": components["schemas"]["internal_modules_source_adapter_http.previewSourceRequest"];
                 };
             };
             responses: {
@@ -1255,7 +1255,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_sourcepreview_adapter_http_previewResponse"];
+                        "application/json": components["schemas"]["github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_source_adapter_http_previewResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -1743,13 +1743,13 @@ export interface components {
             meta?: unknown;
             success?: boolean;
         };
-        "github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_source_adapter_http_sourceResponse": {
-            data?: components["schemas"]["internal_modules_source_adapter_http.sourceResponse"];
+        "github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_source_adapter_http_previewResponse": {
+            data?: components["schemas"]["internal_modules_source_adapter_http.previewResponse"];
             meta?: unknown;
             success?: boolean;
         };
-        "github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_sourcepreview_adapter_http_previewResponse": {
-            data?: components["schemas"]["internal_modules_sourcepreview_adapter_http.previewResponse"];
+        "github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_source_adapter_http_sourceResponse": {
+            data?: components["schemas"]["internal_modules_source_adapter_http.sourceResponse"];
             meta?: unknown;
             success?: boolean;
         };
@@ -1840,6 +1840,21 @@ export interface components {
             type: string;
             youtubeChannelId?: string;
         };
+        "internal_modules_source_adapter_http.previewEntryResponse": {
+            description?: string;
+            link: string;
+            publishedAt?: string;
+            thumbnail?: string;
+            title: string;
+        };
+        "internal_modules_source_adapter_http.previewResponse": {
+            entry?: components["schemas"]["internal_modules_source_adapter_http.previewEntryResponse"] | null;
+        };
+        "internal_modules_source_adapter_http.previewSourceRequest": {
+            rssUrl?: string;
+            type: string;
+            youtubeChannelId?: string;
+        };
         "internal_modules_source_adapter_http.sourceResponse": {
             active?: boolean;
             createdAt?: string;
@@ -1854,21 +1869,6 @@ export interface components {
         "internal_modules_source_adapter_http.updateSourceRequest": {
             name: string;
             rssUrl?: string;
-        };
-        "internal_modules_sourcepreview_adapter_http.previewEntryResponse": {
-            description?: string;
-            link: string;
-            publishedAt?: string;
-            thumbnail?: string;
-            title: string;
-        };
-        "internal_modules_sourcepreview_adapter_http.previewResponse": {
-            entry?: components["schemas"]["internal_modules_sourcepreview_adapter_http.previewEntryResponse"] | null;
-        };
-        "internal_modules_sourcepreview_adapter_http.previewSourceRequest": {
-            rssUrl?: string;
-            type: string;
-            youtubeChannelId?: string;
         };
     };
     responses: never;

@@ -106,7 +106,7 @@ func TestFetchJobsAllowOnlyOneUnfinishedJobPerSourceUnderConcurrentCreation(t *t
 			continue
 		}
 		var appErr *apperr.AppError
-		if errors.As(err, &appErr) && appErr.Code == domain.ErrConflict.Code {
+		if errors.As(err, &appErr) && appErr.Code == apperr.ResourceConflict.Code {
 			conflicts++
 			continue
 		}
@@ -149,7 +149,7 @@ func TestFetchJobHasOnlyOneWinnerWhenClaimedConcurrently(t *testing.T) {
 			continue
 		}
 		var appErr *apperr.AppError
-		if errors.As(err, &appErr) && appErr.Code == domain.ErrConflict.Code {
+		if errors.As(err, &appErr) && appErr.Code == apperr.ResourceConflict.Code {
 			rejected++
 			continue
 		}
@@ -182,5 +182,5 @@ func TestClaimableFetchJobsRespectRetryBackoff(t *testing.T) {
 	_, err = repo.ClaimFetchJob(ctx, job.ID, now.Add(59*time.Second))
 	var appErr *apperr.AppError
 	require.ErrorAs(t, err, &appErr)
-	require.Equal(t, domain.ErrConflict.Code, appErr.Code)
+	require.Equal(t, apperr.ResourceConflict.Code, appErr.Code)
 }

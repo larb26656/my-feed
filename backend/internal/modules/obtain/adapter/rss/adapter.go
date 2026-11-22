@@ -10,9 +10,7 @@ import (
 
 	"github.com/mmcdole/gofeed"
 
-	fetchapi "github.com/larb26656/my-feed/backend/internal/modules/fetch/api"
-	"github.com/larb26656/my-feed/backend/internal/modules/fetch/domain"
-	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
+	obtainapi "github.com/larb26656/my-feed/backend/internal/modules/obtain/api"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 )
 
@@ -33,7 +31,7 @@ func New(client HTTPClient) *Adapter {
 	return &Adapter{client: client}
 }
 
-func (a *Adapter) Obtain(ctx context.Context, source *sourceapi.SourceRef) ([]fetchapi.PreparedEntry, error) {
+func (a *Adapter) Obtain(ctx context.Context, source *obtainapi.Input) ([]obtainapi.PreparedEntry, error) {
 	if source == nil {
 		return nil, apperr.InvalidInput.New("source is required")
 	}
@@ -50,24 +48,24 @@ func (a *Adapter) Obtain(ctx context.Context, source *sourceapi.SourceRef) ([]fe
 
 	res, err := a.client.Do(req)
 	if err != nil {
-		return nil, domain.ErrConflict.New(fmt.Sprintf("rss feed request failed: %v", err))
+		return nil, apperr.ResourceConflict.New(fmt.Sprintf("rss feed request failed: %v", err))
 	}
 	defer func() { _ = res.Body.Close() }()
 
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
 		_, _ = io.Copy(io.Discard, res.Body)
-		return nil, domain.ErrConflict.New(fmt.Sprintf("rss feed request failed: status %d", res.StatusCode))
+		return nil, apperr.ResourceConflict.New(fmt.Sprintf("rss feed request failed: status %d", res.StatusCode))
 	}
 
 	body, err := io.ReadAll(io.LimitReader(res.Body, 8<<20))
 	if err != nil {
-		return nil, domain.ErrConflict.New("rss feed body read failed")
+		return nil, apperr.ResourceConflict.New("rss feed body read failed")
 	}
 	feed, err := gofeed.NewParser().Parse(bytes.NewReader(body))
 	if err != nil {
 		return nil, apperr.InvalidInput.New("invalid or unsupported feed document")
 	}
-	entries := make([]fetchapi.PreparedEntry, 0, len(feed.Items))
+	entries := make([]obtainapi.PreparedEntry, 0, len(feed.Items))
 	for _, item := range feed.Items {
 		title, link := strings.TrimSpace(item.Title), strings.TrimSpace(item.Link)
 		if title == "" || link == "" {
@@ -77,7 +75,7 @@ func (a *Adapter) Obtain(ctx context.Context, source *sourceapi.SourceRef) ([]fe
 		if description == "" {
 			description = strings.TrimSpace(item.Content)
 		}
-		entry := fetchapi.PreparedEntry{Title: title, Link: link, Description: description, PublishedAt: item.PublishedParsed}
+		entry := obtainapi.PreparedEntry{Title: title, Link: link, Description: description, PublishedAt: item.PublishedParsed}
 		if item.Image != nil && strings.TrimSpace(item.Image.URL) != "" {
 			thumbnail := strings.TrimSpace(item.Image.URL)
 			entry.Thumbnail = &thumbnail

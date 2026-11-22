@@ -11,10 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	entryapi "github.com/larb26656/my-feed/backend/internal/modules/entry/api"
-	fetchapi "github.com/larb26656/my-feed/backend/internal/modules/fetch/api"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/domain"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/repository"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/service"
+	obtainapi "github.com/larb26656/my-feed/backend/internal/modules/obtain/api"
 	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	"github.com/larb26656/my-feed/backend/internal/platform/database"
@@ -38,7 +38,7 @@ func (f *fakeRepo) CreateFetchJob(_ context.Context, job *domain.FetchJob) error
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if _, ok := f.jobs[job.ID]; ok {
-		return domain.ErrConflict.New("fetch job already exists")
+		return apperr.ResourceConflict.New("fetch job already exists")
 	}
 	f.jobs[job.ID] = cloneJob(job)
 	return nil
@@ -113,10 +113,10 @@ func (f *fakeRepo) ClaimFetchJob(_ context.Context, id uuid.UUID, now time.Time)
 	}
 	// Conditional claim: only persist when still pending in storage (simulates RowsAffected).
 	if stored.Status != domain.StatusPending {
-		return nil, domain.ErrConflict.New("fetch job was already claimed or not claimable")
+		return nil, apperr.ResourceConflict.New("fetch job was already claimed or not claimable")
 	}
 	if !stored.NextAttemptAt.IsZero() && now.Before(stored.NextAttemptAt) {
-		return nil, domain.ErrConflict.New("fetch job was already claimed or not claimable")
+		return nil, apperr.ResourceConflict.New("fetch job was already claimed or not claimable")
 	}
 	f.jobs[id] = cloneJob(job)
 	return cloneJob(job), nil
@@ -191,13 +191,13 @@ func (f *fakeSources) ListActiveFetchable(_ context.Context) ([]sourceapi.Source
 
 type fakeObtain struct {
 	mu    sync.Mutex
-	items []fetchapi.PreparedEntry
+	items []obtainapi.PreparedEntry
 	err   error
 	calls int
 	hook  func()
 }
 
-func (f *fakeObtain) Obtain(_ context.Context, _ *sourceapi.SourceRef) ([]fetchapi.PreparedEntry, error) {
+func (f *fakeObtain) Obtain(_ context.Context, _ *obtainapi.Input) ([]obtainapi.PreparedEntry, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.calls++
@@ -207,7 +207,7 @@ func (f *fakeObtain) Obtain(_ context.Context, _ *sourceapi.SourceRef) ([]fetcha
 	if f.err != nil {
 		return nil, f.err
 	}
-	out := make([]fetchapi.PreparedEntry, len(f.items))
+	out := make([]obtainapi.PreparedEntry, len(f.items))
 	copy(out, f.items)
 	return out, nil
 }
@@ -242,7 +242,7 @@ func (f *fakeIngest) IngestEntry(ctx context.Context, in entryapi.IngestEntryInp
 			return nil, apperr.InvalidInput.New("ingest can only record entries into rss sources")
 		}
 		if !src.Active {
-			return nil, domain.ErrConflict.New("cannot ingest into a deactivated source")
+			return nil, apperr.ResourceConflict.New("cannot ingest into a deactivated source")
 		}
 	}
 	created, ok := f.createdByLink[in.Link]
@@ -399,7 +399,7 @@ func TestCreateManualFetchJobRejectsWhenPendingJobExists(t *testing.T) {
 	require.Error(t, err)
 	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, domain.ErrConflict.Code, ae.Code)
+	require.Equal(t, apperr.ResourceConflict.Code, ae.Code)
 }
 
 func TestCreateManualFetchJobRejectsWhenRunningJobExists(t *testing.T) {
@@ -416,7 +416,7 @@ func TestCreateManualFetchJobRejectsWhenRunningJobExists(t *testing.T) {
 	require.Error(t, err)
 	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, domain.ErrConflict.Code, ae.Code)
+	require.Equal(t, apperr.ResourceConflict.Code, ae.Code)
 }
 
 func TestClaimFetchJobRejectsSecondConcurrentClaim(t *testing.T) {
@@ -435,7 +435,7 @@ func TestClaimFetchJobRejectsSecondConcurrentClaim(t *testing.T) {
 	require.Error(t, err)
 	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, domain.ErrConflict.Code, ae.Code)
+	require.Equal(t, apperr.ResourceConflict.Code, ae.Code)
 
 	stored, err := h.repo.GetFetchJobByID(context.Background(), created.ID)
 	require.NoError(t, err)
@@ -458,7 +458,7 @@ func TestExecuteFetchJobRejectsWhenAlreadyClaimed(t *testing.T) {
 	require.Error(t, err)
 	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, domain.ErrConflict.Code, ae.Code)
+	require.Equal(t, apperr.ResourceConflict.Code, ae.Code)
 }
 
 func TestCreateManualFetchJobAllowedAfterTerminalJob(t *testing.T) {
@@ -508,7 +508,7 @@ func TestCreateManualFetchJobRejectsDeactivatedSource(t *testing.T) {
 	require.Error(t, err)
 	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, domain.ErrConflict.Code, ae.Code)
+	require.Equal(t, apperr.ResourceConflict.Code, ae.Code)
 }
 
 func TestHandleSourceDeactivatedFailsPendingJob(t *testing.T) {
@@ -529,7 +529,7 @@ func TestHandleSourceDeactivatedFailsPendingJob(t *testing.T) {
 func TestHandleSourceDeactivatedLeavesRunningJobUncancelledButIngestMayFail(t *testing.T) {
 	h := newHarness()
 	sourceID := seedActiveRSS(h.sources)
-	h.obtain.items = []fetchapi.PreparedEntry{
+	h.obtain.items = []obtainapi.PreparedEntry{
 		{Title: "One", Link: "https://example.com/1"},
 	}
 
@@ -556,7 +556,7 @@ func TestHandleSourceDeactivatedLeavesRunningJobUncancelledButIngestMayFail(t *t
 	require.Error(t, err)
 	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, domain.ErrConflict.Code, ae.Code)
+	require.Equal(t, apperr.ResourceConflict.Code, ae.Code)
 	require.Equal(t, domain.StatusRunning, statusDuringObtain)
 	// Attempt 1 of 3 → retry scheduled on the same job (not cancelled, not succeeded via bypass).
 	require.Equal(t, domain.StatusPending, job.Status)
@@ -579,7 +579,7 @@ func TestDeactivatedSourceReceivesNoNewFetchJobs(t *testing.T) {
 	require.Error(t, err)
 	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, domain.ErrConflict.Code, ae.Code)
+	require.Equal(t, apperr.ResourceConflict.Code, ae.Code)
 
 	stored, err := h.repo.GetFetchJobByID(context.Background(), created.ID)
 	require.NoError(t, err)
@@ -589,7 +589,7 @@ func TestDeactivatedSourceReceivesNoNewFetchJobs(t *testing.T) {
 func TestExecuteFetchJobSucceedsWithCreatedCount(t *testing.T) {
 	h := newHarness()
 	sourceID := seedActiveRSS(h.sources)
-	h.obtain.items = []fetchapi.PreparedEntry{
+	h.obtain.items = []obtainapi.PreparedEntry{
 		{Title: "One", Link: "https://example.com/1"},
 		{Title: "Two", Link: "https://example.com/2"},
 	}
@@ -626,7 +626,7 @@ func TestExecuteFetchJobSucceedsWithZeroCreated(t *testing.T) {
 func TestExecuteFetchJobRefreshDoesNotIncrementCreated(t *testing.T) {
 	h := newHarness()
 	sourceID := seedActiveRSS(h.sources)
-	h.obtain.items = []fetchapi.PreparedEntry{
+	h.obtain.items = []obtainapi.PreparedEntry{
 		{Title: "New", Link: "https://example.com/new"},
 		{Title: "Seen", Link: "https://example.com/seen"},
 	}
@@ -673,7 +673,7 @@ func TestExecuteFetchJobRetriesAfterBackoffAndSucceeds(t *testing.T) {
 	h := newHarness()
 	sourceID := seedActiveRSS(h.sources)
 	h.obtain.err = errors.New("origin unreachable")
-	h.obtain.items = []fetchapi.PreparedEntry{
+	h.obtain.items = []obtainapi.PreparedEntry{
 		{Title: "One", Link: "https://example.com/1"},
 	}
 
@@ -700,7 +700,7 @@ func TestExecuteFetchJobRetriesAfterBackoffAndSucceeds(t *testing.T) {
 func TestExecuteFetchJobRecordFailureSchedulesRetry(t *testing.T) {
 	h := newHarness()
 	sourceID := seedActiveRSS(h.sources)
-	h.obtain.items = []fetchapi.PreparedEntry{
+	h.obtain.items = []obtainapi.PreparedEntry{
 		{Title: "One", Link: "https://example.com/1"},
 	}
 	h.ingest.err = errors.New("ingest blew up")
@@ -750,7 +750,7 @@ func TestExecuteFetchJobReachesMaxAttemptsThenFailed(t *testing.T) {
 func TestExecuteFetchJobEachAttemptRerunsFullPath(t *testing.T) {
 	h := newHarness()
 	sourceID := seedActiveRSS(h.sources)
-	h.obtain.items = []fetchapi.PreparedEntry{
+	h.obtain.items = []obtainapi.PreparedEntry{
 		{Title: "One", Link: "https://example.com/1"},
 	}
 	h.ingest.err = errors.New("ingest blew up")
@@ -778,7 +778,7 @@ func TestExecuteFetchJobPassesPreparedFieldsToIngest(t *testing.T) {
 	sourceID := seedActiveRSS(h.sources)
 	thumb := "https://example.com/t.png"
 	published := time.Date(2024, 6, 1, 12, 0, 0, 0, time.UTC)
-	h.obtain.items = []fetchapi.PreparedEntry{
+	h.obtain.items = []obtainapi.PreparedEntry{
 		{
 			Title:       "Full",
 			Link:        "https://example.com/full",
@@ -818,7 +818,7 @@ func TestExecuteReadyFetchJobsRunsPendingJobsAcrossSources(t *testing.T) {
 	h := newHarness()
 	a := seedActiveRSS(h.sources)
 	b := seedActiveRSS(h.sources)
-	h.obtain.items = []fetchapi.PreparedEntry{
+	h.obtain.items = []obtainapi.PreparedEntry{
 		{Title: "Shared", Link: "https://example.com/shared"},
 	}
 
@@ -850,7 +850,7 @@ func TestExecuteReadyFetchJobsStillEnforcesOneUnfinishedPerSource(t *testing.T) 
 	_, err = h.svc.CreateManualFetchJob(context.Background(), sourceID)
 	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, domain.ErrConflict.Code, ae.Code)
+	require.Equal(t, apperr.ResourceConflict.Code, ae.Code)
 
 	stored, err := h.svc.GetFetchJob(context.Background(), first.ID)
 	require.NoError(t, err)

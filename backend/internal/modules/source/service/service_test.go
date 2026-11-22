@@ -56,7 +56,7 @@ func TestEnsuringSavedLinksUsesTheSourceCreatedByAnotherWriter(t *testing.T) {
 			}
 			return winner, nil
 		},
-		create: func(*domain.Source) error { return domain.ErrConflict.New("another writer won") },
+		create: func(*domain.Source) error { return apperr.ResourceConflict.New("another writer won") },
 	})
 
 	// Act: ensure the system source.
@@ -87,7 +87,7 @@ func TestEnsuringSavedLinksPropagatesStorageFailures(t *testing.T) {
 					if stage == "create" {
 						return failure
 					}
-					return domain.ErrConflict.New("another writer won")
+					return apperr.ResourceConflict.New("another writer won")
 				},
 			})
 

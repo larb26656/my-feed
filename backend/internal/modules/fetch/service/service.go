@@ -12,6 +12,7 @@ import (
 	fetchapi "github.com/larb26656/my-feed/backend/internal/modules/fetch/api"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/domain"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/repository"
+	obtainapi "github.com/larb26656/my-feed/backend/internal/modules/obtain/api"
 	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	"github.com/larb26656/my-feed/backend/internal/platform/cursor"
@@ -33,7 +34,7 @@ type Clock interface {
 type Service struct {
 	repo             repository.Repository
 	sources          sourceapi.Reader
-	obtain           fetchapi.Obtain
+	obtain           obtainapi.Obtainer
 	ingest           entryapi.Ingester
 	clock            Clock
 	retryBackoff     time.Duration
@@ -43,7 +44,7 @@ type Service struct {
 func New(
 	repo repository.Repository,
 	sources sourceapi.Reader,
-	obtain fetchapi.Obtain,
+	obtain obtainapi.Obtainer,
 	ingest entryapi.Ingester,
 	clock Clock,
 	retryBackoff time.Duration,
@@ -228,12 +229,12 @@ func (s *Service) CreateManualFetchJob(ctx context.Context, sourceID uuid.UUID) 
 		return nil, apperr.InvalidInput.New("fetch jobs can only target fetchable sources")
 	}
 	if !src.Active {
-		return nil, domain.ErrConflict.New("cannot create a fetch job for a deactivated source")
+		return nil, apperr.ResourceConflict.New("cannot create a fetch job for a deactivated source")
 	}
 
 	unfinished, err := s.repo.GetUnfinishedFetchJobBySourceID(ctx, sourceID)
 	if err == nil && unfinished != nil {
-		return nil, domain.ErrConflict.New("source already has an unfinished fetch job")
+		return nil, apperr.ResourceConflict.New("source already has an unfinished fetch job")
 	}
 	if err != nil {
 		if ae, ok := err.(*apperr.AppError); !ok || ae.Code != apperr.ResourceNotFound.Code {
@@ -293,7 +294,11 @@ func (s *Service) ExecuteFetchJob(ctx context.Context, jobID uuid.UUID) (*domain
 		return s.failOrRetry(ctx, job, err)
 	}
 
-	items, err := s.obtain.Obtain(ctx, src)
+	items, err := s.obtain.Obtain(ctx, &obtainapi.Input{
+		Type:             obtainapi.Provider(src.Type),
+		RSSURL:           src.RSSURL,
+		YouTubeChannelID: src.YouTubeChannelID,
+	})
 	if err != nil {
 		return s.failOrRetry(ctx, job, err)
 	}

@@ -48,7 +48,7 @@ func TestSQLiteAllowsOnlyOneManualSource(t *testing.T) {
 	// Assert
 	var failure *apperr.AppError
 	require.ErrorAs(t, err, &failure)
-	require.Equal(t, domain.ErrConflict.Code, failure.Code)
+	require.Equal(t, apperr.ResourceConflict.Code, failure.Code)
 }
 
 func TestSQLiteRejectsDuplicateFeedURLs(t *testing.T) {
@@ -67,7 +67,7 @@ func TestSQLiteRejectsDuplicateFeedURLs(t *testing.T) {
 	// Assert
 	var failure *apperr.AppError
 	require.ErrorAs(t, err, &failure)
-	require.Equal(t, domain.ErrConflict.Code, failure.Code)
+	require.Equal(t, apperr.ResourceConflict.Code, failure.Code)
 }
 
 func TestSQLiteSourceListsRespectTheIncludeDeactivatedFilter(t *testing.T) {

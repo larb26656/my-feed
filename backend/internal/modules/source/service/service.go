@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/uuid"
 
+	obtainapi "github.com/larb26656/my-feed/backend/internal/modules/obtain/api"
 	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
 	"github.com/larb26656/my-feed/backend/internal/modules/source/domain"
 	"github.com/larb26656/my-feed/backend/internal/modules/source/repository"
@@ -25,6 +26,7 @@ import (
 
 type Service struct {
 	repo    repository.Repository
+	obtain  obtainapi.Obtainer
 	files   fileapi.Storage
 	imageMu *sync.Mutex
 }
@@ -33,10 +35,14 @@ func New(repo repository.Repository) *Service {
 	return &Service{repo: repo, imageMu: &sync.Mutex{}}
 }
 
+func (s *Service) SetObtainer(obtain obtainapi.Obtainer) {
+	s.obtain = obtain
+}
+
 var _ sourceapi.TransactionalLifecycle = (*Service)(nil)
 
 func (s *Service) WithTx(tx database.Transaction) sourceapi.Lifecycle {
-	return &Service{repo: s.repo.WithTx(tx), files: s.files, imageMu: s.imageMu}
+	return &Service{repo: s.repo.WithTx(tx), obtain: s.obtain, files: s.files, imageMu: s.imageMu}
 }
 
 type CreateSourceInput = sourceapi.CreateSourceInput
@@ -180,7 +186,7 @@ func isNotFound(err error) bool {
 
 func isConflict(err error) bool {
 	var ae *apperr.AppError
-	return errors.As(err, &ae) && ae.Definition == domain.ErrConflict
+	return errors.As(err, &ae) && ae.Definition == apperr.ResourceConflict
 }
 
 func lifecycleSnapshot(src *domain.Source) *sourceapi.Source {

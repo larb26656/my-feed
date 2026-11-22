@@ -41,7 +41,7 @@ func (r *Repository) CreateFetchJob(ctx context.Context, job *domain.FetchJob) e
 		job.MaxAttempts, job.EntriesCreated, nullableTime(job.NextAttemptAt), formatTime(job.CreatedAt), formatTime(job.UpdatedAt))
 	if err != nil {
 		if database.IsUniqueConstraintViolation(err, "fetch_jobs.source_id") {
-			return domain.ErrConflict.Wrap(err, "source already has an unfinished fetch job")
+			return apperr.ResourceConflict.Wrap(err, "source already has an unfinished fetch job")
 		}
 		return err
 	}
@@ -127,7 +127,7 @@ func (r *Repository) ClaimFetchJob(ctx context.Context, id uuid.UUID, now time.T
 		if getErr != nil {
 			return nil, getErr
 		}
-		return nil, domain.ErrConflict.New("fetch job was already claimed or not claimable")
+		return nil, apperr.ResourceConflict.New("fetch job was already claimed or not claimable")
 	}
 	return r.GetFetchJobByID(ctx, id)
 }
@@ -138,7 +138,7 @@ func (r *Repository) UpdateFetchJob(ctx context.Context, job *domain.FetchJob) e
 		job.EntriesCreated, nullableTime(job.NextAttemptAt), formatTime(job.UpdatedAt), job.ID.String())
 	if err != nil {
 		if database.IsUniqueConstraintViolation(err, "fetch_jobs.source_id") {
-			return domain.ErrConflict.Wrap(err, "source already has an unfinished fetch job")
+			return apperr.ResourceConflict.Wrap(err, "source already has an unfinished fetch job")
 		}
 		return err
 	}

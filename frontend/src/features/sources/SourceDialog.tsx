@@ -29,7 +29,7 @@ import { sourceKeys } from "#/lib/query-keys";
 import { ImageCropPicker, prepareImage, useImageCrop } from "./ImageCropPicker";
 
 type PreviewEntry =
-	components["schemas"]["internal_modules_sourcepreview_adapter_http.previewEntryResponse"];
+	components["schemas"]["internal_modules_source_adapter_http.previewEntryResponse"];
 
 const sourceSchema = z
 	.object({

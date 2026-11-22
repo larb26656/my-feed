@@ -12,9 +12,7 @@ import (
 	"strings"
 	"time"
 
-	fetchapi "github.com/larb26656/my-feed/backend/internal/modules/fetch/api"
-	"github.com/larb26656/my-feed/backend/internal/modules/fetch/domain"
-	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
+	obtainapi "github.com/larb26656/my-feed/backend/internal/modules/obtain/api"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 )
 
@@ -35,7 +33,7 @@ var (
 	videoPattern   = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 )
 
-func (a *Adapter) Obtain(ctx context.Context, source *sourceapi.SourceRef) ([]fetchapi.PreparedEntry, error) {
+func (a *Adapter) Obtain(ctx context.Context, source *obtainapi.Input) ([]obtainapi.PreparedEntry, error) {
 	if source == nil || !channelPattern.MatchString(source.YouTubeChannelID) {
 		return nil, apperr.InvalidInput.New("invalid youtube channel ID")
 	}
@@ -45,15 +43,15 @@ func (a *Adapter) Obtain(ctx context.Context, source *sourceapi.SourceRef) ([]fe
 	}
 	res, err := a.client.Do(req)
 	if err != nil {
-		return nil, domain.ErrConflict.New(fmt.Sprintf("youtube feed request failed: %v", err))
+		return nil, apperr.ResourceConflict.New(fmt.Sprintf("youtube feed request failed: %v", err))
 	}
 	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return nil, domain.ErrConflict.New(fmt.Sprintf("youtube feed request failed: status %d", res.StatusCode))
+		return nil, apperr.ResourceConflict.New(fmt.Sprintf("youtube feed request failed: status %d", res.StatusCode))
 	}
 	body, err := io.ReadAll(io.LimitReader(res.Body, 8<<20))
 	if err != nil {
-		return nil, domain.ErrConflict.New("youtube feed body read failed")
+		return nil, apperr.ResourceConflict.New("youtube feed body read failed")
 	}
 	var feed struct {
 		XMLName xml.Name `xml:"http://www.w3.org/2005/Atom feed"`
@@ -91,13 +89,13 @@ func (a *Adapter) Obtain(ctx context.Context, source *sourceapi.SourceRef) ([]fe
 			return nil, apperr.InvalidInput.New("invalid youtube atom feed document")
 		}
 	}
-	out := make([]fetchapi.PreparedEntry, 0, len(feed.Entries))
+	out := make([]obtainapi.PreparedEntry, 0, len(feed.Entries))
 	for _, item := range feed.Entries {
 		id, title := strings.TrimSpace(item.ID), strings.TrimSpace(item.Title)
 		if !videoPattern.MatchString(id) || title == "" {
 			return nil, apperr.InvalidInput.New("invalid youtube feed entry")
 		}
-		e := fetchapi.PreparedEntry{Title: title, Link: "https://www.youtube.com/watch?v=" + id, Description: strings.TrimSpace(item.Group.Description)}
+		e := obtainapi.PreparedEntry{Title: title, Link: "https://www.youtube.com/watch?v=" + id, Description: strings.TrimSpace(item.Group.Description)}
 		if thumb := strings.TrimSpace(item.Group.Thumbnail.URL); thumb != "" {
 			e.Thumbnail = &thumb
 		}

@@ -11,9 +11,6 @@ import (
 	"sync"
 	"time"
 
-	previewhttp "github.com/larb26656/my-feed/backend/internal/modules/sourcepreview/adapter/http"
-	sourcepreview "github.com/larb26656/my-feed/backend/internal/modules/sourcepreview/service"
-
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
@@ -26,16 +23,16 @@ import (
 	entrysqlite "github.com/larb26656/my-feed/backend/internal/modules/entry/adapter/sqlite"
 	entrysvc "github.com/larb26656/my-feed/backend/internal/modules/entry/service"
 	fetchhttp "github.com/larb26656/my-feed/backend/internal/modules/fetch/adapter/http"
-	"github.com/larb26656/my-feed/backend/internal/modules/fetch/adapter/obtain"
-	obtainrss "github.com/larb26656/my-feed/backend/internal/modules/fetch/adapter/obtain/rss"
-	obtainyoutube "github.com/larb26656/my-feed/backend/internal/modules/fetch/adapter/obtain/youtube"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/adapter/runtime"
 	fetchsqlite "github.com/larb26656/my-feed/backend/internal/modules/fetch/adapter/sqlite"
 	fetchsvc "github.com/larb26656/my-feed/backend/internal/modules/fetch/service"
 	filestorage "github.com/larb26656/my-feed/backend/internal/modules/file/service"
+	obtainrss "github.com/larb26656/my-feed/backend/internal/modules/obtain/adapter/rss"
+	obtainyoutube "github.com/larb26656/my-feed/backend/internal/modules/obtain/adapter/youtube"
+	obtainapi "github.com/larb26656/my-feed/backend/internal/modules/obtain/api"
+	obtain "github.com/larb26656/my-feed/backend/internal/modules/obtain/service"
 	sourcehttp "github.com/larb26656/my-feed/backend/internal/modules/source/adapter/http"
 	sourcesqlite "github.com/larb26656/my-feed/backend/internal/modules/source/adapter/sqlite"
-	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
 	sourcesvc "github.com/larb26656/my-feed/backend/internal/modules/source/service"
 	sourcelifecycle "github.com/larb26656/my-feed/backend/internal/modules/sourcelifecycle/service"
 	"github.com/larb26656/my-feed/backend/internal/platform/apidocs"
@@ -82,6 +79,7 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 	entryService := entrysvc.New(entryRepo, sourceService)
 
 	obtainRegistry := newObtainRegistry(http.DefaultClient)
+	sourceService.SetObtainer(obtainRegistry)
 
 	fetchRepo := fetchsqlite.NewRepository(pool.DB)
 	fetchService := fetchsvc.New(
@@ -133,7 +131,6 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 
 	sourceLifecycle := sourcelifecycle.New(pool, sourceService, fetchService)
 	sourceHandler := sourcehttp.NewHandler(sourceService, sourceLifecycle)
-	previewhttp.NewHandler(sourcepreview.New(sourceService, obtainRegistry)).RegisterRoutes(protected.Group("/sources"))
 	sourceHandler.RegisterRoutes(protected.Group("/sources"))
 	entryhttp.NewHandler(entryService).RegisterRoutes(protected.Group("/entries"))
 	fetchhttp.NewHandler(fetchService).RegisterRoutes(protected.Group("/fetch-jobs"))
@@ -146,8 +143,8 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 
 func newObtainRegistry(client *http.Client) *obtain.Registry {
 	registry := obtain.NewRegistry()
-	registry.Register(sourceapi.SourceTypeRSS, obtainrss.New(client))
-	registry.Register(sourceapi.SourceTypeYouTube, obtainyoutube.New(client))
+	registry.Register(obtainapi.ProviderRSS, obtainrss.New(client))
+	registry.Register(obtainapi.ProviderYouTube, obtainyoutube.New(client))
 	return registry
 }
 

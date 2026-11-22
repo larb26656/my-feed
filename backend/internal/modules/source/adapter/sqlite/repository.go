@@ -132,12 +132,12 @@ func (r *Repository) CreateSource(ctx context.Context, s *domain.Source) error {
 		s.ID.String(), s.Name, string(s.Type), rssURL, channelID, s.Active, s.CreatedAt.UTC().UnixNano(), s.UpdatedAt.UTC().UnixNano())
 	if database.IsUniqueConstraintViolation(err) {
 		if s.Type == domain.TypeManual {
-			return domain.ErrConflict.Wrap(err, "manual source already exists")
+			return apperr.ResourceConflict.Wrap(err, "manual source already exists")
 		}
 		if s.Type == domain.TypeYouTube {
-			return domain.ErrConflict.Wrap(err, "youtube channel already in use")
+			return apperr.ResourceConflict.Wrap(err, "youtube channel already in use")
 		}
-		return domain.ErrConflict.Wrap(err, "rss url already in use")
+		return apperr.ResourceConflict.Wrap(err, "rss url already in use")
 	}
 	return err
 }
@@ -180,7 +180,7 @@ func (r *Repository) UpdateSource(ctx context.Context, s *domain.Source) error {
 	result, err := r.q.ExecContext(ctx, `UPDATE sources SET name = ?, type = ?, rss_url = ?, active = ?, updated_at = ? WHERE id = ?`,
 		s.Name, string(s.Type), rssURL, s.Active, s.UpdatedAt.UTC().UnixNano(), s.ID.String())
 	if database.IsUniqueConstraintViolation(err) {
-		return domain.ErrConflict.Wrap(err, "rss url already in use")
+		return apperr.ResourceConflict.Wrap(err, "rss url already in use")
 	}
 	if err != nil {
 		return err

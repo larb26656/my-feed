@@ -24,6 +24,7 @@ func NewHandler(svc *service.Service, lifecycle sourceapi.Lifecycle) *Handler {
 
 func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/", h.createSource)
+	r.POST("/preview", h.previewSource)
 	r.POST("", h.createSource)
 	r.GET("/", h.listSources)
 	r.GET("", h.listSources)
@@ -288,4 +289,25 @@ func (h *Handler) removeProfileImage(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, httpx.Success(toSourceResponse(src)))
+}
+
+// @Summary Test fetch a Source
+// @Tags Sources
+// @Accept json
+// @Produce json
+// @Param request body previewSourceRequest true "Source configuration"
+// @Success 200 {object} httpx.SuccessResponse[previewResponse]
+// @Failure 400 {object} httpx.ErrorResponse
+// @Router /api/v1/sources/preview [post]
+func (h *Handler) previewSource(c *gin.Context) {
+	var req previewSourceRequest
+	if !httpx.BindJSON(c, &req) {
+		return
+	}
+	entry, err := h.svc.Preview(c.Request.Context(), sourceapi.PreviewInput{Type: req.Type, RSSURL: req.RSSURL, YouTubeChannelID: req.YouTubeChannelID})
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	c.JSON(http.StatusOK, httpx.Success(toPreviewResponse(entry)))
 }

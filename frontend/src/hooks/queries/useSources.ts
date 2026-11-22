@@ -157,7 +157,7 @@ export function usePreviewSource() {
 		}) =>
 			api<{
 				entry:
-					| import("#/lib/api/schema").components["schemas"]["internal_modules_sourcepreview_adapter_http.previewEntryResponse"]
+					| import("#/lib/api/schema").components["schemas"]["internal_modules_source_adapter_http.previewEntryResponse"]
 					| null;
 			}>("/sources/preview", {
 				method: "POST",

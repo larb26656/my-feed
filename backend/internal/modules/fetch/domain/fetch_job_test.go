@@ -55,7 +55,7 @@ func TestClaimRejectsNonPending(t *testing.T) {
 	require.Error(t, err)
 	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, domain.ErrConflict.Code, ae.Code)
+	require.Equal(t, apperr.ResourceConflict.Code, ae.Code)
 }
 
 func TestClaimRejectsBeforeNextAttemptAt(t *testing.T) {
@@ -69,7 +69,7 @@ func TestClaimRejectsBeforeNextAttemptAt(t *testing.T) {
 	require.Error(t, err)
 	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, domain.ErrConflict.Code, ae.Code)
+	require.Equal(t, apperr.ResourceConflict.Code, ae.Code)
 	require.Equal(t, domain.StatusPending, job.Status)
 	require.Equal(t, 1, job.Attempt)
 }
@@ -114,7 +114,7 @@ func TestSucceedRejectsNonRunning(t *testing.T) {
 	require.Error(t, err)
 	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, domain.ErrConflict.Code, ae.Code)
+	require.Equal(t, apperr.ResourceConflict.Code, ae.Code)
 }
 
 func TestFailRunningMovesToFailed(t *testing.T) {
@@ -134,7 +134,7 @@ func TestFailRejectsNonRunning(t *testing.T) {
 	require.Error(t, err)
 	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, domain.ErrConflict.Code, ae.Code)
+	require.Equal(t, apperr.ResourceConflict.Code, ae.Code)
 }
 
 func TestFailPendingMovesPendingToFailed(t *testing.T) {
@@ -154,7 +154,7 @@ func TestFailPendingRejectsNonPending(t *testing.T) {
 	require.Error(t, err)
 	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, domain.ErrConflict.Code, ae.Code)
+	require.Equal(t, apperr.ResourceConflict.Code, ae.Code)
 }
 
 func TestScheduleRetryMovesToPendingWithNextAttemptAt(t *testing.T) {
@@ -185,5 +185,5 @@ func TestScheduleRetryRejectsWhenNoAttemptsRemain(t *testing.T) {
 	require.Error(t, err)
 	var ae *apperr.AppError
 	require.ErrorAs(t, err, &ae)
-	require.Equal(t, domain.ErrConflict.Code, ae.Code)
+	require.Equal(t, apperr.ResourceConflict.Code, ae.Code)
 }

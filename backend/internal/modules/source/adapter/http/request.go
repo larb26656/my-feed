@@ -26,3 +26,9 @@ type listSourcesQuery struct {
 	SortBy        string `form:"sortBy" binding:"oneof=name type active createdAt"`
 	SortDirection string `form:"sortDirection" binding:"oneof=asc desc"`
 }
+
+type previewSourceRequest struct {
+	Type             string `json:"type" binding:"required"`
+	RSSURL           string `json:"rssUrl"`
+	YouTubeChannelID string `json:"youtubeChannelId"`
+}

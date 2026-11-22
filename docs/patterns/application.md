@@ -36,7 +36,7 @@ Wire the implementation in bootstrap. Reuse the provider's existing service when
 
 When a use case coordinates operations owned by multiple modules, place its orchestration in `internal/modules/{usecase}/service`. Inject the participating modules' `api` contracts and let bootstrap construct and connect their implementations. Keep the use-case sequence, result selection, error translation, and other behavior in the service; bootstrap owns dependency construction and process wiring.
 
-For example, `sourcepreview` asks Source to validate a proposed configuration, calls Fetch to obtain entries, and returns the first entry. Its HTTP adapter belongs to the use-case module, so Source does not depend on the orchestrator and create a module cycle. A direct call through a provider's API is sufficient when a module owns the use case and the dependency graph remains acyclic; a new orchestration module is not needed solely to connect dependencies.
+Source owns preview and calls Obtain through its API after validating the proposed configuration. Fetch calls the same API when executing a Fetch Job. Obtain dispatches to provider adapters and returns normalized entries. Workflows own persistence and transaction boundaries.
 
 When repository operations across modules must succeed together, bind their ports to the same transaction.
 
