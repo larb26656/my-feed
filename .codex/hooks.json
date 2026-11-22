@@ -8,6 +8,12 @@
             "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/check_backend.py\"",
             "timeout": 600,
             "statusMessage": "Checking backend architecture, formatting, and lint"
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/check_frontend.py\"",
+            "timeout": 600,
+            "statusMessage": "Checking frontend formatting and lint"
           }
         ]
       }

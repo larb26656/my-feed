@@ -9,12 +9,25 @@ const types: Record<
 	manual: { label: "Manual", icon: Layers3, iconClassName: "text-blue-600" },
 };
 
-export function SourceTypeBadge({ type }: { type: string }) {
+export function SourceTypeBadge({
+	type,
+	variant = "outline",
+}: {
+	type: string;
+	variant?: "outline" | "inline";
+}) {
 	const sourceType = types[type];
 	const Icon = sourceType?.icon;
 
 	return (
-		<Badge variant="outline">
+		<Badge
+			variant="outline"
+			className={
+				variant === "inline"
+					? "h-auto border-0 p-0 font-normal text-muted-foreground"
+					: undefined
+			}
+		>
 			{type === "youtube" && (
 				<svg aria-hidden="true" viewBox="0 0 24 24">
 					<rect x="2" y="4" width="20" height="16" rx="4" fill="#ff0000" />

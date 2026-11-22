@@ -77,10 +77,17 @@ function renderNode(node: Node, key: number): ReactNode {
 	return <Tag key={key}>{children}</Tag>;
 }
 
-export function RichDescription({ html }: { html: string }) {
+export function RichDescription({
+	html,
+	expanded = false,
+	onOverflowChange,
+}: {
+	html: string;
+	expanded?: boolean;
+	onOverflowChange?: (overflowing: boolean) => void;
+}) {
 	const parsed = new DOMParser().parseFromString(html, "text/html");
 	const contentRef = useRef<HTMLDivElement>(null);
-	const [expanded, setExpanded] = useState(false);
 	const [overflowing, setOverflowing] = useState(false);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: remeasure when html content changes
@@ -89,14 +96,16 @@ export function RichDescription({ html }: { html: string }) {
 		if (!content) return;
 		const measure = () => {
 			const limit = parseFloat(getComputedStyle(content).lineHeight) * 5;
-			setOverflowing(content.scrollHeight > limit + 1);
+			const isOverflowing = content.scrollHeight > limit + 1;
+			setOverflowing(isOverflowing);
+			onOverflowChange?.(isOverflowing);
 		};
 		measure();
 		if (typeof ResizeObserver === "undefined") return;
 		const observer = new ResizeObserver(measure);
 		observer.observe(content);
 		return () => observer.disconnect();
-	}, [html]);
+	}, [html, onOverflowChange]);
 
 	return (
 		<div className="mt-1 text-sm leading-relaxed text-foreground/90">
@@ -115,16 +124,6 @@ export function RichDescription({ html }: { html: string }) {
 					renderNode(node, index),
 				)}
 			</div>
-			{overflowing && (
-				<button
-					type="button"
-					aria-expanded={expanded}
-					onClick={() => setExpanded(!expanded)}
-					className="mt-1 font-medium text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
-				>
-					{expanded ? "See less" : "See more"}
-				</button>
-			)}
 		</div>
 	);
 }
