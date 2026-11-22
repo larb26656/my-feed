@@ -8,8 +8,18 @@ import { FeedPage } from "./FeedPage";
 import { FeedProvider, useFeedState } from "./FeedState";
 
 vi.mock("@tanstack/react-router", () => ({
-	Link: ({ children }: { children: React.ReactNode }) => (
-		<a href="/sources">{children}</a>
+	Link: ({
+		children,
+		to,
+		search,
+	}: {
+		children: React.ReactNode;
+		to?: string;
+		search?: { sourceId?: string };
+	}) => (
+		<a href={search?.sourceId ? `${to}?sourceId=${search.sourceId}` : to}>
+			{children}
+		</a>
 	),
 }));
 afterEach(() => {
@@ -68,6 +78,9 @@ test("combines Source and Saved while retaining names of deactivated Sources", a
 		</QueryClientProvider>,
 	);
 	expect(await screen.findAllByText("Deactivated Source")).toHaveLength(2);
+	expect(
+		screen.getByRole("link", { name: "Manage sources" }).getAttribute("href"),
+	).toBe("/sources?sourceId=inactive");
 	await waitFor(() =>
 		expect(
 			calls.some((url) => {

@@ -9,9 +9,10 @@ export type SourceFilters = {
 	type: string;
 };
 
-export function useSources() {
+export function useSources(enabled = true) {
 	return useQuery({
 		queryKey: sourceKeys.all,
+		enabled,
 		queryFn: async () => {
 			const sources: Source[] = [];
 			let page = 1;

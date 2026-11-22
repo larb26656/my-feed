@@ -63,12 +63,25 @@ function listMeta(total: number, page = 1, pageSize = 10) {
 function filterSources(url: string, sources: Array<Record<string, unknown>>) {
 	const params = new URL(url, "http://local").searchParams;
 	const activeEqual = params.get("activeEqual");
+	const nameLike = params.get("nameLike")?.toLowerCase();
+	const typeEqual = params.get("typeEqual");
 	const page = Number(params.get("page") ?? "1");
 	const pageSize = Number(params.get("pageSize") ?? "10");
-	const filtered =
-		activeEqual === null
-			? sources
-			: sources.filter((source) => String(source.active) === activeEqual);
+	const filtered = sources.filter((source) => {
+		if (activeEqual !== null && String(source.active) !== activeEqual) {
+			return false;
+		}
+		if (
+			nameLike &&
+			!String(source.name ?? "")
+				.toLowerCase()
+				.includes(nameLike)
+		) {
+			return false;
+		}
+		if (typeEqual && source.type !== typeEqual) return false;
+		return true;
+	});
 	const start = (page - 1) * pageSize;
 	return {
 		data: filtered.slice(start, start + pageSize),
@@ -366,6 +379,42 @@ test("sends search criteria and resets the page", async () => {
 			}),
 		).toBe(true),
 	);
+});
+
+test("opens management focused on one Source", async () => {
+	const sources = [
+		{ id: "yt", name: "Fireship", type: "youtube", active: true },
+		{ id: "rss", name: "Engineering Blog", type: "rss", active: true },
+		{ id: "old", name: "Old Channel", type: "rss", active: false },
+	];
+	vi.stubGlobal(
+		"fetch",
+		vi.fn(async (url: string, init?: RequestInit) => {
+			if (isSourcesList(url, init)) {
+				const page = filterSources(url, sources);
+				return okJson(page.data, page.meta);
+			}
+			return okJson([]);
+		}),
+	);
+	const client = new QueryClient({
+		defaultOptions: { queries: { retry: false } },
+	});
+	render(
+		<QueryClientProvider client={client}>
+			<SourcesPage focusSourceId="old" />
+		</QueryClientProvider>,
+	);
+	expect(await screen.findByRole("link", { name: "Old Channel" })).toBeTruthy();
+	await waitFor(() =>
+		expect(screen.queryByRole("link", { name: "Fireship" })).toBeNull(),
+	);
+	expect(
+		(screen.getByLabelText("Search by name") as HTMLInputElement).value,
+	).toBe("Old Channel");
+	expect(
+		screen.getByRole("tab", { name: "Inactive" }).getAttribute("aria-selected"),
+	).toBe("true");
 });
 
 test("closes the source dialog with Escape and restores focus", async () => {
