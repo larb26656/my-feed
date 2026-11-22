@@ -8,7 +8,7 @@ import {
 } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, expect, test, vi } from "vitest";
-import { DesktopSidebar } from "./DesktopSidebar";
+import { AppSidebar } from "./AppSidebar";
 
 const feedState = vi.hoisted(() => ({
 	sources: [] as Array<{
@@ -87,7 +87,7 @@ test("puts Manage Sources in the main menu and lists sources returned by the sid
 		})),
 	];
 
-	render(<DesktopSidebar />);
+	render(<AppSidebar />);
 
 	const mainNav = screen.getByRole("navigation", { name: "Main navigation" });
 	expect(
