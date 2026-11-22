@@ -462,3 +462,50 @@ func decodeFailure(t *testing.T, response *httptest.ResponseRecorder) httpx.Erro
 	require.False(t, result.Success)
 	return result.Error
 }
+
+func TestPreviewRSSReturnsFirstEntryWithoutPersisting(t *testing.T) {
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`<rss version="2.0"><channel><title>News</title><link>https://example.test</link><description>News</description><item><title>First</title><link>https://example.test/first</link></item><item><title>Second</title><link>https://example.test/second</link></item></channel></rss>`))
+	}))
+	defer origin.Close()
+	router := api.New(t)
+	response := testkit.Request(t, router, "POST", "/api/v1/sources/preview", map[string]string{"type": "rss", "rssUrl": origin.URL}, 200)
+	result := testkit.Decode[httpx.SuccessResponse[map[string]any]](t, response)
+	require.Equal(t, "First", result.Data["entry"].(map[string]any)["title"])
+	require.NotContains(t, result.Data["entry"].(map[string]any), "publishedAt")
+	sources := decodeSuccess[[]source](t, testkit.Request(t, router, "GET", "/api/v1/sources/", nil, 200))
+	require.Len(t, sources, 1)
+}
+
+func TestPreviewAtomAndEmptyAndFailures(t *testing.T) {
+	for _, tc := range []struct {
+		name, body string
+		status     int
+		wantTitle  string
+		wantStatus int
+	}{
+		{"atom", `<feed xmlns="http://www.w3.org/2005/Atom"><title>Feed</title><id>urn:feed</id><updated>2024-01-01T00:00:00Z</updated><entry><title>Atom first</title><id>urn:entry</id><link href="https://example.test/a"/><updated>2024-01-01T00:00:00Z</updated></entry></feed>`, 200, "Atom first", 200},
+		{"empty", `<rss version="2.0"><channel><title>Empty</title><link>https://example.test</link><description>Empty</description></channel></rss>`, 200, "", 200},
+		{"invalid document", `not a feed`, 200, "", 400},
+		{"upstream failure", `unavailable`, 503, "", 400},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer origin.Close()
+			router := api.New(t)
+			response := testkit.Request(t, router, "POST", "/api/v1/sources/preview", map[string]string{"type": "rss", "rssUrl": origin.URL}, tc.wantStatus)
+			if tc.wantStatus != 200 {
+				return
+			}
+			result := testkit.Decode[httpx.SuccessResponse[map[string]any]](t, response)
+			if tc.wantTitle == "" {
+				require.Nil(t, result.Data["entry"])
+			} else {
+				require.Equal(t, tc.wantTitle, result.Data["entry"].(map[string]any)["title"])
+			}
+		})
+	}
+}

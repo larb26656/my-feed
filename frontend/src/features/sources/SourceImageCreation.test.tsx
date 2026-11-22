@@ -107,3 +107,60 @@ test.each([
 		),
 	).toHaveLength(2);
 });
+
+test("updates preview presentation when the name and cropped image change", async () => {
+	const user = userEvent.setup();
+	vi.spyOn(URL, "createObjectURL")
+		.mockReturnValueOnce("blob:original")
+		.mockReturnValue("blob:cropped");
+	vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+	class ImageStub {
+		onload: (() => void) | null = null;
+		set src(_: string) {
+			this.onload?.();
+		}
+		async decode() {}
+	}
+	vi.stubGlobal("Image", ImageStub);
+	vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+		drawImage: vi.fn(),
+	} as unknown as CanvasRenderingContext2D);
+	vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation(
+		(callback) => callback(new Blob(["jpeg"], { type: "image/jpeg" })),
+	);
+	const fetchMock = vi.fn(async () =>
+		okJson({
+			entry: { title: "Preview entry", link: "https://example.test/entry" },
+		}),
+	);
+	vi.stubGlobal("fetch", fetchMock);
+	render(
+		<QueryClientProvider
+			client={
+				new QueryClient({ defaultOptions: { queries: { retry: false } } })
+			}
+		>
+			<SourceDialog editing={null} onClose={vi.fn()} />
+		</QueryClientProvider>,
+	);
+	await user.type(
+		screen.getByLabelText("RSS / Atom feed URL"),
+		"https://example.test/feed",
+	);
+	await user.click(screen.getByRole("button", { name: "Test fetch" }));
+	await screen.findByRole("link", { name: "Preview entry" });
+	await user.type(screen.getByLabelText("Source name"), "News");
+	await user.upload(
+		screen.getByLabelText("Choose image"),
+		new File(["image"], "photo.png", { type: "image/png" }),
+	);
+	await waitFor(() =>
+		expect(
+			screen
+				.getAllByRole("img", { name: "News avatar" })
+				.some((avatar) => avatar.getAttribute("src") === "blob:cropped"),
+		).toBe(true),
+	);
+	expect(screen.getByRole("link", { name: "Preview entry" })).toBeTruthy();
+	expect(fetchMock).toHaveBeenCalledTimes(1);
+});

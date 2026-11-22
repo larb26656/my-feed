@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
+	fetchapi "github.com/larb26656/my-feed/backend/internal/modules/fetch/api"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/domain"
-	"github.com/larb26656/my-feed/backend/internal/modules/fetch/service"
 	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 )
@@ -35,7 +35,7 @@ var (
 	videoPattern   = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 )
 
-func (a *Adapter) Obtain(ctx context.Context, source *sourceapi.SourceRef) ([]service.PreparedEntry, error) {
+func (a *Adapter) Obtain(ctx context.Context, source *sourceapi.SourceRef) ([]fetchapi.PreparedEntry, error) {
 	if source == nil || !channelPattern.MatchString(source.YouTubeChannelID) {
 		return nil, apperr.InvalidInput.New("invalid youtube channel ID")
 	}
@@ -91,13 +91,13 @@ func (a *Adapter) Obtain(ctx context.Context, source *sourceapi.SourceRef) ([]se
 			return nil, apperr.InvalidInput.New("invalid youtube atom feed document")
 		}
 	}
-	out := make([]service.PreparedEntry, 0, len(feed.Entries))
+	out := make([]fetchapi.PreparedEntry, 0, len(feed.Entries))
 	for _, item := range feed.Entries {
 		id, title := strings.TrimSpace(item.ID), strings.TrimSpace(item.Title)
 		if !videoPattern.MatchString(id) || title == "" {
 			return nil, apperr.InvalidInput.New("invalid youtube feed entry")
 		}
-		e := service.PreparedEntry{Title: title, Link: "https://www.youtube.com/watch?v=" + id, Description: strings.TrimSpace(item.Group.Description)}
+		e := fetchapi.PreparedEntry{Title: title, Link: "https://www.youtube.com/watch?v=" + id, Description: strings.TrimSpace(item.Group.Description)}
 		if thumb := strings.TrimSpace(item.Group.Thumbnail.URL); thumb != "" {
 			e.Thumbnail = &thumb
 		}

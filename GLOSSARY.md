@@ -8,9 +8,16 @@ A personal, single-user reader that aggregates content from multiple external or
 One piece of content the reader can open — typically with title, description, link, and optional thumbnail — that belongs to a Source. It may arrive by fetch (for example from an RSS Source) or by the reader recording a link into the manual Source. It has a source-published time (when known), a recorded time when the system accepted it, a read time when the reader marks it read, and a saved time when the reader bookmarks it. Within a Source, an Entry is the same content when it shares the same link; recording the same link again refreshes that Entry's metadata. Entries remain visible in the main stream even if their Source is deactivated. Each Entry has a stable unique id.
 _Avoid_: Feed (for the readable unit), article, post, item
 
+**Entry Preview**:
+A read-only sample of content obtained from a proposed Source and shown as it would appear in the reader before the Source is created. The sample is temporary and does not become an Entry in the reader.
+_Avoid_: health check, dry run (for the sample)
+
 **Source**:
 An origin of Entries, identified by a type and type-specific configuration. Some types are fetched externally (for example RSS, which requires a unique feed URL); the manual type is a single system-provided Source named "Saved links" that accepts Entries only when the reader records them. A Source may be active or deactivated: deactivated Sources are not given new Fetch Jobs and are omitted from the default Source list, but their Entries remain and still reference them. Fetchable Sources can be deactivated and reactivated; the manual Source cannot be deactivated. The reader creates only fetchable Sources. Distinct from the Entries it produces. An Entry always belongs to a Source.
 _Avoid_: subscription, channel, soft delete
+
+**Source Deletion**:
+The permanent removal of an active or deactivated fetchable Source and all its Entries, including Saved Entries. The manual Source is permanent.
 
 **Source Type**:
 The kind of Source, which determines how Entries arrive and what configuration it needs (`rss`, `manual`, or `youtube`, which follows one YouTube channel). The `rss` type accepts both RSS and Atom documents from a URL; the document format does not define a separate Source Type. The type is fixed when the Source is created.

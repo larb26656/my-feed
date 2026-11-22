@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	entryapi "github.com/larb26656/my-feed/backend/internal/modules/entry/api"
+	fetchapi "github.com/larb26656/my-feed/backend/internal/modules/fetch/api"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/domain"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/repository"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/service"
@@ -190,13 +191,13 @@ func (f *fakeSources) ListActiveFetchable(_ context.Context) ([]sourceapi.Source
 
 type fakeObtain struct {
 	mu    sync.Mutex
-	items []service.PreparedEntry
+	items []fetchapi.PreparedEntry
 	err   error
 	calls int
 	hook  func()
 }
 
-func (f *fakeObtain) Obtain(_ context.Context, _ *sourceapi.SourceRef) ([]service.PreparedEntry, error) {
+func (f *fakeObtain) Obtain(_ context.Context, _ *sourceapi.SourceRef) ([]fetchapi.PreparedEntry, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.calls++
@@ -206,7 +207,7 @@ func (f *fakeObtain) Obtain(_ context.Context, _ *sourceapi.SourceRef) ([]servic
 	if f.err != nil {
 		return nil, f.err
 	}
-	out := make([]service.PreparedEntry, len(f.items))
+	out := make([]fetchapi.PreparedEntry, len(f.items))
 	copy(out, f.items)
 	return out, nil
 }
@@ -528,7 +529,7 @@ func TestHandleSourceDeactivatedFailsPendingJob(t *testing.T) {
 func TestHandleSourceDeactivatedLeavesRunningJobUncancelledButIngestMayFail(t *testing.T) {
 	h := newHarness()
 	sourceID := seedActiveRSS(h.sources)
-	h.obtain.items = []service.PreparedEntry{
+	h.obtain.items = []fetchapi.PreparedEntry{
 		{Title: "One", Link: "https://example.com/1"},
 	}
 
@@ -588,7 +589,7 @@ func TestDeactivatedSourceReceivesNoNewFetchJobs(t *testing.T) {
 func TestExecuteFetchJobSucceedsWithCreatedCount(t *testing.T) {
 	h := newHarness()
 	sourceID := seedActiveRSS(h.sources)
-	h.obtain.items = []service.PreparedEntry{
+	h.obtain.items = []fetchapi.PreparedEntry{
 		{Title: "One", Link: "https://example.com/1"},
 		{Title: "Two", Link: "https://example.com/2"},
 	}
@@ -625,7 +626,7 @@ func TestExecuteFetchJobSucceedsWithZeroCreated(t *testing.T) {
 func TestExecuteFetchJobRefreshDoesNotIncrementCreated(t *testing.T) {
 	h := newHarness()
 	sourceID := seedActiveRSS(h.sources)
-	h.obtain.items = []service.PreparedEntry{
+	h.obtain.items = []fetchapi.PreparedEntry{
 		{Title: "New", Link: "https://example.com/new"},
 		{Title: "Seen", Link: "https://example.com/seen"},
 	}
@@ -672,7 +673,7 @@ func TestExecuteFetchJobRetriesAfterBackoffAndSucceeds(t *testing.T) {
 	h := newHarness()
 	sourceID := seedActiveRSS(h.sources)
 	h.obtain.err = errors.New("origin unreachable")
-	h.obtain.items = []service.PreparedEntry{
+	h.obtain.items = []fetchapi.PreparedEntry{
 		{Title: "One", Link: "https://example.com/1"},
 	}
 
@@ -699,7 +700,7 @@ func TestExecuteFetchJobRetriesAfterBackoffAndSucceeds(t *testing.T) {
 func TestExecuteFetchJobRecordFailureSchedulesRetry(t *testing.T) {
 	h := newHarness()
 	sourceID := seedActiveRSS(h.sources)
-	h.obtain.items = []service.PreparedEntry{
+	h.obtain.items = []fetchapi.PreparedEntry{
 		{Title: "One", Link: "https://example.com/1"},
 	}
 	h.ingest.err = errors.New("ingest blew up")
@@ -749,7 +750,7 @@ func TestExecuteFetchJobReachesMaxAttemptsThenFailed(t *testing.T) {
 func TestExecuteFetchJobEachAttemptRerunsFullPath(t *testing.T) {
 	h := newHarness()
 	sourceID := seedActiveRSS(h.sources)
-	h.obtain.items = []service.PreparedEntry{
+	h.obtain.items = []fetchapi.PreparedEntry{
 		{Title: "One", Link: "https://example.com/1"},
 	}
 	h.ingest.err = errors.New("ingest blew up")
@@ -777,7 +778,7 @@ func TestExecuteFetchJobPassesPreparedFieldsToIngest(t *testing.T) {
 	sourceID := seedActiveRSS(h.sources)
 	thumb := "https://example.com/t.png"
 	published := time.Date(2024, 6, 1, 12, 0, 0, 0, time.UTC)
-	h.obtain.items = []service.PreparedEntry{
+	h.obtain.items = []fetchapi.PreparedEntry{
 		{
 			Title:       "Full",
 			Link:        "https://example.com/full",
@@ -817,7 +818,7 @@ func TestExecuteReadyFetchJobsRunsPendingJobsAcrossSources(t *testing.T) {
 	h := newHarness()
 	a := seedActiveRSS(h.sources)
 	b := seedActiveRSS(h.sources)
-	h.obtain.items = []service.PreparedEntry{
+	h.obtain.items = []fetchapi.PreparedEntry{
 		{Title: "Shared", Link: "https://example.com/shared"},
 	}
 

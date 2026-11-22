@@ -11,7 +11,11 @@ with open(path, encoding="utf-8") as source:
 def visit(value):
     if isinstance(value, dict):
         if value.pop("x-nullable", False):
-            value["type"] = [value["type"], "null"]
+            if "$ref" in value:
+                ref = value.pop("$ref")
+                value["anyOf"] = [{"$ref": ref}, {"type": "null"}]
+            else:
+                value["type"] = [value["type"], "null"]
         for child in value.values():
             visit(child)
     elif isinstance(value, list):

@@ -10,8 +10,8 @@ import (
 
 	"github.com/mmcdole/gofeed"
 
+	fetchapi "github.com/larb26656/my-feed/backend/internal/modules/fetch/api"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/domain"
-	"github.com/larb26656/my-feed/backend/internal/modules/fetch/service"
 	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 )
@@ -33,7 +33,7 @@ func New(client HTTPClient) *Adapter {
 	return &Adapter{client: client}
 }
 
-func (a *Adapter) Obtain(ctx context.Context, source *sourceapi.SourceRef) ([]service.PreparedEntry, error) {
+func (a *Adapter) Obtain(ctx context.Context, source *sourceapi.SourceRef) ([]fetchapi.PreparedEntry, error) {
 	if source == nil {
 		return nil, apperr.InvalidInput.New("source is required")
 	}
@@ -67,7 +67,7 @@ func (a *Adapter) Obtain(ctx context.Context, source *sourceapi.SourceRef) ([]se
 	if err != nil {
 		return nil, apperr.InvalidInput.New("invalid or unsupported feed document")
 	}
-	entries := make([]service.PreparedEntry, 0, len(feed.Items))
+	entries := make([]fetchapi.PreparedEntry, 0, len(feed.Items))
 	for _, item := range feed.Items {
 		title, link := strings.TrimSpace(item.Title), strings.TrimSpace(item.Link)
 		if title == "" || link == "" {
@@ -77,7 +77,7 @@ func (a *Adapter) Obtain(ctx context.Context, source *sourceapi.SourceRef) ([]se
 		if description == "" {
 			description = strings.TrimSpace(item.Content)
 		}
-		entry := service.PreparedEntry{Title: title, Link: link, Description: description, PublishedAt: item.PublishedParsed}
+		entry := fetchapi.PreparedEntry{Title: title, Link: link, Description: description, PublishedAt: item.PublishedParsed}
 		if item.Image != nil && strings.TrimSpace(item.Image.URL) != "" {
 			thumbnail := strings.TrimSpace(item.Image.URL)
 			entry.Thumbnail = &thumbnail

@@ -13,23 +13,35 @@ import { formatDate } from "#/lib/date";
 import { cn } from "#/lib/utils";
 import { RichDescription } from "./RichDescription";
 import type { Entry, Source } from "./types";
-export function FeedItem({
-	entry,
-	source,
-	disabled,
-	onToggle,
-}: {
-	entry: Entry;
-	source?: Source;
-	disabled: boolean;
-	onToggle: (entry: Entry, action: "read" | "save") => void;
-}) {
+
+type PreviewEntry = {
+	title: string;
+	link: string;
+	description?: string;
+	thumbnail?: string;
+	publishedAt?: string;
+};
+type PreviewSource = { name: string; type: string; image?: string | null };
+type Props =
+	| { preview: true; entry: PreviewEntry; source: PreviewSource }
+	| {
+			preview?: false;
+			entry: Entry;
+			source?: Source;
+			disabled: boolean;
+			onToggle: (entry: Entry, action: "read" | "save") => void;
+	  };
+export function FeedItem(props: Props) {
+	const { entry, source } = props;
+	const preview = props.preview === true;
+
 	const [copied, setCopied] = useState(false);
 	const [expanded, setExpanded] = useState(false);
 	const [overflowing, setOverflowing] = useState(false);
-	const read = !!entry.readAt;
-	const saved = !!entry.savedAt;
-	const date = entry.publishedAt ?? entry.createdAt;
+	const read = !preview && !!(entry as Entry).readAt;
+	const saved = !preview && !!(entry as Entry).savedAt;
+	const date =
+		entry.publishedAt ?? (preview ? undefined : (entry as Entry).createdAt);
 	const description =
 		entry.description?.trim() === entry.title.trim() ? "" : entry.description;
 	const copyLink = () => {
@@ -41,36 +53,57 @@ export function FeedItem({
 
 	return (
 		<article className="flex gap-3 bg-card p-4 sm:gap-4 md:rounded-xl md:border md:border-border">
-			<Link
-				to="/sources/$sourceId"
-				params={{ sourceId: entry.sourceId }}
-				aria-label={`View ${source?.name ?? "Source"} feed`}
-				className="shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-primary"
-			>
-				<SourceAvatar
-					name={source?.name ?? "Source"}
-					imageId={source?.profileImageId}
-					sourceId={source?.id}
-					className="!size-8 sm:!size-10"
-				/>
-			</Link>
+			{preview ? (
+				source && "image" in source && source.image ? (
+					<img
+						src={source.image}
+						alt={`${source.name} avatar`}
+						className="size-8 rounded-full object-cover sm:size-10"
+					/>
+				) : (
+					<SourceAvatar
+						name={source?.name ?? "Source"}
+						className="!size-8 sm:!size-10"
+					/>
+				)
+			) : (
+				<Link
+					to="/sources/$sourceId"
+					params={{ sourceId: (entry as Entry).sourceId }}
+					aria-label={`View ${source?.name ?? "Source"} feed`}
+					className="shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-primary"
+				>
+					<SourceAvatar
+						name={source?.name ?? "Source"}
+						imageId={(source as Source | undefined)?.profileImageId}
+						sourceId={(source as Source | undefined)?.id}
+						className="!size-8 sm:!size-10"
+					/>
+				</Link>
+			)}
 			<div className="min-w-0 flex-1">
 				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
 					<div className="min-w-0 flex-1 mb-1">
 						<div className="min-w-0">
-							<Link
-								to="/sources/$sourceId"
-								params={{ sourceId: entry.sourceId }}
-								className="block truncate text-sm font-semibold hover:underline"
-							>
-								{source?.name ?? "Source"}
-							</Link>
+							{preview ? (
+								<span className="block truncate text-sm font-semibold">
+									{source?.name || "Source"}
+								</span>
+							) : (
+								<Link
+									to="/sources/$sourceId"
+									params={{ sourceId: (entry as Entry).sourceId }}
+									className="block truncate text-sm font-semibold hover:underline"
+								>
+									{source?.name ?? "Source"}
+								</Link>
+							)}
 							<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
 								{source && (
 									<SourceTypeBadge type={source.type} variant="inline" />
 								)}
-								{source && <span aria-hidden="true">·</span>}
-								<time dateTime={date}>{formatDate(date)}</time>
+								{source && date && <span aria-hidden="true">·</span>}
+								{date && <time dateTime={date}>{formatDate(date)}</time>}
 							</div>
 						</div>
 						<h3
@@ -122,55 +155,61 @@ export function FeedItem({
 							{expanded ? "See less" : "See more"}
 						</button>
 					)}
-					<div className="ml-auto flex items-center gap-x-2 sm:gap-x-4">
-						<button
-							type="button"
-							disabled={disabled}
-							onClick={() => onToggle(entry, "read")}
-							aria-label={
-								read
-									? `Mark ${entry.title} as unread`
-									: `Mark ${entry.title} as read`
-							}
-							aria-pressed={read}
-							title={read ? "Read" : "Mark as read"}
-							className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 sm:min-h-10 sm:min-w-0 rounded-md px-2 text-xs hover:bg-muted disabled:opacity-50"
-						>
-							{read ? <CircleCheck size={17} /> : <BookOpenCheck size={17} />}
-						</button>
-						<button
-							type="button"
-							onClick={copyLink}
-							aria-label={copied ? "Link copied" : "Copy link"}
-							title={copied ? "Link copied" : "Copy link"}
-							className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 sm:min-h-10 sm:min-w-0 rounded-md px-2 text-xs hover:bg-muted"
-						>
-							{copied ? (
-								<Check size={18} strokeWidth={1.9} />
-							) : (
-								<Copy size={18} strokeWidth={1.7} />
-							)}
-						</button>
-						<button
-							type="button"
-							disabled={disabled}
-							onClick={() => onToggle(entry, "save")}
-							aria-label={
-								saved
-									? `Remove ${entry.title} from Saved`
-									: `Save ${entry.title}`
-							}
-							aria-pressed={saved}
-							title={saved ? "Remove from saved" : "Saved"}
-							className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 sm:min-h-10 sm:min-w-0 rounded-md px-2 text-xs hover:bg-muted disabled:opacity-50"
-						>
-							<Bookmark
-								size={18}
-								strokeWidth={1.7}
-								fill={saved ? "currentColor" : "none"}
-							/>
-						</button>
-					</div>
+					{!preview && (
+						<div className="ml-auto flex items-center gap-x-2 sm:gap-x-4">
+							<button
+								type="button"
+								disabled={!preview && props.disabled}
+								onClick={() =>
+									!preview && props.onToggle(entry as Entry, "read")
+								}
+								aria-label={
+									read
+										? `Mark ${entry.title} as unread`
+										: `Mark ${entry.title} as read`
+								}
+								aria-pressed={read}
+								title={read ? "Read" : "Mark as read"}
+								className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 sm:min-h-10 sm:min-w-0 rounded-md px-2 text-xs hover:bg-muted disabled:opacity-50"
+							>
+								{read ? <CircleCheck size={17} /> : <BookOpenCheck size={17} />}
+							</button>
+							<button
+								type="button"
+								onClick={copyLink}
+								aria-label={copied ? "Link copied" : "Copy link"}
+								title={copied ? "Link copied" : "Copy link"}
+								className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 sm:min-h-10 sm:min-w-0 rounded-md px-2 text-xs hover:bg-muted"
+							>
+								{copied ? (
+									<Check size={18} strokeWidth={1.9} />
+								) : (
+									<Copy size={18} strokeWidth={1.7} />
+								)}
+							</button>
+							<button
+								type="button"
+								disabled={!preview && props.disabled}
+								onClick={() =>
+									!preview && props.onToggle(entry as Entry, "save")
+								}
+								aria-label={
+									saved
+										? `Remove ${entry.title} from Saved`
+										: `Save ${entry.title}`
+								}
+								aria-pressed={saved}
+								title={saved ? "Remove from saved" : "Saved"}
+								className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 sm:min-h-10 sm:min-w-0 rounded-md px-2 text-xs hover:bg-muted disabled:opacity-50"
+							>
+								<Bookmark
+									size={18}
+									strokeWidth={1.7}
+									fill={saved ? "currentColor" : "none"}
+								/>
+							</button>
+						</div>
+					)}
 				</div>
 			</div>
 		</article>

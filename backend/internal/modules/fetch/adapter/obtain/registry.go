@@ -4,30 +4,30 @@ import (
 	"context"
 	"fmt"
 
+	fetchapi "github.com/larb26656/my-feed/backend/internal/modules/fetch/api"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/domain"
-	"github.com/larb26656/my-feed/backend/internal/modules/fetch/service"
 	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 )
 
-// Registry dispatches obtain adapters by Source Type. It implements service.Obtain.
+// Registry dispatches obtain adapters by Source Type. It implements fetchapi.Obtain.
 type Registry struct {
-	byType map[sourceapi.SourceType]service.Obtain
+	byType map[sourceapi.SourceType]fetchapi.Obtain
 }
 
 func NewRegistry() *Registry {
-	return &Registry{byType: make(map[sourceapi.SourceType]service.Obtain)}
+	return &Registry{byType: make(map[sourceapi.SourceType]fetchapi.Obtain)}
 }
 
 // Register wires an obtain adapter for a Source Type. Later registrations replace earlier ones.
-func (r *Registry) Register(typ sourceapi.SourceType, adapter service.Obtain) {
+func (r *Registry) Register(typ sourceapi.SourceType, adapter fetchapi.Obtain) {
 	if adapter == nil {
 		return
 	}
 	r.byType[typ] = adapter
 }
 
-func (r *Registry) Obtain(ctx context.Context, source *sourceapi.SourceRef) ([]service.PreparedEntry, error) {
+func (r *Registry) Obtain(ctx context.Context, source *sourceapi.SourceRef) ([]fetchapi.PreparedEntry, error) {
 	if source == nil {
 		return nil, apperr.InvalidInput.New("source is required")
 	}

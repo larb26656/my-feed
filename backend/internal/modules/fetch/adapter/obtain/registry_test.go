@@ -8,24 +8,24 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/adapter/obtain"
+	fetchapi "github.com/larb26656/my-feed/backend/internal/modules/fetch/api"
 	"github.com/larb26656/my-feed/backend/internal/modules/fetch/domain"
-	"github.com/larb26656/my-feed/backend/internal/modules/fetch/service"
 	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 )
 
 type stubObtain struct {
-	items []service.PreparedEntry
+	items []fetchapi.PreparedEntry
 }
 
-func (s stubObtain) Obtain(_ context.Context, _ *sourceapi.SourceRef) ([]service.PreparedEntry, error) {
+func (s stubObtain) Obtain(_ context.Context, _ *sourceapi.SourceRef) ([]fetchapi.PreparedEntry, error) {
 	return s.items, nil
 }
 
 func TestRegistryDispatchesBySourceType(t *testing.T) {
 	reg := obtain.NewRegistry()
 	reg.Register(sourceapi.SourceTypeRSS, stubObtain{
-		items: []service.PreparedEntry{{Title: "A", Link: "https://example.com/a"}},
+		items: []fetchapi.PreparedEntry{{Title: "A", Link: "https://example.com/a"}},
 	})
 
 	items, err := reg.Obtain(context.Background(), &sourceapi.SourceRef{

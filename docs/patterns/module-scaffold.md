@@ -45,7 +45,7 @@ Wire modules in `internal/bootstrap/app.go`.
 3. For module-to-module calls, wire the implementation of the provider-owned API interface into the calling module. Construct cross-module use cases with the ports and transaction helper they need. See the [application service pattern](./application.md#module-to-module-calls).
 4. Construct the handler with the service and call `RegisterRoutes` on the router group for that API.
 
-Keep a cross-module use case in `internal/modules/{usecase}/service/` when it coordinates multiple modules. Depend on other modules only through `api` contracts. Use the transaction helper to bind participating repository ports to the same transaction when their writes must succeed together.
+Keep cross-module behavior in an orchestration service rather than bootstrap. See [cross-module use cases](./application.md#cross-module-use-case) for when to introduce one, dependency direction, and transaction ownership.
 
 ## Migrations
 

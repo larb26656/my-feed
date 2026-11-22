@@ -34,7 +34,11 @@ Wire the implementation in bootstrap. Reuse the provider's existing service when
 
 ## Cross-module use case
 
-Place cross-module orchestration in `internal/modules/{usecase}/service`. Depend on participating modules only through their `api` contracts; bootstrap wires the concrete services. When repository operations across modules must succeed together, bind their ports to the same transaction.
+When a use case coordinates operations owned by multiple modules, place its orchestration in `internal/modules/{usecase}/service`. Inject the participating modules' `api` contracts and let bootstrap construct and connect their implementations. Keep the use-case sequence, result selection, error translation, and other behavior in the service; bootstrap owns dependency construction and process wiring.
+
+For example, `sourcepreview` asks Source to validate a proposed configuration, calls Fetch to obtain entries, and returns the first entry. Its HTTP adapter belongs to the use-case module, so Source does not depend on the orchestrator and create a module cycle. A direct call through a provider's API is sufficient when a module owns the use case and the dependency graph remains acyclic; a new orchestration module is not needed solely to connect dependencies.
+
+When repository operations across modules must succeed together, bind their ports to the same transaction.
 
 ```go
 err := s.db.WithinTransaction(ctx, func(ctx context.Context, tx database.Transaction) error {
@@ -49,7 +53,7 @@ err := s.db.WithinTransaction(ctx, func(ctx context.Context, tx database.Transac
 })
 ```
 
-### Orchestration rules
+### Atomic cross-module writes
 
 - Inject repository ports from the participating modules and keep SQL in their adapters.
 - Use `WithTx(tx)` for each repository operation that belongs to the transaction. The transaction helper owns commit and rollback.

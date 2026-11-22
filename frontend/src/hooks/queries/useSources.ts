@@ -143,3 +143,27 @@ export function useSetSourceActive() {
 		},
 	});
 }
+
+export function usePreviewSource() {
+	return useMutation({
+		mutationFn: async ({
+			signal,
+			...values
+		}: {
+			type: string;
+			rssUrl: string;
+			youtubeChannelId: string;
+			signal: AbortSignal;
+		}) =>
+			api<{
+				entry:
+					| import("#/lib/api/schema").components["schemas"]["internal_modules_sourcepreview_adapter_http.previewEntryResponse"]
+					| null;
+			}>("/sources/preview", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(values),
+				signal,
+			}),
+	});
+}

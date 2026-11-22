@@ -24,20 +24,6 @@ const DefaultRetryBackoff = time.Minute
 // DefaultScheduleInterval is the global fixed-rate interval for schedule rounds.
 const DefaultScheduleInterval = 15 * time.Minute
 
-// PreparedEntry is Entry-ready fields returned by an obtain adapter (no DB writes).
-type PreparedEntry struct {
-	Title       string
-	Link        string
-	Description string
-	Thumbnail   *string
-	PublishedAt *time.Time
-}
-
-// Obtain is the port that obtains Entry-ready items for a Source (fake or real adapter).
-type Obtain interface {
-	Obtain(ctx context.Context, source *sourceapi.SourceRef) ([]PreparedEntry, error)
-}
-
 // Clock provides the current time for retry backoff (injectable in tests).
 type Clock interface {
 	Now() time.Time
@@ -47,7 +33,7 @@ type Clock interface {
 type Service struct {
 	repo             repository.Repository
 	sources          sourceapi.Reader
-	obtain           Obtain
+	obtain           fetchapi.Obtain
 	ingest           entryapi.Ingester
 	clock            Clock
 	retryBackoff     time.Duration
@@ -57,7 +43,7 @@ type Service struct {
 func New(
 	repo repository.Repository,
 	sources sourceapi.Reader,
-	obtain Obtain,
+	obtain fetchapi.Obtain,
 	ingest entryapi.Ingester,
 	clock Clock,
 	retryBackoff time.Duration,

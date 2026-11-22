@@ -124,6 +124,18 @@
                 },
                 "type": "object"
             },
+            "github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_sourcepreview_adapter_http_previewResponse": {
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/internal_modules_sourcepreview_adapter_http.previewResponse"
+                    },
+                    "meta": {},
+                    "success": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
             "internal_bootstrap.healthResponse": {
                 "properties": {
                     "status": {
@@ -459,6 +471,62 @@
                 },
                 "required": [
                     "name"
+                ],
+                "type": "object"
+            },
+            "internal_modules_sourcepreview_adapter_http.previewEntryResponse": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "link": {
+                        "type": "string"
+                    },
+                    "publishedAt": {
+                        "type": "string"
+                    },
+                    "thumbnail": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "link",
+                    "title"
+                ],
+                "type": "object"
+            },
+            "internal_modules_sourcepreview_adapter_http.previewResponse": {
+                "properties": {
+                    "entry": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/internal_modules_sourcepreview_adapter_http.previewEntryResponse"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    }
+                },
+                "type": "object"
+            },
+            "internal_modules_sourcepreview_adapter_http.previewSourceRequest": {
+                "properties": {
+                    "rssUrl": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "youtubeChannelId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "type"
                 ],
                 "type": "object"
             }
@@ -1778,6 +1846,49 @@
                     }
                 },
                 "summary": "Create Source",
+                "tags": [
+                    "Sources"
+                ]
+            }
+        },
+        "/api/v1/sources/preview": {
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/internal_modules_sourcepreview_adapter_http.previewSourceRequest",
+                                "summary": "request",
+                                "description": "Source configuration"
+                            }
+                        }
+                    },
+                    "description": "Source configuration",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_sourcepreview_adapter_http_previewResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    }
+                },
+                "summary": "Test fetch a Source",
                 "tags": [
                     "Sources"
                 ]

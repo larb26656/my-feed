@@ -11,6 +11,9 @@ import (
 	"sync"
 	"time"
 
+	previewhttp "github.com/larb26656/my-feed/backend/internal/modules/sourcepreview/adapter/http"
+	sourcepreview "github.com/larb26656/my-feed/backend/internal/modules/sourcepreview/service"
+
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
@@ -129,7 +132,9 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 	protected.Use(middleware.Authenticate(cfg.Auth.JWTSecret, cfg.APIKey))
 
 	sourceLifecycle := sourcelifecycle.New(pool, sourceService, fetchService)
-	sourcehttp.NewHandler(sourceService, sourceLifecycle).RegisterRoutes(protected.Group("/sources"))
+	sourceHandler := sourcehttp.NewHandler(sourceService, sourceLifecycle)
+	previewhttp.NewHandler(sourcepreview.New(sourceService, obtainRegistry)).RegisterRoutes(protected.Group("/sources"))
+	sourceHandler.RegisterRoutes(protected.Group("/sources"))
 	entryhttp.NewHandler(entryService).RegisterRoutes(protected.Group("/entries"))
 	fetchhttp.NewHandler(fetchService).RegisterRoutes(protected.Group("/fetch-jobs"))
 
