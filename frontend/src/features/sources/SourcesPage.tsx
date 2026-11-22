@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DataTable } from "#/components/data-table/DataTable";
 import { SourceAvatar } from "#/components/SourceAvatar";
 import { SourceTypeBadge } from "#/components/SourceTypeBadge";
@@ -15,6 +15,7 @@ import { SourcesSearch } from "#/features/sources/SourcesSearch";
 import {
 	type SourcesPageSize,
 	useSetSourceActive,
+	useSources,
 	useSourcesPage,
 } from "#/hooks/queries";
 import { formatDate } from "#/lib/date";
@@ -31,11 +32,27 @@ function sourceDetail(source: Source) {
 	return "—";
 }
 
-export function SourcesPage() {
+export function SourcesPage({ focusSourceId }: { focusSourceId?: string }) {
 	const [tab, setTab] = useState<SourcesTab>("active");
 	const [pageIndex, setPageIndex] = useState(0);
 	const [pageSize, setPageSize] = useState<SourcesPageSize>(10);
 	const [appliedFilters, setAppliedFilters] = useState({ name: "", type: "" });
+	const [searchRevision, setSearchRevision] = useState(0);
+	const appliedFocus = useRef<string | null>(null);
+	const focusQuery = useSources(Boolean(focusSourceId));
+	const focused = focusSourceId
+		? focusQuery.data?.find((item) => item.id === focusSourceId)
+		: undefined;
+	useEffect(() => {
+		if (!focusSourceId || !focused || appliedFocus.current === focusSourceId) {
+			return;
+		}
+		appliedFocus.current = focusSourceId;
+		setTab(focused.active ? "active" : "inactive");
+		setAppliedFilters({ name: focused.name, type: focused.type });
+		setPageIndex(0);
+		setSearchRevision((current) => current + 1);
+	}, [focusSourceId, focused]);
 	const [sorting, setSorting] = useState<SortingState>([
 		{ id: "name", desc: false },
 	]);
@@ -234,6 +251,9 @@ export function SourcesPage() {
 					<TabsTrigger value="inactive">Inactive</TabsTrigger>
 				</TabsList>
 				<SourcesSearch
+					key={searchRevision}
+					initialName={appliedFilters.name}
+					initialType={appliedFilters.type || "all"}
 					onSearch={(filters) => {
 						setAppliedFilters(filters);
 						setPageIndex(0);

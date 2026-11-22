@@ -1,16 +1,24 @@
 import { Link } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { buttonVariants } from "#/components/ui/button";
+import { cn } from "#/lib/utils";
 
 export function FeedFilters({
 	sortDirection,
 	setSortDirection,
+	className,
 }: {
 	sortDirection: "asc" | "desc";
 	setSortDirection: (direction: "asc" | "desc") => void;
+	className?: string;
 }) {
 	return (
-		<div className="mb-4 flex flex-wrap items-center justify-end gap-2 px-4 py-2 md:px-0">
+		<div
+			className={cn(
+				"mb-4 flex flex-wrap items-center justify-end gap-2 px-4 py-2 md:px-0",
+				className,
+			)}
+		>
 			<div className="flex items-center gap-3">
 				<select
 					aria-label="Sort entries"

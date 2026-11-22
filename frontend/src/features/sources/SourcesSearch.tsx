@@ -20,12 +20,16 @@ const sourceTypes = [
 ];
 
 export function SourcesSearch({
+	initialName = "",
+	initialType = "all",
 	onSearch,
 }: {
+	initialName?: string;
+	initialType?: string;
 	onSearch: (filters: SourceFilters) => void;
 }) {
-	const [name, setName] = useState("");
-	const [type, setType] = useState("all");
+	const [name, setName] = useState(initialName);
+	const [type, setType] = useState(initialType);
 	return (
 		<form
 			className="mt-4 flex flex-wrap items-end gap-3"

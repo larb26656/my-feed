@@ -28,6 +28,8 @@ export type Source = {
 	createdAt?: string;
 	updatedAt?: string;
 	profileImageId?: string | null;
+	/** Not returned by the API today. The source header hides this when empty. */
+	description?: string | null;
 };
 
 export type FetchJobStatus = "pending" | "running" | "succeeded" | "failed";
