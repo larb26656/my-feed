@@ -179,6 +179,23 @@ export function SourceDialog({
 	const definition = sourceTypes.data?.find(
 		(item) => item.code === selectedType,
 	);
+	// Registry UI metadata has no edit-time readOnly flag yet (ADR 0008 allowlist),
+	// so Bluesky keeps a hardcoded lock and an honest DID label while editing.
+	const configDefinition =
+		definition && editing && definition.code === "bluesky"
+			? {
+					...definition,
+					ui: {
+						...definition.ui,
+						did: {
+							...definition.ui.did,
+							label: "Bluesky DID",
+							description:
+								"Resolved profile identity; cannot be changed after add.",
+						},
+					},
+				}
+			: definition;
 	useEffect(() => {
 		if (!editing && sourceTypes.data?.length && !form.getValues("type")) {
 			form.setValue("type", sourceTypes.data[0].code);
@@ -409,12 +426,14 @@ export function SourceDialog({
 									</div>
 								</fieldset>
 							)}
-							{definition && (
+							{configDefinition && (
 								<SourceConfigFields
-									definition={definition}
+									definition={configDefinition}
 									control={form.control}
 									clearPreview={clearPreview}
-									readOnly={Boolean(editing) && definition.code === "bluesky"}
+									readOnly={
+										Boolean(editing) && configDefinition.code === "bluesky"
+									}
 								/>
 							)}
 							{typeof form.formState.errors.config?.root?.message ===

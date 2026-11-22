@@ -89,10 +89,13 @@ test("edits only the name of a Bluesky Source and keeps the profile read-only", 
 	);
 	await user.click(screen.getByRole("menuitem", { name: "Edit source" }));
 	const profile = (await screen.findByLabelText(
-		"Bluesky handle or profile URL",
+		"Bluesky DID",
 	)) as HTMLInputElement;
 	expect(profile.value).toBe("did:plc:z72i7hdynmk6r22z27h6tvur");
 	expect(profile.readOnly).toBe(true);
+	expect(
+		screen.getByText("Resolved profile identity; cannot be changed after add."),
+	).toBeTruthy();
 	const name = screen.getByLabelText("Source name");
 	await user.clear(name);
 	await user.type(name, "Renamed");

@@ -214,6 +214,16 @@ func TestBlueskyPreviewAndSourceIdentity(t *testing.T) {
 			default:
 				t.Fatalf("unexpected handle %q", handle)
 			}
+		case "/xrpc/app.bsky.actor.getProfile":
+			actor := r.URL.Query().Get("actor")
+			switch actor {
+			case did, "did:plc:otherprofile00000000000":
+				return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{"did":"` + actor + `","handle":"alice.bsky.social"}`))}, nil
+			case "did:plc:missingprofile0000000000":
+				return &http.Response{StatusCode: http.StatusBadRequest, Body: io.NopCloser(strings.NewReader(`{"error":"InvalidRequest"}`))}, nil
+			default:
+				t.Fatalf("unexpected actor %q", actor)
+			}
 		case "/xrpc/app.bsky.feed.getAuthorFeed":
 			require.Equal(t, did, r.URL.Query().Get("actor"))
 			require.Equal(t, "50", r.URL.Query().Get("limit"))
@@ -278,6 +288,8 @@ func TestBlueskyPreviewAndSourceIdentity(t *testing.T) {
 	require.Equal(t, before, counts())
 
 	post(http.MethodPost, sources+"/preview", `{"type":"bluesky","config":{"did":"missing.bsky.social"}}`, http.StatusBadRequest)
+	unavailableDID := post(http.MethodPost, sources+"/preview", `{"type":"bluesky","config":{"did":"did:plc:missingprofile0000000000"}}`, http.StatusBadRequest)
+	require.Contains(t, unavailableDID, "Bluesky profile unavailable")
 	post(http.MethodPost, sources+"/preview", `{"type":"bluesky","config":{"did":""}}`, http.StatusBadRequest)
 
 	created := post(http.MethodPost, sources, `{"type":"bluesky","name":"Alice","config":{"did":"@alice.bsky.social"}}`, http.StatusCreated)

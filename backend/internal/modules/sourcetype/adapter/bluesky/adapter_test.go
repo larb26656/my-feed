@@ -76,29 +76,28 @@ func TestNormalizeResolvesHandleVariantsToDID(t *testing.T) {
 	}
 }
 
-func TestNormalizeAcceptsDIDWithoutResolve(t *testing.T) {
-	// Arrange
-	client := &responseClient{err: errors.New("should not call network")}
-	normalize := bluesky.Definition(client).Normalize
-	// Act
-	config, key, err := normalize(context.Background(), map[string]any{"did": " " + sampleDID + " "})
-	// Assert
-	require.NoError(t, err)
-	require.Equal(t, map[string]any{"did": sampleDID}, config)
-	require.Equal(t, sampleDID, key)
-	require.Nil(t, client.last)
-}
-
-func TestNormalizeResolvesProfileURLWithDID(t *testing.T) {
-	client := &responseClient{err: errors.New("should not call network")}
-	normalize := bluesky.Definition(client).Normalize
-	config, key, err := normalize(context.Background(), map[string]any{
-		"did": "https://bsky.app/profile/" + sampleDID,
-	})
-	require.NoError(t, err)
-	require.Equal(t, map[string]any{"did": sampleDID}, config)
-	require.Equal(t, sampleDID, key)
-	require.Nil(t, client.last)
+func TestNormalizeValidatesDIDThroughAppView(t *testing.T) {
+	for _, tc := range []struct {
+		name, input string
+	}{
+		{"bare DID", " " + sampleDID + " "},
+		{"profile URL with DID", "https://bsky.app/profile/" + sampleDID},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			client := &responseClient{body: `{"did":"` + sampleDID + `","handle":"alice.bsky.social"}`}
+			normalize := bluesky.Definition(client).Normalize
+			// Act
+			config, key, err := normalize(context.Background(), map[string]any{"did": tc.input})
+			// Assert
+			require.NoError(t, err)
+			require.Equal(t, map[string]any{"did": sampleDID}, config)
+			require.Equal(t, sampleDID, key)
+			require.Equal(t, "public.api.bsky.app", client.last.URL.Host)
+			require.Equal(t, "/xrpc/app.bsky.actor.getProfile", client.last.URL.Path)
+			require.Equal(t, sampleDID, client.last.URL.Query().Get("actor"))
+		})
+	}
 }
 
 func TestNormalizeRejectsInvalidOrUnavailableProfiles(t *testing.T) {
@@ -111,12 +110,16 @@ func TestNormalizeRejectsInvalidOrUnavailableProfiles(t *testing.T) {
 		{"empty", map[string]any{"did": "  "}, responseClient{}, "invalid Bluesky profile"},
 		{"bad URL host", map[string]any{"did": "https://example.com/profile/alice"}, responseClient{}, "invalid Bluesky profile"},
 		{"unavailable handle", map[string]any{"did": "missing.bsky.social"}, responseClient{status: http.StatusBadRequest, body: `{"error":"InvalidRequest"}`}, "Bluesky profile unavailable"},
+		{"unavailable DID", map[string]any{"did": sampleDID}, responseClient{status: http.StatusBadRequest, body: `{"error":"InvalidRequest"}`}, "Bluesky profile unavailable"},
 		{"network failure", map[string]any{"did": "alice.bsky.social"}, responseClient{err: errors.New("offline")}, "Bluesky profile unavailable"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
 			client := tc.client
 			normalize := bluesky.Definition(&client).Normalize
+			// Act
 			config, key, err := normalize(context.Background(), tc.config)
+			// Assert
 			require.Nil(t, config)
 			require.Empty(t, key)
 			var ae *apperr.AppError
@@ -346,13 +349,20 @@ func TestObtainMapsRecordWithMediaCover(t *testing.T) {
 }
 
 func TestObtainUsesProfileFallbackTitleForTextlessPosts(t *testing.T) {
-	// Arrange
 	const thumb = "https://cdn.bsky.app/img/feed_thumbnail/plain/textless"
-	body := `{
+	for _, tc := range []struct {
+		name, handle, wantTitle string
+	}{
+		{"with handle", "alice.example.com", "Post from @alice.example.com"},
+		{"without handle", "", "Post from " + sampleDID},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			body := `{
   "feed": [{
     "post": {
       "uri": "at://` + sampleDID + `/app.bsky.feed.post/3textless",
-      "author": {"did": "` + sampleDID + `", "handle": "alice.example.com"},
+      "author": {"did": "` + sampleDID + `", "handle": "` + tc.handle + `"},
       "record": {
         "$type": "app.bsky.feed.post",
         "text": "",
@@ -366,19 +376,21 @@ func TestObtainUsesProfileFallbackTitleForTextlessPosts(t *testing.T) {
     }
   }]
 }`
-	obtainer := bluesky.Definition(&responseClient{body: body}).Obtainer
-	// Act
-	entries, err := obtainer.Obtain(context.Background(), &obtainapi.Input{
-		Config: map[string]any{"did": sampleDID},
-	})
-	// Assert
-	require.NoError(t, err)
-	require.Len(t, entries, 1)
-	require.Equal(t, "Post from @alice.example.com", entries[0].Title)
-	require.Equal(t, "", entries[0].Description)
-	require.Equal(t, "https://bsky.app/profile/"+sampleDID+"/post/3textless", entries[0].Link)
-	require.NotNil(t, entries[0].Thumbnail)
-	require.Equal(t, thumb, *entries[0].Thumbnail)
+			obtainer := bluesky.Definition(&responseClient{body: body}).Obtainer
+			// Act
+			entries, err := obtainer.Obtain(context.Background(), &obtainapi.Input{
+				Config: map[string]any{"did": sampleDID},
+			})
+			// Assert
+			require.NoError(t, err)
+			require.Len(t, entries, 1)
+			require.Equal(t, tc.wantTitle, entries[0].Title)
+			require.Equal(t, "", entries[0].Description)
+			require.Equal(t, "https://bsky.app/profile/"+sampleDID+"/post/3textless", entries[0].Link)
+			require.NotNil(t, entries[0].Thumbnail)
+			require.Equal(t, thumb, *entries[0].Thumbnail)
+		})
+	}
 }
 
 func TestObtainKeepsTextlessPostWithoutThumbnail(t *testing.T) {
@@ -410,6 +422,7 @@ func TestObtainKeepsTextlessPostWithoutThumbnail(t *testing.T) {
 }
 
 func TestObtainAcceptsEmptyEligibleFeed(t *testing.T) {
+	// Arrange
 	body := `{"feed":[{
       "post": {
         "uri": "at://` + sampleDID + `/app.bsky.feed.post/reply1",
@@ -419,25 +432,37 @@ func TestObtainAcceptsEmptyEligibleFeed(t *testing.T) {
       "reply": {"root": {"uri": "at://x"}, "parent": {"uri": "at://x"}}
     }]}`
 	obtainer := bluesky.Definition(&responseClient{body: body}).Obtainer
+	// Act
 	entries, err := obtainer.Obtain(context.Background(), &obtainapi.Input{
 		Config: map[string]any{"did": sampleDID},
 	})
+	// Assert
 	require.NoError(t, err)
 	require.Empty(t, entries)
 }
 
 func TestObtainRejectsMissingSourceAndInvalidDID(t *testing.T) {
 	obtainer := bluesky.Definition(&responseClient{}).Obtainer
-	entries, err := obtainer.Obtain(context.Background(), nil)
-	require.Nil(t, entries)
-	var ae *apperr.AppError
-	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.InvalidInput.Code, ae.Code)
 
-	entries, err = obtainer.Obtain(context.Background(), &obtainapi.Input{Config: map[string]any{"did": "alice.bsky.social"}})
-	require.Nil(t, entries)
-	require.ErrorAs(t, err, &ae)
-	require.Equal(t, apperr.InvalidInput.Code, ae.Code)
+	t.Run("missing source", func(t *testing.T) {
+		// Act
+		entries, err := obtainer.Obtain(context.Background(), nil)
+		// Assert
+		require.Nil(t, entries)
+		var ae *apperr.AppError
+		require.ErrorAs(t, err, &ae)
+		require.Equal(t, apperr.InvalidInput.Code, ae.Code)
+	})
+
+	t.Run("invalid DID", func(t *testing.T) {
+		// Act
+		entries, err := obtainer.Obtain(context.Background(), &obtainapi.Input{Config: map[string]any{"did": "alice.bsky.social"}})
+		// Assert
+		require.Nil(t, entries)
+		var ae *apperr.AppError
+		require.ErrorAs(t, err, &ae)
+		require.Equal(t, apperr.InvalidInput.Code, ae.Code)
+	})
 }
 
 func TestObtainReportsFeedFailures(t *testing.T) {
@@ -450,11 +475,14 @@ func TestObtainReportsFeedFailures(t *testing.T) {
 		{"network failure", responseClient{err: errors.New("offline")}, "Bluesky feed request failed"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
 			client := tc.client
 			obtainer := bluesky.Definition(&client).Obtainer
+			// Act
 			entries, err := obtainer.Obtain(context.Background(), &obtainapi.Input{
 				Config: map[string]any{"did": sampleDID},
 			})
+			// Assert
 			require.Nil(t, entries)
 			var ae *apperr.AppError
 			require.ErrorAs(t, err, &ae)

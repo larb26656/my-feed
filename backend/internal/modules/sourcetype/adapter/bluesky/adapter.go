@@ -64,7 +64,12 @@ func (a *adapter) normalize(ctx context.Context, config map[string]any) (map[str
 	if err != nil {
 		return nil, "", err
 	}
+	// Bare DIDs and /profile/<did> URLs are an intentional extension of handle/URL
+	// input; validate existence through Public AppView so bad DIDs fail at Add/Preview.
 	if didPattern.MatchString(identity) {
+		if err := a.verifyProfile(ctx, identity); err != nil {
+			return nil, "", err
+		}
 		return map[string]any{"did": identity}, identity, nil
 	}
 	did, err := a.resolveHandle(ctx, identity)
@@ -106,17 +111,9 @@ func (a *adapter) resolveHandle(ctx context.Context, handle string) (string, err
 	if err != nil {
 		return "", err
 	}
-	res, err := a.client.Do(req)
+	body, err := a.doAppView(req)
 	if err != nil {
-		return "", apperr.InvalidInput.Wrap(err, "Bluesky profile unavailable")
-	}
-	defer func() { _ = res.Body.Close() }()
-	body, err := io.ReadAll(io.LimitReader(res.Body, 1<<20))
-	if err != nil {
-		return "", apperr.InvalidInput.Wrap(err, "Bluesky profile unavailable")
-	}
-	if res.StatusCode != http.StatusOK {
-		return "", apperr.InvalidInput.New("Bluesky profile unavailable")
+		return "", err
 	}
 	var payload struct {
 		DID string `json:"did"`
@@ -125,6 +122,40 @@ func (a *adapter) resolveHandle(ctx context.Context, handle string) (string, err
 		return "", apperr.InvalidInput.New("Bluesky profile unavailable")
 	}
 	return payload.DID, nil
+}
+
+func (a *adapter) verifyProfile(ctx context.Context, did string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, publicAppView+"/xrpc/app.bsky.actor.getProfile?actor="+url.QueryEscape(did), nil)
+	if err != nil {
+		return err
+	}
+	body, err := a.doAppView(req)
+	if err != nil {
+		return err
+	}
+	var payload struct {
+		DID string `json:"did"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil || payload.DID != did {
+		return apperr.InvalidInput.New("Bluesky profile unavailable")
+	}
+	return nil
+}
+
+func (a *adapter) doAppView(req *http.Request) ([]byte, error) {
+	res, err := a.client.Do(req)
+	if err != nil {
+		return nil, apperr.InvalidInput.Wrap(err, "Bluesky profile unavailable")
+	}
+	defer func() { _ = res.Body.Close() }()
+	body, err := io.ReadAll(io.LimitReader(res.Body, 1<<20))
+	if err != nil {
+		return nil, apperr.InvalidInput.Wrap(err, "Bluesky profile unavailable")
+	}
+	if res.StatusCode != http.StatusOK {
+		return nil, apperr.InvalidInput.New("Bluesky profile unavailable")
+	}
+	return body, nil
 }
 
 func (a *adapter) Obtain(ctx context.Context, input *api.Input) ([]api.PreparedEntry, error) {
@@ -230,6 +261,10 @@ func (item feedItem) toEntry() (api.PreparedEntry, bool) {
 	if title == "" {
 		if handle := strings.TrimSpace(item.Post.Author.Handle); handle != "" {
 			title = "Post from @" + handle
+		} else if did := strings.TrimSpace(item.Post.Author.DID); did != "" {
+			title = "Post from " + did
+		} else {
+			title = "Bluesky post"
 		}
 	}
 	entry := api.PreparedEntry{
