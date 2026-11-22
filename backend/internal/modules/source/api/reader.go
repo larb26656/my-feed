@@ -12,6 +12,7 @@ type SourceType string
 const (
 	SourceTypeRSS     SourceType = "rss"
 	SourceTypeYouTube SourceType = "youtube"
+	SourceTypeBluesky SourceType = "bluesky"
 	SourceTypeManual  SourceType = "manual"
 )
 
