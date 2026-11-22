@@ -112,10 +112,12 @@ export function SourceConfigFields({
 	definition,
 	control,
 	clearPreview,
+	readOnly = false,
 }: {
 	definition: SourceTypeDefinition;
 	control: Control<FormValues>;
 	clearPreview: () => void;
+	readOnly?: boolean;
 }) {
 	const properties = definition.schema.properties as
 		| Record<
@@ -156,6 +158,8 @@ export function SourceConfigFields({
 										aria-required={required}
 										aria-invalid={fieldState.invalid}
 										aria-describedby={fieldState.invalid ? errorId : undefined}
+										aria-readonly={readOnly || undefined}
+										disabled={readOnly}
 										value={String(field.value ?? "")}
 										onChange={(event) => {
 											field.onChange(
@@ -183,6 +187,8 @@ export function SourceConfigFields({
 										aria-describedby={fieldState.invalid ? errorId : undefined}
 										type="checkbox"
 										checked={Boolean(field.value)}
+										disabled={readOnly}
+										readOnly={readOnly}
 										onChange={(event) => {
 											field.onChange(event.target.checked);
 											clearPreview();
@@ -202,6 +208,7 @@ export function SourceConfigFields({
 													: "text"
 										}
 										value={String(field.value ?? "")}
+										readOnly={readOnly}
 										onChange={(event) => {
 											field.onChange(
 												meta.widget === "number" && event.target.value !== ""

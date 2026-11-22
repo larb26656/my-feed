@@ -414,6 +414,7 @@ export function SourceDialog({
 									definition={definition}
 									control={form.control}
 									clearPreview={clearPreview}
+									readOnly={Boolean(editing) && definition.code === "bluesky"}
 								/>
 							)}
 							{typeof form.formState.errors.config?.root?.message ===
