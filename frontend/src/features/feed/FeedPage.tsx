@@ -56,13 +56,13 @@ export function FeedPage({
 		query.isFetchNextPageError,
 	]);
 	return (
-		<section>
+		<section className="mx-auto max-w-6xl md:px-5 md:py-7">
 			{sourceId && (
 				<Link
 					to="/sources"
 					className={buttonVariants({
 						variant: "ghost",
-						className: "-ml-3 mb-4",
+						className: "ml-1 mt-4 mb-4 md:-ml-3 md:mt-0",
 					})}
 				>
 					<ArrowLeft data-icon="inline-start" />
@@ -70,7 +70,7 @@ export function FeedPage({
 				</Link>
 			)}
 			{sourceId ? (
-				<header className="relative mb-6 overflow-hidden rounded-xl border border-border bg-card">
+				<header className="relative mx-4 mb-6 overflow-hidden rounded-xl border border-border bg-card md:mx-0">
 					<svg
 						aria-hidden="true"
 						className="pointer-events-none absolute inset-y-0 right-0 h-full w-3/4 text-primary"

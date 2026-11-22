@@ -10,7 +10,7 @@ export function FeedFilters({
 	setSortDirection: (direction: "asc" | "desc") => void;
 }) {
 	return (
-		<div className="mb-4 flex flex-wrap items-center justify-end gap-2 py-2">
+		<div className="mb-4 flex flex-wrap items-center justify-end gap-2 px-4 py-2 md:px-0">
 			<div className="flex items-center gap-3">
 				<select
 					aria-label="Sort entries"

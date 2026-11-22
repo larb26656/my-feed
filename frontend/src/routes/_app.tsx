@@ -26,9 +26,7 @@ function AppLayout() {
 				<DesktopSidebar />
 				<main className="min-w-0 bg-muted/50 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] md:pb-0 dark:bg-background">
 					<PageHeader />
-					<div className="mx-auto max-w-6xl px-4 py-2 md:px-5 md:py-7">
-						<Outlet />
-					</div>
+					<Outlet />
 				</main>
 				<MobileNavigation />
 			</div>

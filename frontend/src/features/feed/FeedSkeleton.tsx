@@ -2,7 +2,7 @@ import { Skeleton } from "#/components/ui/skeleton";
 
 export function FeedSkeleton() {
 	return (
-		<output className="mt-2 block" aria-busy="true">
+		<output className="mt-2 block px-4 md:px-0" aria-busy="true">
 			<span className="sr-only">Loading entries</span>
 			{["first", "second", "third"].map((row) => (
 				<article key={row} className="relative flex gap-3 py-5">

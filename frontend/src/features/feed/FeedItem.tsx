@@ -38,7 +38,7 @@ export function FeedItem({
 	};
 
 	return (
-		<article className="flex gap-3 rounded-xl border border-border bg-card p-4 sm:gap-4">
+		<article className="flex gap-3 bg-card p-4 sm:gap-4 md:rounded-xl md:border md:border-border">
 			<Link
 				to="/sources/$sourceId"
 				params={{ sourceId: entry.sourceId }}
@@ -49,6 +49,7 @@ export function FeedItem({
 					name={source?.name ?? "Source"}
 					imageId={source?.profileImageId}
 					sourceId={source?.id}
+					className="!size-8 sm:!size-10"
 				/>
 			</Link>
 			<div className="min-w-0 flex-1">
@@ -116,24 +117,28 @@ export function FeedItem({
 						}
 						aria-pressed={read}
 						title={read ? "Read" : "Mark as read"}
-						className="inline-flex min-h-10 items-center gap-2 rounded-md px-2 text-xs hover:bg-muted disabled:opacity-50"
+						className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 sm:min-h-10 sm:min-w-0 rounded-md px-2 text-xs hover:bg-muted disabled:opacity-50"
 					>
 						{read ? <CircleCheck size={17} /> : <BookOpenCheck size={17} />}
-						<span>{read ? "Read" : "Mark read"}</span>
+						<span className="hidden sm:inline">
+							{read ? "Read" : "Mark read"}
+						</span>
 					</button>
 					<button
 						type="button"
 						onClick={copyLink}
 						aria-label={copied ? "Link copied" : "Copy link"}
 						title={copied ? "Link copied" : "Copy link"}
-						className="inline-flex min-h-10 items-center gap-2 rounded-md px-2 text-xs hover:bg-muted"
+						className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 sm:min-h-10 sm:min-w-0 rounded-md px-2 text-xs hover:bg-muted"
 					>
 						{copied ? (
 							<Check size={18} strokeWidth={1.9} />
 						) : (
 							<Copy size={18} strokeWidth={1.7} />
 						)}
-						<span>{copied ? "Copied" : "Copy link"}</span>
+						<span className="hidden sm:inline">
+							{copied ? "Copied" : "Copy link"}
+						</span>
 					</button>
 					<button
 						type="button"
@@ -144,14 +149,14 @@ export function FeedItem({
 						}
 						aria-pressed={saved}
 						title={saved ? "Remove from saved" : "Saved"}
-						className="inline-flex min-h-10 items-center gap-2 rounded-md px-2 text-xs hover:bg-muted disabled:opacity-50"
+						className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 sm:min-h-10 sm:min-w-0 rounded-md px-2 text-xs hover:bg-muted disabled:opacity-50"
 					>
 						<Bookmark
 							size={18}
 							strokeWidth={1.7}
 							fill={saved ? "currentColor" : "none"}
 						/>
-						<span>{saved ? "Saved" : "Save"}</span>
+						<span className="hidden sm:inline">{saved ? "Saved" : "Save"}</span>
 					</button>
 				</div>
 			</div>
