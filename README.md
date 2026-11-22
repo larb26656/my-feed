@@ -1,7 +1,7 @@
 # My feed
 
 <p align="center">
-  <img src="frontend/public/my-feed-mascot.png" alt="My feed mascot reading an RSS newspaper" width="180" />
+  <img src="frontend/public/my-feed-logo.png" alt="My feed logo" width="180" />
 </p>
 
 A self-hosted reader that brings RSS Sources and links you collect into one place. Read Entries, track what is unread, and bookmark favorites in Saved.
