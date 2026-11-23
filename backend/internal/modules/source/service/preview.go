@@ -13,7 +13,7 @@ func (s *Service) Preview(ctx context.Context, in sourceapi.PreviewInput) (*sour
 	if s.types == nil {
 		return nil, apperr.InvalidInput.New("source type registry unavailable")
 	}
-	config, _, err := s.types.Prepare(in.Type, in.Config)
+	config, _, err := s.types.Prepare(ctx, in.Type, in.Config)
 	if err != nil {
 		return nil, err
 	}

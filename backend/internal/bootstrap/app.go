@@ -31,6 +31,7 @@ import (
 	sourcesqlite "github.com/larb26656/my-feed/backend/internal/modules/source/adapter/sqlite"
 	sourcesvc "github.com/larb26656/my-feed/backend/internal/modules/source/service"
 	sourcelifecycle "github.com/larb26656/my-feed/backend/internal/modules/sourcelifecycle/service"
+	sourcebluesky "github.com/larb26656/my-feed/backend/internal/modules/sourcetype/adapter/bluesky"
 	sourcedevto "github.com/larb26656/my-feed/backend/internal/modules/sourcetype/adapter/devto"
 	typehttp "github.com/larb26656/my-feed/backend/internal/modules/sourcetype/adapter/http"
 	sourcemedium "github.com/larb26656/my-feed/backend/internal/modules/sourcetype/adapter/medium"
@@ -74,7 +75,7 @@ func NewWithConfig(ctx context.Context, cfg Config) (*App, error) {
 	sourceService.SetFileStorage(filestorage.New(cfg.UploadsDir))
 
 	client := outbound.NewClient(http.DefaultClient)
-	typeRegistry, err := typesvc.New(sourcerss.Definition(client), sourceyoutube.Definition(client), sourcedevto.Definition(client), sourcemedium.Definition(client))
+	typeRegistry, err := typesvc.New(sourcerss.Definition(client), sourceyoutube.Definition(client), sourcedevto.Definition(client), sourcemedium.Definition(client), sourcebluesky.Definition(client))
 	if err != nil {
 		return nil, errors.Join(fmt.Errorf("register source types: %w", err), pool.Close())
 	}

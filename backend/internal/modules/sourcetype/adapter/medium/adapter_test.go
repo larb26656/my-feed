@@ -29,7 +29,7 @@ func TestNormalizeTrimsAtAndFingerprintsProfile(t *testing.T) {
 			normalize := medium.Definition(nil).Normalize
 
 			// Act
-			config, key, err := normalize(map[string]any{"kind": "profile", "identifier": tc.input})
+			config, key, err := normalize(context.Background(), map[string]any{"kind": "profile", "identifier": tc.input})
 
 			// Assert
 			require.NoError(t, err)
@@ -52,7 +52,7 @@ func TestNormalizePublicationBareSlugAndKey(t *testing.T) {
 			normalize := medium.Definition(nil).Normalize
 
 			// Act
-			config, key, err := normalize(map[string]any{
+			config, key, err := normalize(context.Background(), map[string]any{
 				"kind": "publication", "identifier": tc.input,
 			})
 
@@ -69,7 +69,7 @@ func TestNormalizeRejectsPublicationLeadingAt(t *testing.T) {
 	normalize := medium.Definition(nil).Normalize
 
 	// Act
-	got, key, err := normalize(map[string]any{
+	got, key, err := normalize(context.Background(), map[string]any{
 		"kind": "publication", "identifier": "@alice",
 	})
 
@@ -87,7 +87,7 @@ func TestPrepareRejectsPublicationLeadingAtViaSchema(t *testing.T) {
 	require.NoError(t, err)
 
 	// Act
-	got, key, err := registry.Prepare("medium", map[string]any{
+	got, key, err := registry.Prepare(context.Background(), "medium", map[string]any{
 		"kind": "publication", "identifier": "@alice",
 	})
 
@@ -105,7 +105,7 @@ func TestPrepareAllowsProfileLeadingAt(t *testing.T) {
 	require.NoError(t, err)
 
 	// Act
-	config, key, err := registry.Prepare("medium", map[string]any{
+	config, key, err := registry.Prepare(context.Background(), "medium", map[string]any{
 		"kind": "profile", "identifier": "@Alice",
 	})
 
@@ -120,9 +120,9 @@ func TestNormalizeProfileAndPublicationSameIdentifierDifferentKeys(t *testing.T)
 	normalize := medium.Definition(nil).Normalize
 
 	// Act
-	profile, profileKey, err := normalize(map[string]any{"kind": "profile", "identifier": "alice"})
+	profile, profileKey, err := normalize(context.Background(), map[string]any{"kind": "profile", "identifier": "alice"})
 	require.NoError(t, err)
-	publication, publicationKey, err := normalize(map[string]any{"kind": "publication", "identifier": "alice"})
+	publication, publicationKey, err := normalize(context.Background(), map[string]any{"kind": "publication", "identifier": "alice"})
 
 	// Assert
 	require.NoError(t, err)
@@ -166,7 +166,7 @@ func TestNormalizeRejectsInvalidIdentifiers(t *testing.T) {
 			}
 
 			// Act
-			got, key, err := medium.Definition(nil).Normalize(config)
+			got, key, err := medium.Definition(nil).Normalize(context.Background(), config)
 
 			// Assert
 			require.Nil(t, got)

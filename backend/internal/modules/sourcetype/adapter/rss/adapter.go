@@ -111,7 +111,7 @@ func Definition(client HTTPClient) typeapi.Definition {
 	}, UI: map[string]any{"url": map[string]any{"label": "RSS / Atom feed URL", "widget": "url", "error": "Please enter a valid RSS / Atom URL"}}, Normalize: normalize, Obtainer: New(client)}
 }
 
-func normalize(config map[string]any) (map[string]any, string, error) {
+func normalize(_ context.Context, config map[string]any) (map[string]any, string, error) {
 	typed := decodeConfig(config)
 	feed := strings.TrimSpace(typed.URL)
 	parsed, err := url.Parse(feed)

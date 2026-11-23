@@ -22,7 +22,7 @@ type adapter struct {
 
 var identifierPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 
-func normalize(config map[string]any) (map[string]any, string, error) {
+func normalize(_ context.Context, config map[string]any) (map[string]any, string, error) {
 	kind, _ := config["kind"].(string)
 	raw, _ := config["identifier"].(string)
 	identifier := strings.TrimSpace(raw)
@@ -50,7 +50,7 @@ func (a adapter) Obtain(ctx context.Context, input *api.Input) ([]api.PreparedEn
 	if input == nil {
 		return nil, apperr.InvalidInput.New("source is required")
 	}
-	config, _, err := normalize(input.Config)
+	config, _, err := normalize(ctx, input.Config)
 	if err != nil {
 		return nil, err
 	}

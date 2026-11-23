@@ -267,3 +267,16 @@ func TestMediumUpdateConfigRejectsTargetChange(t *testing.T) {
 	require.Contains(t, failure.Message, "medium source target cannot be changed")
 	require.Equal(t, original, *source)
 }
+
+func TestBlueskySourceRejectsProfileIdentityChange(t *testing.T) {
+	source, err := domain.NewFetchableSource("Alice", domain.TypeBluesky, map[string]any{"did": "did:plc:one"}, "did:plc:one")
+	require.NoError(t, err)
+	require.NoError(t, source.UpdateConfig("Renamed", map[string]any{"did": "did:plc:one"}, "did:plc:one"))
+	require.Equal(t, "Renamed", source.Name)
+	err = source.UpdateConfig("Renamed", map[string]any{"did": "did:plc:two"}, "did:plc:two")
+	var failure *apperr.AppError
+	require.ErrorAs(t, err, &failure)
+	require.Equal(t, apperr.InvalidInput.Code, failure.Code)
+	require.ErrorContains(t, err, "bluesky profile cannot be changed")
+	require.Equal(t, "did:plc:one", source.Key)
+}

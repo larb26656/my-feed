@@ -192,3 +192,267 @@ func TestDevToPreviewAndSourceIdentity(t *testing.T) {
 	post(sources, `{"kind":"tag","value":"go"}`, http.StatusConflict)
 	post(sources, username, http.StatusCreated)
 }
+
+func TestBlueskyPreviewAndSourceIdentity(t *testing.T) {
+	app := newTestApp(t, "test-secret")
+	defer app.Close()
+
+	const did = "did:plc:z72i7hdynmk6r22z27h6tvur"
+	old := http.DefaultClient.Transport
+	t.Cleanup(func() { http.DefaultClient.Transport = old })
+	http.DefaultClient.Transport = previewTransport(func(r *http.Request) (*http.Response, error) {
+		require.Equal(t, http.MethodGet, r.Method)
+		require.Equal(t, "public.api.bsky.app", r.URL.Host)
+		switch r.URL.Path {
+		case "/xrpc/com.atproto.identity.resolveHandle":
+			handle := r.URL.Query().Get("handle")
+			switch handle {
+			case "alice.bsky.social", "alice.newhandle.social":
+				return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{"did":"` + did + `"}`))}, nil
+			case "missing.bsky.social":
+				return &http.Response{StatusCode: http.StatusBadRequest, Body: io.NopCloser(strings.NewReader(`{"error":"InvalidRequest"}`))}, nil
+			default:
+				t.Fatalf("unexpected handle %q", handle)
+			}
+		case "/xrpc/app.bsky.actor.getProfile":
+			actor := r.URL.Query().Get("actor")
+			switch actor {
+			case did, "did:plc:otherprofile00000000000":
+				return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{"did":"` + actor + `","handle":"alice.bsky.social"}`))}, nil
+			case "did:plc:missingprofile0000000000":
+				return &http.Response{StatusCode: http.StatusBadRequest, Body: io.NopCloser(strings.NewReader(`{"error":"InvalidRequest"}`))}, nil
+			default:
+				t.Fatalf("unexpected actor %q", actor)
+			}
+		case "/xrpc/app.bsky.feed.getAuthorFeed":
+			require.Equal(t, did, r.URL.Query().Get("actor"))
+			require.Equal(t, "50", r.URL.Query().Get("limit"))
+			body := `{
+  "feed": [
+    {
+      "post": {
+        "uri": "at://` + did + `/app.bsky.feed.post/repost1",
+        "author": {"did": "did:plc:other", "handle": "other.bsky.social"},
+        "record": {"$type": "app.bsky.feed.post", "text": "Reposted", "createdAt": "2026-01-03T00:00:00.000Z"}
+      },
+      "reason": {"$type": "app.bsky.feed.defs#reasonRepost", "by": {"did": "` + did + `"}}
+    },
+    {
+      "post": {
+        "uri": "at://` + did + `/app.bsky.feed.post/3eligible",
+        "author": {"did": "` + did + `", "handle": "alice.bsky.social"},
+        "record": {"$type": "app.bsky.feed.post", "text": "First line\nRest of post", "createdAt": "2026-01-02T03:04:05.000Z"}
+      }
+    }
+  ]
+}`
+			return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body))}, nil
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+		return nil, nil
+	})
+
+	counts := func() []int {
+		result := make([]int, 3)
+		for i, q := range []string{"SELECT count(*) FROM sources", "SELECT count(*) FROM entries", "SELECT count(*) FROM fetch_jobs"} {
+			require.NoError(t, app.Pool.DB.QueryRow(q).Scan(&result[i]))
+		}
+		return result
+	}
+	before := counts()
+
+	post := func(method, path, body string, want int) string {
+		t.Helper()
+		req := httptest.NewRequest(method, path, strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer test-secret")
+		w := httptest.NewRecorder()
+		app.Router.ServeHTTP(w, req)
+		require.Equal(t, want, w.Code, w.Body.String())
+		return w.Body.String()
+	}
+
+	const sources = "/api/v1/sources"
+	for _, config := range []string{
+		`{"did":"alice.bsky.social"}`,
+		`{"did":" @alice.bsky.social "}`,
+		`{"did":"https://bsky.app/profile/alice.bsky.social"}`,
+		`{"did":"` + did + `"}`,
+	} {
+		preview := post(http.MethodPost, sources+"/preview", `{"type":"bluesky","config":`+config+`}`, http.StatusOK)
+		require.Contains(t, preview, `"title":"First line"`)
+		require.Contains(t, preview, `"description":"First line\nRest of post"`)
+		require.Contains(t, preview, `"link":"https://bsky.app/profile/`+did+`/post/3eligible"`)
+	}
+	require.Equal(t, before, counts())
+
+	post(http.MethodPost, sources+"/preview", `{"type":"bluesky","config":{"did":"missing.bsky.social"}}`, http.StatusBadRequest)
+	unavailableDID := post(http.MethodPost, sources+"/preview", `{"type":"bluesky","config":{"did":"did:plc:missingprofile0000000000"}}`, http.StatusBadRequest)
+	require.Contains(t, unavailableDID, "Bluesky profile unavailable")
+	post(http.MethodPost, sources+"/preview", `{"type":"bluesky","config":{"did":""}}`, http.StatusBadRequest)
+
+	created := post(http.MethodPost, sources, `{"type":"bluesky","name":"Alice","config":{"did":"@alice.bsky.social"}}`, http.StatusCreated)
+	require.Contains(t, created, `"did":"`+did+`"`)
+	post(http.MethodPost, sources, `{"type":"bluesky","name":"Dup","config":{"did":"https://bsky.app/profile/alice.bsky.social"}}`, http.StatusConflict)
+	post(http.MethodPost, sources, `{"type":"bluesky","name":"Renamed handle","config":{"did":"alice.newhandle.social"}}`, http.StatusConflict)
+
+	var envelope struct {
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(created), &envelope))
+
+	post(http.MethodPatch, sources+"/"+envelope.Data.ID, `{"name":"Renamed Alice"}`, http.StatusOK)
+	reject := post(http.MethodPatch, sources+"/"+envelope.Data.ID, `{"name":"Renamed Alice","config":{"did":"did:plc:otherprofile00000000000"}}`, http.StatusBadRequest)
+	require.Contains(t, reject, "bluesky profile cannot be changed")
+}
+
+func TestBlueskyPreviewEmptyEligibleFeedPersistsNothing(t *testing.T) {
+	app := newTestApp(t, "test-secret")
+	defer app.Close()
+
+	const did = "did:plc:z72i7hdynmk6r22z27h6tvur"
+	old := http.DefaultClient.Transport
+	t.Cleanup(func() { http.DefaultClient.Transport = old })
+	http.DefaultClient.Transport = previewTransport(func(r *http.Request) (*http.Response, error) {
+		switch r.URL.Path {
+		case "/xrpc/com.atproto.identity.resolveHandle":
+			return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{"did":"` + did + `"}`))}, nil
+		case "/xrpc/app.bsky.feed.getAuthorFeed":
+			body := `{"feed":[{
+      "post": {
+        "uri": "at://` + did + `/app.bsky.feed.post/reply1",
+        "author": {"did": "` + did + `", "handle": "alice.bsky.social"},
+        "record": {"$type": "app.bsky.feed.post", "text": "reply only", "createdAt": "2026-01-01T00:00:00.000Z", "reply": {"root": {"uri": "at://x"}, "parent": {"uri": "at://x"}}}
+      },
+      "reply": {"root": {"uri": "at://x"}, "parent": {"uri": "at://x"}}
+    }]}`
+			return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body))}, nil
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+			return nil, nil
+		}
+	})
+	counts := func() []int {
+		result := make([]int, 3)
+		for i, q := range []string{"SELECT count(*) FROM sources", "SELECT count(*) FROM entries", "SELECT count(*) FROM fetch_jobs"} {
+			require.NoError(t, app.Pool.DB.QueryRow(q).Scan(&result[i]))
+		}
+		return result
+	}
+	before := counts()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/sources/preview", strings.NewReader(`{"type":"bluesky","config":{"did":"alice.bsky.social"}}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer test-secret")
+	w := httptest.NewRecorder()
+	app.Router.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	require.Contains(t, w.Body.String(), `"entry":null`)
+	require.Equal(t, before, counts())
+}
+
+func TestBlueskyPreviewMapsThumbnailsAndTextlessPosts(t *testing.T) {
+	const did = "did:plc:z72i7hdynmk6r22z27h6tvur"
+	for _, tc := range []struct {
+		name, feed, wantTitle, wantThumb, wantLink string
+	}{
+		{
+			name: "first image thumbnail",
+			feed: `{
+  "feed": [{
+    "post": {
+      "uri": "at://` + did + `/app.bsky.feed.post/3images",
+      "author": {"did": "` + did + `", "handle": "alice.bsky.social"},
+      "record": {"$type": "app.bsky.feed.post", "text": "Photo post", "createdAt": "2026-11-18T00:00:00.000Z"},
+      "embed": {
+        "$type": "app.bsky.embed.images#view",
+        "images": [{"thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/first", "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/first", "alt": ""}]
+      }
+    }
+  }]
+}`,
+			wantTitle: "Photo post",
+			wantThumb: "https://cdn.bsky.app/img/feed_thumbnail/plain/first",
+			wantLink:  "https://bsky.app/profile/" + did + "/post/3images",
+		},
+		{
+			name: "video media cover",
+			feed: `{
+  "feed": [{
+    "post": {
+      "uri": "at://` + did + `/app.bsky.feed.post/3video",
+      "author": {"did": "` + did + `", "handle": "alice.bsky.social"},
+      "record": {"$type": "app.bsky.feed.post", "text": "Video post", "createdAt": "2026-11-18T00:00:00.000Z"},
+      "embed": {
+        "$type": "app.bsky.embed.video#view",
+        "thumbnail": "https://video.bsky.app/watch/cover.jpg"
+      }
+    }
+  }]
+}`,
+			wantTitle: "Video post",
+			wantThumb: "https://video.bsky.app/watch/cover.jpg",
+			wantLink:  "https://bsky.app/profile/" + did + "/post/3video",
+		},
+		{
+			name: "textless with fallback title",
+			feed: `{
+  "feed": [{
+    "post": {
+      "uri": "at://` + did + `/app.bsky.feed.post/3textless",
+      "author": {"did": "` + did + `", "handle": "alice.example.com"},
+      "record": {"$type": "app.bsky.feed.post", "text": "", "createdAt": "2026-11-18T00:00:00.000Z"},
+      "embed": {
+        "$type": "app.bsky.embed.images#view",
+        "images": [{"thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/textless", "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/textless", "alt": ""}]
+      }
+    }
+  }]
+}`,
+			wantTitle: "Post from @alice.example.com",
+			wantThumb: "https://cdn.bsky.app/img/feed_thumbnail/plain/textless",
+			wantLink:  "https://bsky.app/profile/" + did + "/post/3textless",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			app := newTestApp(t, "test-secret")
+			defer app.Close()
+			old := http.DefaultClient.Transport
+			t.Cleanup(func() { http.DefaultClient.Transport = old })
+			feed := tc.feed
+			http.DefaultClient.Transport = previewTransport(func(r *http.Request) (*http.Response, error) {
+				switch r.URL.Path {
+				case "/xrpc/com.atproto.identity.resolveHandle":
+					return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{"did":"` + did + `"}`))}, nil
+				case "/xrpc/app.bsky.feed.getAuthorFeed":
+					require.Equal(t, did, r.URL.Query().Get("actor"))
+					require.Equal(t, "50", r.URL.Query().Get("limit"))
+					return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(feed))}, nil
+				default:
+					t.Fatalf("unexpected path %s", r.URL.Path)
+					return nil, nil
+				}
+			})
+			// Act
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/sources/preview", strings.NewReader(`{"type":"bluesky","config":{"did":"alice.bsky.social"}}`))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", "Bearer test-secret")
+			w := httptest.NewRecorder()
+			app.Router.ServeHTTP(w, req)
+			// Assert
+			require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+			var response struct {
+				Data struct {
+					Entry struct{ Title, Link, Thumbnail string }
+				}
+			}
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+			require.Equal(t, tc.wantTitle, response.Data.Entry.Title)
+			require.Equal(t, tc.wantLink, response.Data.Entry.Link)
+			require.Equal(t, tc.wantThumb, response.Data.Entry.Thumbnail)
+		})
+	}
+}

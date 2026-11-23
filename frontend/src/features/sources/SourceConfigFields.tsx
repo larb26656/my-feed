@@ -155,6 +155,7 @@ export function SourceConfigFields({
 										aria-required={required}
 										aria-invalid={fieldState.invalid}
 										aria-describedby={fieldState.invalid ? errorId : undefined}
+										aria-readonly={readOnly || undefined}
 										disabled={readOnly}
 										value={String(field.value ?? "")}
 										onChange={(event) => {
@@ -182,8 +183,9 @@ export function SourceConfigFields({
 										aria-invalid={fieldState.invalid}
 										aria-describedby={fieldState.invalid ? errorId : undefined}
 										type="checkbox"
-										disabled={readOnly}
 										checked={Boolean(field.value)}
+										disabled={readOnly}
+										readOnly={readOnly}
 										onChange={(event) => {
 											field.onChange(event.target.checked);
 											clearPreview();
@@ -195,7 +197,6 @@ export function SourceConfigFields({
 										aria-required={required}
 										aria-invalid={fieldState.invalid}
 										aria-describedby={fieldState.invalid ? errorId : undefined}
-										readOnly={readOnly}
 										type={
 											meta.widget === "number"
 												? "number"
@@ -204,6 +205,7 @@ export function SourceConfigFields({
 													: "text"
 										}
 										value={String(field.value ?? "")}
+										readOnly={readOnly}
 										onChange={(event) => {
 											field.onChange(
 												meta.widget === "number" && event.target.value !== ""

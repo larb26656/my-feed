@@ -67,6 +67,31 @@ export function sourceTypesResponse() {
 						},
 					},
 				},
+				{
+					code: "bluesky",
+					label: "Bluesky",
+					schema: {
+						$schema: "https://json-schema.org/draft/2020-12/schema",
+						type: "object",
+						additionalProperties: false,
+						properties: {
+							did: {
+								type: "string",
+								minLength: 1,
+							},
+						},
+						required: ["did"],
+					},
+					ui: {
+						did: {
+							label: "Bluesky handle or profile URL",
+							widget: "text",
+							description:
+								"Enter a handle like @alice.bsky.social or a bsky.app profile URL.",
+							error: "Enter a Bluesky handle or profile URL",
+						},
+					},
+				},
 			],
 		}),
 	);

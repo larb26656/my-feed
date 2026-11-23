@@ -13,6 +13,7 @@ const (
 	SourceTypeRSS     SourceType = "rss"
 	SourceTypeYouTube SourceType = "youtube"
 	SourceTypeMedium  SourceType = "medium"
+	SourceTypeBluesky SourceType = "bluesky"
 	SourceTypeManual  SourceType = "manual"
 )
 

@@ -268,6 +268,8 @@ func uniqueConflict(err error, typ domain.Type) error {
 		return apperr.ResourceConflict.Wrap(err, "youtube channel already in use")
 	case domain.TypeMedium:
 		return apperr.ResourceConflict.Wrap(err, "medium source already in use")
+	case domain.TypeBluesky:
+		return apperr.ResourceConflict.Wrap(err, "bluesky profile already in use")
 	default:
 		return apperr.ResourceConflict.Wrap(err, "rss url already in use")
 	}

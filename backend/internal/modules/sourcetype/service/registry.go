@@ -48,7 +48,7 @@ func (r *Registry) Definitions() []api.Definition {
 }
 
 // Prepare validates the published input before applying type-specific normalization.
-func (r *Registry) Prepare(code string, config map[string]any) (map[string]any, string, error) {
+func (r *Registry) Prepare(ctx context.Context, code string, config map[string]any) (map[string]any, string, error) {
 	schema, ok := r.schemas[code]
 	if !ok {
 		return nil, "", apperr.InvalidInput.New("unknown source type").WithDetail(map[string]any{"field": "type"})
@@ -57,7 +57,7 @@ func (r *Registry) Prepare(code string, config map[string]any) (map[string]any, 
 		return nil, "", apperr.InvalidInput.Wrap(err, "invalid source config").WithDetail(map[string]any{"fields": fieldErrors(err)})
 	}
 	if normalize := r.handlers[code].Normalize; normalize != nil {
-		return normalize(config)
+		return normalize(ctx, config)
 	}
 	return nil, "", apperr.InvalidInput.New("unsupported source type")
 }

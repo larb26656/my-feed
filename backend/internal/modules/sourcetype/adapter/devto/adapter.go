@@ -31,7 +31,7 @@ type article struct {
 
 var valuePattern = regexp.MustCompile(`^[a-z0-9_-]+$`)
 
-func normalize(config map[string]any) (map[string]any, string, error) {
+func normalize(_ context.Context, config map[string]any) (map[string]any, string, error) {
 	kind, _ := config["kind"].(string)
 	value, _ := config["value"].(string)
 	value = strings.ToLower(strings.TrimSpace(value))
@@ -53,7 +53,7 @@ func (a adapter) Obtain(ctx context.Context, input *api.Input) ([]api.PreparedEn
 	if input == nil {
 		return nil, apperr.InvalidInput.New("source is required")
 	}
-	config, _, err := normalize(input.Config)
+	config, _, err := normalize(ctx, input.Config)
 	if err != nil {
 		return nil, err
 	}

@@ -32,7 +32,9 @@ function sourceDetail(source: Source) {
 			? source.config?.channelId
 			: source.type === "medium"
 				? source.config?.identifier
-				: source.config?.url;
+				: source.type === "bluesky"
+					? source.config?.did
+					: source.config?.url;
 	if (typeof value === "string") return value;
 	return "—";
 }
