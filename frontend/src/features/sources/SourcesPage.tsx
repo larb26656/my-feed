@@ -28,7 +28,11 @@ const pageSizeOptions = [
 
 function sourceDetail(source: Source) {
 	const value =
-		source.type === "youtube" ? source.config?.channelId : source.config?.url;
+		source.type === "youtube"
+			? source.config?.channelId
+			: source.type === "medium"
+				? source.config?.identifier
+				: source.config?.url;
 	if (typeof value === "string") return value;
 	return "—";
 }

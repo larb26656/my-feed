@@ -137,13 +137,7 @@ func (r *Repository) CreateSource(ctx context.Context, s *domain.Source) error {
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		s.ID.String(), s.Name, string(s.Type), rssURL, channelID, config, key, s.Active, s.CreatedAt.UTC().UnixNano(), s.UpdatedAt.UTC().UnixNano())
 	if database.IsUniqueConstraintViolation(err) {
-		if s.Type == domain.TypeManual {
-			return apperr.ResourceConflict.Wrap(err, "manual source already exists")
-		}
-		if s.Type == domain.TypeYouTube {
-			return apperr.ResourceConflict.Wrap(err, "youtube channel already in use")
-		}
-		return apperr.ResourceConflict.Wrap(err, "rss url already in use")
+		return uniqueConflict(err, s.Type)
 	}
 	return err
 }
@@ -190,10 +184,7 @@ func (r *Repository) UpdateSource(ctx context.Context, s *domain.Source) error {
 	result, err := r.q.ExecContext(ctx, `UPDATE sources SET name = ?, type = ?, rss_url = ?, youtube_channel_id = ?, config = ?, key = ?, active = ?, updated_at = ? WHERE id = ?`,
 		s.Name, string(s.Type), rssURL, channelID, config, key, s.Active, s.UpdatedAt.UTC().UnixNano(), s.ID.String())
 	if database.IsUniqueConstraintViolation(err) {
-		if s.Type == domain.TypeYouTube {
-			return apperr.ResourceConflict.Wrap(err, "youtube channel already in use")
-		}
-		return apperr.ResourceConflict.Wrap(err, "rss url already in use")
+		return uniqueConflict(err, s.Type)
 	}
 	if err != nil {
 		return err
@@ -267,4 +258,17 @@ func (r *Repository) SetProfileImage(ctx context.Context, id uuid.UUID, imageID 
 func sourceConfig(s *domain.Source) (string, string) {
 	encoded, _ := json.Marshal(s.Config)
 	return string(encoded), s.Key
+}
+
+func uniqueConflict(err error, typ domain.Type) error {
+	switch typ {
+	case domain.TypeManual:
+		return apperr.ResourceConflict.Wrap(err, "manual source already exists")
+	case domain.TypeYouTube:
+		return apperr.ResourceConflict.Wrap(err, "youtube channel already in use")
+	case domain.TypeMedium:
+		return apperr.ResourceConflict.Wrap(err, "medium source already in use")
+	default:
+		return apperr.ResourceConflict.Wrap(err, "rss url already in use")
+	}
 }

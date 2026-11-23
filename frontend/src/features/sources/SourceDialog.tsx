@@ -117,39 +117,38 @@ export function SourceDialog({
 					{ mode: "sync" },
 				);
 				const resolved = await configResolver(values, context, options);
-				if (!valid2020 || resolved.errors.config) {
+				if (!valid2020 || resolved.errors?.config) {
 					const fieldErrors: Record<string, { type: string; message: string }> =
 						{};
-					const resolverErrors = resolved.errors.config as
-						| Record<string, { type?: string; message?: string }>
-						| undefined;
-					for (const [key, error] of Object.entries(resolverErrors ?? {})) {
-						const type = error.type ?? "validate";
-						fieldErrors[key || "root"] = {
+					const assignConfigError = (key: string, type: string) => {
+						const field = key || "root";
+						fieldErrors[field] = {
 							type,
 							message:
-								definition.ui[key]?.error ??
+								definition.ui[field]?.error ??
 								(type === "required"
 									? "Required"
 									: "Please enter a valid value"),
 						};
-					}
-					// Preserve Draft 2020-12 errors if the resolver's Draft 7 engine
-					// ever disagrees with the supported-schema validation.
-					if (!valid2020 && Object.keys(fieldErrors).length === 0) {
+					};
+					// Prefer Draft 2020-12 errors so conditional schemas (allOf/if/then)
+					// attribute failures to the right fields.
+					if (!valid2020) {
 						for (const error of validate.errors ?? []) {
+							if (error.keyword === "if") continue;
 							const key =
 								error.keyword === "required"
 									? String(error.params.missingProperty)
 									: error.instancePath.slice(1);
-							fieldErrors[key || "root"] = {
-								type: error.keyword,
-								message:
-									definition.ui[key]?.error ??
-									(error.keyword === "required"
-										? "Required"
-										: "Please enter a valid value"),
-							};
+							assignConfigError(key, error.keyword);
+						}
+					} else {
+						const resolverErrors = resolved.errors?.config as
+							| Record<string, { type?: string; message?: string } | undefined>
+							| undefined;
+						for (const [key, error] of Object.entries(resolverErrors ?? {})) {
+							if (!error || typeof error !== "object") continue;
+							assignConfigError(key, error.type ?? "validate");
 						}
 					}
 					errors.config = fieldErrors;
@@ -414,6 +413,7 @@ export function SourceDialog({
 									definition={definition}
 									control={form.control}
 									clearPreview={clearPreview}
+									readOnly={Boolean(editing) && definition.code === "medium"}
 								/>
 							)}
 							{typeof form.formState.errors.config?.root?.message ===

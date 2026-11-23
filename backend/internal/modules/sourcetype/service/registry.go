@@ -106,7 +106,7 @@ func validateDefinition(d api.Definition) error {
 	}
 	for key := range d.Schema {
 		switch key {
-		case "$schema", "type", "additionalProperties", "properties", "required", "title", "description":
+		case "$schema", "type", "additionalProperties", "properties", "required", "title", "description", "allOf":
 		default:
 			return fmt.Errorf("unsupported schema keyword %s", key)
 		}

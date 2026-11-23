@@ -235,3 +235,35 @@ func TestFetchableSourceOwnsPreparedConfigChanges(t *testing.T) {
 	require.Equal(t, map[string]any{"slug": "second"}, source.Config)
 	require.Equal(t, "second", source.Key)
 }
+
+func TestMediumUpdateConfigAllowsSameTargetRename(t *testing.T) {
+	// Arrange
+	source, err := domain.NewFetchableSource("Alice", domain.TypeMedium, map[string]any{"kind": "profile", "identifier": "alice"}, "profile:alice")
+	require.NoError(t, err)
+
+	// Act
+	err = source.UpdateConfig("Renamed", map[string]any{"kind": "profile", "identifier": "alice"}, "profile:alice")
+
+	// Assert
+	require.NoError(t, err)
+	require.Equal(t, "Renamed", source.Name)
+	require.Equal(t, "profile:alice", source.Key)
+	require.Equal(t, map[string]any{"kind": "profile", "identifier": "alice"}, source.Config)
+}
+
+func TestMediumUpdateConfigRejectsTargetChange(t *testing.T) {
+	// Arrange
+	source, err := domain.NewFetchableSource("Alice", domain.TypeMedium, map[string]any{"kind": "profile", "identifier": "alice"}, "profile:alice")
+	require.NoError(t, err)
+	original := *source
+
+	// Act
+	err = source.UpdateConfig("Changed", map[string]any{"kind": "profile", "identifier": "bob"}, "profile:bob")
+
+	// Assert
+	var failure *apperr.AppError
+	require.ErrorAs(t, err, &failure)
+	require.Equal(t, apperr.InvalidInput.Code, failure.Code)
+	require.Contains(t, failure.Message, "medium source target cannot be changed")
+	require.Equal(t, original, *source)
+}

@@ -7,6 +7,7 @@ const types: Record<
 > = {
 	rss: { label: "RSS", icon: Rss },
 	manual: { label: "Manual", icon: Layers3, iconClassName: "text-blue-600" },
+	medium: { label: "Medium", icon: Layers3 },
 };
 
 export function SourceTypeBadge({

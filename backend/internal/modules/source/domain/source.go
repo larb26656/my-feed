@@ -15,6 +15,7 @@ type Type string
 const (
 	TypeRSS     Type = "rss"
 	TypeYouTube Type = "youtube"
+	TypeMedium  Type = "medium"
 	TypeManual  Type = "manual"
 
 	// SavedLinksName is the canonical display name of the system manual singleton.
@@ -62,7 +63,11 @@ func (s *Source) setConfig(config map[string]any, key string) {
 }
 
 // UpdateConfig atomically changes the name and prepared config of a fetchable Source.
+// Medium Sources lock their identity key; a rename with the same normalized target is allowed.
 func (s *Source) UpdateConfig(name string, config map[string]any, key string) error {
+	if s.Type == TypeMedium && key != s.Key {
+		return apperr.InvalidInput.New("medium source target cannot be changed")
+	}
 	if err := s.Rename(name); err != nil {
 		return err
 	}

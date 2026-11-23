@@ -71,7 +71,7 @@ func (s *Service) IngestEntry(ctx context.Context, in IngestEntryInput) (*Ingest
 	if err != nil {
 		return nil, err
 	}
-	if src.Type != sourceapi.SourceTypeRSS && src.Type != sourceapi.SourceTypeYouTube {
+	if src.Type == sourceapi.SourceTypeManual {
 		return nil, apperr.InvalidInput.New("ingest can only record Entries into fetchable Sources")
 	}
 	if !src.Active {

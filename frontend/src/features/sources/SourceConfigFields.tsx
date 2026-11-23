@@ -44,6 +44,7 @@ export function supportsSourceConfigFields(
 					"required",
 					"title",
 					"description",
+					"allOf",
 				].includes(key),
 		)
 	)
@@ -55,11 +56,7 @@ export function supportsSourceConfigFields(
 		Array.isArray(properties)
 	)
 		return false;
-	if (
-		["allOf", "anyOf", "oneOf", "if", "then", "else"].some(
-			(key) => key in schema,
-		)
-	)
+	if (["anyOf", "oneOf", "if", "then", "else"].some((key) => key in schema))
 		return false;
 	return Object.entries(properties).every(([key, raw]) => {
 		if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
@@ -112,10 +109,12 @@ export function SourceConfigFields({
 	definition,
 	control,
 	clearPreview,
+	readOnly = false,
 }: {
 	definition: SourceTypeDefinition;
 	control: Control<FormValues>;
 	clearPreview: () => void;
+	readOnly?: boolean;
 }) {
 	const properties = definition.schema.properties as
 		| Record<
@@ -156,6 +155,7 @@ export function SourceConfigFields({
 										aria-required={required}
 										aria-invalid={fieldState.invalid}
 										aria-describedby={fieldState.invalid ? errorId : undefined}
+										disabled={readOnly}
 										value={String(field.value ?? "")}
 										onChange={(event) => {
 											field.onChange(
@@ -182,6 +182,7 @@ export function SourceConfigFields({
 										aria-invalid={fieldState.invalid}
 										aria-describedby={fieldState.invalid ? errorId : undefined}
 										type="checkbox"
+										disabled={readOnly}
 										checked={Boolean(field.value)}
 										onChange={(event) => {
 											field.onChange(event.target.checked);
@@ -194,6 +195,7 @@ export function SourceConfigFields({
 										aria-required={required}
 										aria-invalid={fieldState.invalid}
 										aria-describedby={fieldState.invalid ? errorId : undefined}
+										readOnly={readOnly}
 										type={
 											meta.widget === "number"
 												? "number"
