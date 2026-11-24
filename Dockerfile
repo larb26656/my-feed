@@ -12,7 +12,10 @@ ARG TARGETARCH
 WORKDIR /src/backend
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
-RUN GOBIN=/out CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go install github.com/pressly/goose/v3/cmd/goose@$(go list -m -f '{{.Version}}' github.com/pressly/goose/v3)
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go install github.com/pressly/goose/v3/cmd/goose@$(go list -m -f '{{.Version}}' github.com/pressly/goose/v3) \
+    && mkdir -p /out \
+    && find "$(go env GOPATH)/bin" -type f -name goose -exec cp {} /out/goose \; \
+    && test -x /out/goose
 COPY backend/ ./
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -o /out/server ./cmd/api
 
