@@ -792,7 +792,7 @@
                         }
                     },
                     {
-                        "description": "Sort direction by publication date (or creation date)",
+                        "description": "Newest or oldest. Saved lists use the time the Entry was saved. The Saved links Source uses the time the link was recorded. Other lists use the publication time, or the recorded time when publication time is absent",
                         "in": "query",
                         "name": "sortDirection",
                         "schema": {

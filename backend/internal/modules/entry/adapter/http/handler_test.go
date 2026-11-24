@@ -1,12 +1,14 @@
 package http_test
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
@@ -595,6 +597,132 @@ func decodeFailure(t *testing.T, response *httptest.ResponseRecorder) httpx.Erro
 	body := testkit.Decode[httpx.ErrorResponse](t, response)
 	require.False(t, body.Success)
 	return body.Error
+}
+
+func TestSavedEntriesAreOrderedByTheTimeTheyWereSaved(t *testing.T) {
+	// Arrange
+	fixture := arrangeIndependentEntryClocks(t)
+
+	// Act
+	newest := decodePage(t, testkit.Request(t, fixture.router, "GET", "/api/v1/entries/?savedOnly=true", nil, 200))
+	oldest := decodePage(t, testkit.Request(t, fixture.router, "GET", "/api/v1/entries/?savedOnly=true&sortDirection=asc", nil, 200))
+
+	// Assert
+	require.Equal(t, []string{fixture.recordedEarlier.ID, fixture.earlyPublish.ID, fixture.latePublish.ID}, idsOf(newest.Data))
+	require.Equal(t, []string{fixture.latePublish.ID, fixture.earlyPublish.ID, fixture.recordedEarlier.ID}, idsOf(oldest.Data))
+}
+
+func TestSavedPaginationFollowsSavedTime(t *testing.T) {
+	// Arrange
+	fixture := arrangeIndependentEntryClocks(t)
+	first := decodePage(t, testkit.Request(t, fixture.router, "GET", "/api/v1/entries/?savedOnly=true&pageSize=2", nil, 200))
+	require.Len(t, first.Data, 2)
+	require.NotEmpty(t, first.Meta.NextCursor)
+
+	// Act
+	second := decodePage(t, testkit.Request(t, fixture.router, "GET", "/api/v1/entries/?savedOnly=true&pageSize=2&cursor="+url.QueryEscape(first.Meta.NextCursor), nil, 200))
+
+	// Assert
+	require.Equal(t, []string{fixture.recordedEarlier.ID, fixture.earlyPublish.ID}, idsOf(first.Data))
+	require.Equal(t, []string{fixture.latePublish.ID}, idsOf(second.Data))
+	require.Empty(t, second.Meta.NextCursor)
+	testkit.Request(t, fixture.router, "GET", "/api/v1/entries/?cursor="+url.QueryEscape(first.Meta.NextCursor), nil, 400)
+}
+
+func TestTheMainFeedStaysOrderedByPublicationTime(t *testing.T) {
+	// Arrange
+	fixture := arrangeIndependentEntryClocks(t)
+
+	// Act
+	page := decodePage(t, testkit.Request(t, fixture.router, "GET", "/api/v1/entries/", nil, 200))
+
+	// Assert
+	require.Equal(t, []string{fixture.latePublish.ID, fixture.recordedEarlier.ID, fixture.earlyPublish.ID, fixture.recordedLater.ID}, idsOf(page.Data))
+}
+
+func TestSavedLinksAreOrderedByTheTimeTheyWereRecorded(t *testing.T) {
+	// Arrange
+	fixture := arrangeIndependentEntryClocks(t)
+
+	// Act
+	newest := decodePage(t, testkit.Request(t, fixture.router, "GET", "/api/v1/entries/?sourceId="+fixture.manualID, nil, 200))
+	oldest := decodePage(t, testkit.Request(t, fixture.router, "GET", "/api/v1/entries/?sourceId="+fixture.manualID+"&sortDirection=asc", nil, 200))
+
+	// Assert
+	require.Equal(t, []string{fixture.recordedLater.ID, fixture.recordedEarlier.ID}, idsOf(newest.Data))
+	require.Equal(t, []string{fixture.recordedEarlier.ID, fixture.recordedLater.ID}, idsOf(oldest.Data))
+}
+
+func TestSavedLinksPaginationFollowsRecordedTime(t *testing.T) {
+	// Arrange
+	fixture := arrangeIndependentEntryClocks(t)
+	first := decodePage(t, testkit.Request(t, fixture.router, "GET", "/api/v1/entries/?sourceId="+fixture.manualID+"&pageSize=1", nil, 200))
+	require.NotEmpty(t, first.Meta.NextCursor)
+
+	// Act
+	second := decodePage(t, testkit.Request(t, fixture.router, "GET", "/api/v1/entries/?sourceId="+fixture.manualID+"&pageSize=1&cursor="+url.QueryEscape(first.Meta.NextCursor), nil, 200))
+
+	// Assert
+	require.Equal(t, fixture.recordedLater.ID, first.Data[0].ID)
+	require.Equal(t, fixture.recordedEarlier.ID, second.Data[0].ID)
+	require.Empty(t, second.Meta.NextCursor)
+	testkit.Request(t, fixture.router, "GET", "/api/v1/entries/?sourceId="+fixture.manualID+"&sortDirection=asc&cursor="+url.QueryEscape(first.Meta.NextCursor), nil, 400)
+}
+
+type clockedEntries struct {
+	router                         http.Handler
+	manualID                       string
+	earlyPublish, latePublish      entry
+	recordedLater, recordedEarlier entry
+}
+
+func arrangeIndependentEntryClocks(t *testing.T) clockedEntries {
+	t.Helper()
+	router, db := api.NewWithDB(t)
+	sources := decodeSuccess[[]struct {
+		ID, Type string
+	}](t, testkit.Request(t, router, "GET", "/api/v1/sources/?pageSize=100", nil, 200))
+	var manualID string
+	for _, source := range sources {
+		if source.Type == "manual" {
+			manualID = source.ID
+		}
+	}
+	require.NotEmpty(t, manualID)
+	sourceID := rssSource(t, router)
+	earlyPublish := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sourceID, "title": "Early publish", "link": "https://example.test/early"}, 201))
+	latePublish := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sourceID, "title": "Late publish", "link": "https://example.test/late"}, 201))
+	recordedLater := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]string{"title": "Recorded later", "link": "https://example.test/later"}, 201))
+	recordedEarlier := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]string{"title": "Recorded earlier", "link": "https://example.test/earlier"}, 201))
+
+	setEntryClock(t, db, earlyPublish.ID, time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), timePtr(time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC)))
+	setEntryClock(t, db, latePublish.ID, time.Date(2025, 12, 1, 0, 0, 0, 0, time.UTC), time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC), timePtr(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)))
+	setEntryClock(t, db, recordedLater.ID, time.Date(2010, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2024, 8, 1, 0, 0, 0, 0, time.UTC), nil)
+	setEntryClock(t, db, recordedEarlier.ID, time.Date(2022, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC), timePtr(time.Date(2025, 12, 1, 0, 0, 0, 0, time.UTC)))
+	return clockedEntries{router: router, manualID: manualID, earlyPublish: earlyPublish, latePublish: latePublish, recordedLater: recordedLater, recordedEarlier: recordedEarlier}
+}
+
+func setEntryClock(t *testing.T, db *sql.DB, id string, published, created time.Time, saved *time.Time) {
+	t.Helper()
+	var savedAt any
+	if saved != nil {
+		savedAt = saved.UTC().UnixNano()
+	}
+	result, err := db.Exec(`UPDATE entries SET published_at = ?, created_at = ?, saved_at = ? WHERE id = ?`, published.UTC().UnixNano(), created.UTC().UnixNano(), savedAt, id)
+	require.NoError(t, err)
+	affected, err := result.RowsAffected()
+	require.NoError(t, err)
+	require.Equal(t, int64(1), affected)
+}
+
+func timePtr(value time.Time) *time.Time { return &value }
+
+func idsOf(entries []entry) []string {
+	ids := make([]string, 0, len(entries))
+	for _, item := range entries {
+		ids = append(ids, item.ID)
+	}
+	return ids
 }
 
 func TestOldestFirstPaginationAndCursorDirection(t *testing.T) {

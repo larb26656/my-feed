@@ -67,6 +67,23 @@ test("keeps an Entry readable without a thumbnail", () => {
 	expect(container.querySelector('img[alt=""]')).toBeNull();
 });
 
+test("shows the publication time when the Entry was saved later", () => {
+	const { container } = render(
+		<FeedItem
+			entry={{
+				...entry,
+				publishedAt: "2020-01-01T00:00:00Z",
+				savedAt: "2024-06-01T00:00:00Z",
+			}}
+			disabled={false}
+			onToggle={vi.fn()}
+		/>,
+	);
+	expect(container.querySelector("time")?.getAttribute("datetime")).toBe(
+		"2020-01-01T00:00:00Z",
+	);
+});
+
 test("links the source name and avatar to its feed", () => {
 	render(
 		<FeedItem

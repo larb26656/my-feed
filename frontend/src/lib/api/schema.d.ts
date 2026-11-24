@@ -202,7 +202,7 @@ export interface paths {
                     unread?: boolean;
                     /** @description Only saved Entries */
                     savedOnly?: boolean;
-                    /** @description Sort direction by publication date (or creation date) */
+                    /** @description Newest or oldest. Saved lists use the time the Entry was saved. The Saved links Source uses the time the link was recorded. Other lists use the publication time, or the recorded time when publication time is absent */
                     sortDirection?: "asc" | "desc";
                 };
                 header?: never;

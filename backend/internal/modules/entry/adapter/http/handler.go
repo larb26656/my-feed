@@ -137,7 +137,7 @@ func (h *Handler) getEntry(c *gin.Context) {
 // @Param sourceId query string false "Source ID" format(uuid)
 // @Param unread query bool false "Only unread Entries"
 // @Param savedOnly query bool false "Only saved Entries"
-// @Param sortDirection query string false "Sort direction by publication date (or creation date)" Enums(asc, desc) default(desc)
+// @Param sortDirection query string false "Newest or oldest. Saved lists use the time the Entry was saved. The Saved links Source uses the time the link was recorded. Other lists use the publication time, or the recorded time when publication time is absent" Enums(asc, desc) default(desc)
 // @Success 200 {object} CursorResponse
 // @Failure 400 {object} httpx.ErrorResponse
 // @Failure 404 {object} httpx.ErrorResponse
