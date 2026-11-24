@@ -131,6 +131,131 @@ func TestSQLiteListsEntriesNewestFirst(t *testing.T) {
 	require.Equal(t, ids[0], entries[1].ID)
 }
 
+func TestSQLiteListsSavedEntriesBySavedTimeInsteadOfPublicationTime(t *testing.T) {
+	// Arrange
+	repo, source := entryRepository(t)
+	publishedEarly := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	publishedLate := time.Date(2025, 12, 1, 0, 0, 0, 0, time.UTC)
+	savedEarly := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	savedLate := time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC)
+	earlyPublish := insertEntry(t, repo, source.ID, "Early publish", "https://example.test/early", &publishedEarly, &savedLate, publishedEarly)
+	latePublish := insertEntry(t, repo, source.ID, "Late publish", "https://example.test/late", &publishedLate, &savedEarly, publishedLate)
+
+	// Act
+	newestSaved, err := repo.ListEntries(context.Background(), nil, repository.EntryListCriteria{SavedOnly: true}, repository.EntryListSort{SavedAtSort: "desc"}, 10)
+	require.NoError(t, err)
+	oldestSaved, err := repo.ListEntries(context.Background(), nil, repository.EntryListCriteria{SavedOnly: true}, repository.EntryListSort{SavedAtSort: "asc"}, 10)
+
+	// Assert
+	require.NoError(t, err)
+	require.Equal(t, []uuid.UUID{earlyPublish.ID, latePublish.ID}, []uuid.UUID{newestSaved[0].ID, newestSaved[1].ID})
+	require.Equal(t, []uuid.UUID{latePublish.ID, earlyPublish.ID}, []uuid.UUID{oldestSaved[0].ID, oldestSaved[1].ID})
+}
+
+func TestSQLiteSavedCursorContinuesFromTheSavedTime(t *testing.T) {
+	// Arrange
+	repo, source := entryRepository(t)
+	published := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	laterPublished := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	savedFirst := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	savedSecond := time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)
+	savedThird := time.Date(2024, 3, 1, 0, 0, 0, 0, time.UTC)
+	first := insertEntry(t, repo, source.ID, "First", "https://example.test/first", &laterPublished, &savedFirst, savedFirst)
+	second := insertEntry(t, repo, source.ID, "Second", "https://example.test/second", &published, &savedSecond, savedSecond)
+	third := insertEntry(t, repo, source.ID, "Third", "https://example.test/third", &laterPublished, &savedThird, savedThird)
+	cursor := &repository.EntryListCursor{CreatedAt: second.CreatedAt, SavedAt: second.SavedAt, ID: second.ID}
+
+	// Act
+	entries, err := repo.ListEntries(context.Background(), cursor, repository.EntryListCriteria{SavedOnly: true}, repository.EntryListSort{SavedAtSort: "desc"}, 10)
+
+	// Assert
+	require.NoError(t, err)
+	require.Equal(t, []uuid.UUID{third.ID, first.ID}, []uuid.UUID{entries[0].ID, entries[1].ID})
+}
+
+func TestSQLiteSavedEntriesWithTheSameSavedTimeAreSortedByAscendingID(t *testing.T) {
+	// Arrange
+	repo, source := entryRepository(t)
+	published := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	saved := published
+	var ids []uuid.UUID
+	for i, id := range []string{
+		"00000000-0000-0000-0000-000000000001",
+		"00000000-0000-0000-0000-000000000003",
+		"00000000-0000-0000-0000-000000000002",
+	} {
+		parsed := uuid.MustParse(id)
+		insertEntryAt(t, repo, source.ID, parsed, "News", fmt.Sprintf("https://example.test/%d", i), &published, &saved, published)
+		ids = append(ids, parsed)
+	}
+
+	// Act
+	entries, err := repo.ListEntries(context.Background(), nil, repository.EntryListCriteria{SavedOnly: true}, repository.EntryListSort{SavedAtSort: "desc"}, 10)
+
+	// Assert
+	require.NoError(t, err)
+	require.Equal(t, []uuid.UUID{ids[0], ids[2], ids[1]}, []uuid.UUID{entries[0].ID, entries[1].ID, entries[2].ID})
+}
+
+func TestSQLiteListsRecordedEntriesByRecordedTimeInsteadOfPublicationTime(t *testing.T) {
+	// Arrange
+	repo, source := entryRepository(t)
+	publishedEarly := time.Date(2010, 1, 1, 0, 0, 0, 0, time.UTC)
+	publishedLate := time.Date(2022, 1, 1, 0, 0, 0, 0, time.UTC)
+	recordedEarly := time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC)
+	recordedLate := time.Date(2024, 8, 1, 0, 0, 0, 0, time.UTC)
+	recordedEarlier := insertEntry(t, repo, source.ID, "Recorded earlier", "https://example.test/earlier", &publishedLate, nil, recordedEarly)
+	recordedLater := insertEntry(t, repo, source.ID, "Recorded later", "https://example.test/later", &publishedEarly, nil, recordedLate)
+
+	// Act
+	newestRecorded, err := repo.ListEntries(context.Background(), nil, repository.EntryListCriteria{}, repository.EntryListSort{CreatedAtSort: "desc"}, 10)
+	require.NoError(t, err)
+	oldestRecorded, err := repo.ListEntries(context.Background(), nil, repository.EntryListCriteria{}, repository.EntryListSort{CreatedAtSort: "asc"}, 10)
+
+	// Assert
+	require.NoError(t, err)
+	require.Equal(t, []uuid.UUID{recordedLater.ID, recordedEarlier.ID}, []uuid.UUID{newestRecorded[0].ID, newestRecorded[1].ID})
+	require.Equal(t, []uuid.UUID{recordedEarlier.ID, recordedLater.ID}, []uuid.UUID{oldestRecorded[0].ID, oldestRecorded[1].ID})
+}
+
+func TestSQLiteRecordedCursorContinuesFromTheRecordedTime(t *testing.T) {
+	// Arrange
+	repo, source := entryRepository(t)
+	publishedEarly := time.Date(2010, 1, 1, 0, 0, 0, 0, time.UTC)
+	publishedLate := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	recordedFirst := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	recordedSecond := time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)
+	first := insertEntry(t, repo, source.ID, "First", "https://example.test/first", &publishedLate, nil, recordedFirst)
+	second := insertEntry(t, repo, source.ID, "Second", "https://example.test/second", &publishedEarly, nil, recordedSecond)
+	cursor := &repository.EntryListCursor{CreatedAt: second.CreatedAt, ID: second.ID}
+
+	// Act
+	entries, err := repo.ListEntries(context.Background(), cursor, repository.EntryListCriteria{}, repository.EntryListSort{CreatedAtSort: "desc"}, 10)
+
+	// Assert
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	require.Equal(t, first.ID, entries[0].ID)
+}
+
+func TestSQLiteDefaultOrderStillUsesPublicationTimeWhenSavedTimesDiffer(t *testing.T) {
+	// Arrange
+	repo, source := entryRepository(t)
+	publishedEarly := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	publishedLate := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	savedEarly := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	savedLate := time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC)
+	earlyPublish := insertEntry(t, repo, source.ID, "Early publish", "https://example.test/early", &publishedEarly, &savedLate, publishedEarly)
+	latePublish := insertEntry(t, repo, source.ID, "Late publish", "https://example.test/late", &publishedLate, &savedEarly, publishedEarly)
+
+	// Act
+	entries, err := repo.ListEntries(context.Background(), nil, repository.EntryListCriteria{}, repository.EntryListSort{PublishedAtSort: "desc"}, 10)
+
+	// Assert
+	require.NoError(t, err)
+	require.Equal(t, []uuid.UUID{latePublish.ID, earlyPublish.ID}, []uuid.UUID{entries[0].ID, entries[1].ID})
+}
+
 func TestSQLiteCursorReturnsOnlyEntriesAfterItsPosition(t *testing.T) {
 	// Arrange
 	repo, source := entryRepository(t)
@@ -200,6 +325,28 @@ func TestSQLiteFindsAnEntryByItsSourceAndLink(t *testing.T) {
 	// Assert
 	require.NoError(t, err)
 	require.Equal(t, article.ID, got.ID)
+}
+
+func insertEntry(t *testing.T, repo *Repository, sourceID uuid.UUID, title, link string, published, saved *time.Time, created time.Time) *entrydomain.Entry {
+	t.Helper()
+	return insertEntryAt(t, repo, sourceID, uuid.Nil, title, link, published, saved, created)
+}
+
+func insertEntryAt(t *testing.T, repo *Repository, sourceID, id uuid.UUID, title, link string, published, saved *time.Time, created time.Time) *entrydomain.Entry {
+	t.Helper()
+	article, err := entrydomain.NewEntry(sourceID, entrydomain.EntryMetadata{Title: title, Link: link, PublishedAt: published})
+	require.NoError(t, err)
+	if id != uuid.Nil {
+		article.ID = id
+	}
+	article.CreatedAt = created.UTC()
+	article.UpdatedAt = created.UTC()
+	if saved != nil {
+		article.MarkSaved(saved.UTC())
+	}
+	_, err = repo.CreateEntry(context.Background(), article)
+	require.NoError(t, err)
+	return article
 }
 
 func TestSQLiteReturnsNotFoundForAMissingEntry(t *testing.T) {

@@ -3,6 +3,7 @@ package api
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 	"testing"
 
@@ -36,7 +37,20 @@ func NewWithUploads(t testing.TB, uploads string) *gin.Engine {
 	return NewWithDefinitions(t, uploads)
 }
 
+// NewWithDB mounts production routes and returns the database they use so a
+// test can place explicit timestamps before listing Entries.
+func NewWithDB(t testing.TB) (*gin.Engine, *sql.DB) {
+	t.Helper()
+	return newEngine(t, t.TempDir())
+}
+
 func NewWithDefinitions(t testing.TB, uploads string, extra ...typeapi.Definition) *gin.Engine {
+	t.Helper()
+	engine, _ := newEngine(t, uploads, extra...)
+	return engine
+}
+
+func newEngine(t testing.TB, uploads string, extra ...typeapi.Definition) (*gin.Engine, *sql.DB) {
 	t.Helper()
 	pool := testkit.NewDatabase(t)
 	sourceRepo := sourcesqlite.NewRepository(pool.DB)
@@ -54,5 +68,5 @@ func NewWithDefinitions(t testing.TB, uploads string, extra ...typeapi.Definitio
 	sources.SetObtainer(typeRegistry)
 	typehttp.RegisterRoutes(router.Group("/api/v1"), typeRegistry)
 	entryhttp.NewHandler(entries).RegisterRoutes(router.Group("/api/v1/entries"))
-	return router
+	return router, pool.DB
 }
