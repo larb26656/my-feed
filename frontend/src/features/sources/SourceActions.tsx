@@ -1,6 +1,12 @@
 import { Camera, Ellipsis, Pencil, Power } from "lucide-react";
-import { useState } from "react";
 import { Button } from "#/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuGroup,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "#/components/ui/dropdown-menu";
 import type { Source } from "#/features/feed/types";
 
 export type SourceActionHandlers = {
@@ -16,9 +22,6 @@ type SourceActionsProps = SourceActionHandlers & {
 	appearance?: "outline" | "ghost";
 };
 
-const menuItemClass =
-	"flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-muted disabled:opacity-50";
-
 export function SourceActions({
 	source,
 	activationPending,
@@ -28,8 +31,6 @@ export function SourceActions({
 	onToggleActive,
 	appearance = "outline",
 }: SourceActionsProps) {
-	const [menuOpen, setMenuOpen] = useState(false);
-
 	if (source.type === "manual") return null;
 
 	const pendingHere = activationPending && activationSourceId === source.id;
@@ -42,62 +43,41 @@ export function SourceActions({
 			: "Activate source";
 
 	return (
-		<div className="relative flex justify-end">
-			<Button
-				variant={appearance}
-				size="icon"
-				aria-label={`Actions for ${source.name}`}
-				aria-haspopup="menu"
-				aria-expanded={menuOpen}
-				onClick={() => setMenuOpen((open) => !open)}
+		<DropdownMenu>
+			<DropdownMenuTrigger
+				render={
+					<Button
+						variant={appearance}
+						size="icon"
+						aria-label={`Actions for ${source.name}`}
+					/>
+				}
 			>
-				<Ellipsis size={18} />
-			</Button>
-			{menuOpen && (
-				<div
-					role="menu"
-					aria-label={`${source.name} actions`}
-					className="absolute right-0 top-full z-30 mt-2 min-w-52 rounded-xl border bg-popover p-1 shadow-lg"
-				>
-					<button
-						type="button"
-						role="menuitem"
-						className={menuItemClass}
-						onClick={() => {
-							setMenuOpen(false);
-							onEdit(source);
-						}}
-					>
-						<Pencil size={14} />
+				<Ellipsis />
+			</DropdownMenuTrigger>
+			<DropdownMenuContent
+				align="end"
+				className="min-w-52"
+				aria-label={`${source.name} actions`}
+			>
+				<DropdownMenuGroup>
+					<DropdownMenuItem onClick={() => onEdit(source)}>
+						<Pencil />
 						Edit source
-					</button>
-					<button
-						type="button"
-						role="menuitem"
-						className={menuItemClass}
-						onClick={() => {
-							setMenuOpen(false);
-							onImage(source);
-						}}
-					>
-						<Camera size={14} aria-hidden="true" />
+					</DropdownMenuItem>
+					<DropdownMenuItem onClick={() => onImage(source)}>
+						<Camera />
 						Change profile image
-					</button>
-					<button
-						type="button"
-						role="menuitem"
+					</DropdownMenuItem>
+					<DropdownMenuItem
 						disabled={activationPending}
-						className={menuItemClass}
-						onClick={() => {
-							setMenuOpen(false);
-							onToggleActive(source);
-						}}
+						onClick={() => onToggleActive(source)}
 					>
-						<Power size={14} />
+						<Power />
 						{activationLabel}
-					</button>
-				</div>
-			)}
-		</div>
+					</DropdownMenuItem>
+				</DropdownMenuGroup>
+			</DropdownMenuContent>
+		</DropdownMenu>
 	);
 }

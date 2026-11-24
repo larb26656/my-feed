@@ -255,10 +255,10 @@ test("keeps Saved entries in saved-time order from the API", async () => {
 	).toBe(true);
 	await userEvent
 		.setup()
-		.selectOptions(
-			screen.getByRole("combobox", { name: "Sort entries" }),
-			"asc",
-		);
+		.click(screen.getByRole("combobox", { name: "Sort entries" }));
+	await userEvent
+		.setup()
+		.click(await screen.findByRole("option", { name: "Oldest first" }));
 	await waitFor(() =>
 		expect(
 			calls.some(
@@ -297,19 +297,19 @@ test("requests the selected sort direction from the API", async () => {
 	);
 	await userEvent
 		.setup()
-		.selectOptions(
-			screen.getByRole("combobox", { name: "Sort entries" }),
-			"asc",
-		);
+		.click(screen.getByRole("combobox", { name: "Sort entries" }));
+	await userEvent
+		.setup()
+		.click(await screen.findByRole("option", { name: "Oldest first" }));
 	await waitFor(() =>
 		expect(calls.some((url) => url.includes("publishedAtSort=asc"))).toBe(true),
 	);
 	await userEvent
 		.setup()
-		.selectOptions(
-			screen.getByRole("combobox", { name: "Sort entries by" }),
-			"savedAtSort",
-		);
+		.click(screen.getByRole("combobox", { name: "Sort entries by" }));
+	await userEvent
+		.setup()
+		.click(await screen.findByRole("option", { name: "Saved" }));
 	await waitFor(() =>
 		expect(calls.some((url) => url.includes("savedAtSort=asc"))).toBe(true),
 	);

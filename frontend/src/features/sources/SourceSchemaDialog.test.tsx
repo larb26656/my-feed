@@ -162,13 +162,13 @@ test("switching types resets field values and errors and applies defaults", asyn
 	await user.type(await screen.findByLabelText("First field"), "bad");
 	await user.click(screen.getByRole("button", { name: "Test fetch" }));
 	expect(await screen.findByText("Please enter a valid value")).toBeTruthy();
-	await user.click(screen.getByLabelText("Second"));
+	await user.click(screen.getByRole("radio", { name: "Second" }));
 	expect(screen.queryByText("Please enter a valid value")).toBeNull();
 	expect(screen.getByLabelText("Second field")).toHaveProperty(
 		"value",
 		"ok-default",
 	);
-	await user.click(screen.getByLabelText("First"));
+	await user.click(screen.getByRole("radio", { name: "First" }));
 	expect(screen.getByLabelText("First field")).toHaveProperty("value", "");
 });
 
@@ -294,17 +294,22 @@ test("renders registered widgets and submits their typed values", async () => {
 	expect(screen.getByLabelText("Choice").getAttribute("aria-invalid")).toBe(
 		"true",
 	);
-	expect(screen.getByLabelText("Enabled").getAttribute("aria-invalid")).toBe(
-		"true",
-	);
 	expect(
-		screen.getByLabelText("Enabled").getAttribute("aria-describedby"),
+		screen
+			.getByRole("checkbox", { name: "Enabled" })
+			.getAttribute("aria-invalid"),
+	).toBe("true");
+	expect(
+		screen
+			.getByRole("checkbox", { name: "Enabled" })
+			.getAttribute("aria-describedby"),
 	).toBeTruthy();
 	await user.type(screen.getByLabelText("Text"), "ok-value");
 	await user.type(screen.getByLabelText("URL"), "https://example.test");
 	expect((screen.getByLabelText("Count") as HTMLInputElement).value).toBe("3");
-	await user.selectOptions(screen.getByLabelText("Choice"), "2");
-	await user.click(screen.getByLabelText("Enabled"));
+	await user.click(screen.getByLabelText("Choice"));
+	await user.click(await screen.findByRole("option", { name: "2" }));
+	await user.click(screen.getByRole("checkbox", { name: "Enabled" }));
 	await user.click(screen.getByRole("button", { name: "Save source" }));
 	await waitFor(() =>
 		expect(

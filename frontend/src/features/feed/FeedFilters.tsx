@@ -1,6 +1,14 @@
 import { Link } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { buttonVariants } from "#/components/ui/button";
+import {
+	Select,
+	SelectContent,
+	SelectGroup,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "#/components/ui/select";
 import { cn } from "#/lib/utils";
 
 export function FeedFilters({
@@ -26,29 +34,48 @@ export function FeedFilters({
 			)}
 		>
 			<div className="flex items-center gap-3">
-				<select
-					aria-label="Sort entries by"
+				<Select
 					value={sortField}
-					onChange={(event) =>
-						setSortField(event.target.value as typeof sortField)
-					}
-					className="min-h-10 rounded-md bg-transparent px-2 text-xs text-muted-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-primary"
+					onValueChange={(value) => {
+						if (value) setSortField(value as typeof sortField);
+					}}
+					items={[
+						{ value: "publishedAtSort", label: "Published" },
+						{ value: "createdAtSort", label: "Recorded" },
+						{ value: "savedAtSort", label: "Saved" },
+					]}
 				>
-					<option value="publishedAtSort">Published</option>
-					<option value="createdAtSort">Recorded</option>
-					<option value="savedAtSort">Saved</option>
-				</select>
-				<select
-					aria-label="Sort entries"
+					<SelectTrigger aria-label="Sort entries by">
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectGroup>
+							<SelectItem value="publishedAtSort">Published</SelectItem>
+							<SelectItem value="createdAtSort">Recorded</SelectItem>
+							<SelectItem value="savedAtSort">Saved</SelectItem>
+						</SelectGroup>
+					</SelectContent>
+				</Select>
+				<Select
 					value={sortDirection}
-					onChange={(event) =>
-						setSortDirection(event.target.value as "asc" | "desc")
-					}
-					className="min-h-10 rounded-md bg-transparent px-2 text-xs text-muted-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-primary"
+					onValueChange={(value) => {
+						if (value) setSortDirection(value as "asc" | "desc");
+					}}
+					items={[
+						{ value: "desc", label: "Newest first" },
+						{ value: "asc", label: "Oldest first" },
+					]}
 				>
-					<option value="desc">Newest first</option>
-					<option value="asc">Oldest first</option>
-				</select>
+					<SelectTrigger aria-label="Sort entries">
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectGroup>
+							<SelectItem value="desc">Newest first</SelectItem>
+							<SelectItem value="asc">Oldest first</SelectItem>
+						</SelectGroup>
+					</SelectContent>
+				</Select>
 				<div className="h-6 border-l border-border/70" aria-hidden="true" />
 				<Link
 					to="/record-link"

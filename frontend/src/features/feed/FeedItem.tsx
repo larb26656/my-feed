@@ -9,6 +9,7 @@ import {
 import { useState } from "react";
 import { SourceAvatar } from "#/components/SourceAvatar";
 import { SourceTypeBadge } from "#/components/SourceTypeBadge";
+import { Button } from "#/components/ui/button";
 import { formatDate } from "#/lib/date";
 import { cn } from "#/lib/utils";
 import { RichDescription } from "./RichDescription";
@@ -146,19 +147,22 @@ export function FeedItem(props: Props) {
 				</div>
 				<div className="mt-3 flex items-center text-muted-foreground">
 					{description && overflowing && (
-						<button
+						<Button
 							type="button"
+							variant="ghost"
 							aria-expanded={expanded}
 							onClick={() => setExpanded(!expanded)}
-							className="text-sm font-medium hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+							className="h-auto px-0 text-sm hover:underline"
 						>
 							{expanded ? "See less" : "See more"}
-						</button>
+						</Button>
 					)}
 					{!preview && (
 						<div className="ml-auto flex items-center gap-x-2 sm:gap-x-4">
-							<button
+							<Button
 								type="button"
+								variant="ghost"
+								size="icon"
 								disabled={!preview && props.disabled}
 								onClick={() =>
 									!preview && props.onToggle(entry as Entry, "read")
@@ -170,25 +174,29 @@ export function FeedItem(props: Props) {
 								}
 								aria-pressed={read}
 								title={read ? "Read" : "Mark as read"}
-								className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 sm:min-h-10 sm:min-w-0 rounded-md px-2 text-xs hover:bg-muted disabled:opacity-50"
+								className="size-11 sm:size-10"
 							>
 								{read ? <CircleCheck size={17} /> : <BookOpenCheck size={17} />}
-							</button>
-							<button
+							</Button>
+							<Button
 								type="button"
+								variant="ghost"
+								size="icon"
 								onClick={copyLink}
 								aria-label={copied ? "Link copied" : "Copy link"}
 								title={copied ? "Link copied" : "Copy link"}
-								className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 sm:min-h-10 sm:min-w-0 rounded-md px-2 text-xs hover:bg-muted"
+								className="size-11 sm:size-10"
 							>
 								{copied ? (
 									<Check size={18} strokeWidth={1.9} />
 								) : (
 									<Copy size={18} strokeWidth={1.7} />
 								)}
-							</button>
-							<button
+							</Button>
+							<Button
 								type="button"
+								variant="ghost"
+								size="icon"
 								disabled={!preview && props.disabled}
 								onClick={() =>
 									!preview && props.onToggle(entry as Entry, "save")
@@ -200,14 +208,14 @@ export function FeedItem(props: Props) {
 								}
 								aria-pressed={saved}
 								title={saved ? "Remove from saved" : "Saved"}
-								className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 sm:min-h-10 sm:min-w-0 rounded-md px-2 text-xs hover:bg-muted disabled:opacity-50"
+								className="size-11 sm:size-10"
 							>
 								<Bookmark
 									size={18}
 									strokeWidth={1.7}
 									fill={saved ? "currentColor" : "none"}
 								/>
-							</button>
+							</Button>
 						</div>
 					)}
 				</div>

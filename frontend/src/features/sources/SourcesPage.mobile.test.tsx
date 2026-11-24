@@ -210,7 +210,9 @@ test("debounces name search and applies the type filter without a Search button"
 		).toBe(true),
 	);
 	await user.click(screen.getByRole("button", { name: "Filter by type" }));
-	await user.click(screen.getByRole("menuitemradio", { name: "YouTube" }));
+	await user.click(
+		await screen.findByRole("menuitemradio", { name: "YouTube" }),
+	);
 	await waitFor(() =>
 		expect(
 			fetchMock.mock.calls.some(
@@ -241,7 +243,9 @@ test("sorts the card list and shows the count with the current sort", async () =
 	expect(await screen.findByText("3 sources")).toBeTruthy();
 	expect(screen.getByText("Name (A-Z)")).toBeTruthy();
 	await user.click(screen.getByRole("button", { name: "Sort sources" }));
-	await user.click(screen.getByRole("menuitemradio", { name: "Name (Z-A)" }));
+	await user.click(
+		await screen.findByRole("menuitemradio", { name: "Name (Z-A)" }),
+	);
 	await waitFor(() =>
 		expect(
 			fetchMock.mock.calls.some(([url]) => {
@@ -250,7 +254,7 @@ test("sorts the card list and shows the count with the current sort", async () =
 			}),
 		).toBe(true),
 	);
-	expect(screen.getByText("Name (Z-A)")).toBeTruthy();
+	expect(screen.getAllByText("Name (Z-A)").length).toBeGreaterThan(0);
 });
 
 test("loads the next page when the list reaches the end", async () => {
@@ -321,7 +325,9 @@ test("keeps row actions on a card and hides them for the manual Source", async (
 	await user.click(
 		screen.getByRole("button", { name: "Actions for Engineering Blog" }),
 	);
-	await user.click(screen.getByRole("menuitem", { name: "Deactivate source" }));
+	await user.click(
+		await screen.findByRole("menuitem", { name: "Deactivate source" }),
+	);
 	await waitFor(() =>
 		expect(screen.queryByRole("link", { name: "Engineering Blog" })).toBeNull(),
 	);

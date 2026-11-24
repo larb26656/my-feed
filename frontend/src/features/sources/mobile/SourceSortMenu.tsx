@@ -1,6 +1,13 @@
 import { ArrowUpDown } from "lucide-react";
-import { useState } from "react";
 import { Button } from "#/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuGroup,
+	DropdownMenuRadioGroup,
+	DropdownMenuRadioItem,
+	DropdownMenuTrigger,
+} from "#/components/ui/dropdown-menu";
 import type {
 	SourceSort,
 	SourceSortDirection,
@@ -34,9 +41,6 @@ export function formatSourceCount(total: number) {
 	return `${total} ${total === 1 ? "source" : "sources"}`;
 }
 
-const menuItemClass =
-	"flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-muted aria-checked:bg-muted aria-checked:font-medium";
-
 export function SourceSortMenu({
 	sort,
 	onSortChange,
@@ -44,53 +48,52 @@ export function SourceSortMenu({
 	sort: SourceSort;
 	onSortChange: (sort: SourceSort) => void;
 }) {
-	const [open, setOpen] = useState(false);
-
+	const value = `${sort.sortBy}:${sort.sortDirection}`;
 	return (
-		<div className="relative">
-			<Button
-				type="button"
-				variant="outline"
-				size="icon"
-				className="size-10"
-				aria-label="Sort sources"
-				aria-haspopup="menu"
-				aria-expanded={open}
-				onClick={() => setOpen((current) => !current)}
+		<DropdownMenu>
+			<DropdownMenuTrigger
+				render={
+					<Button
+						type="button"
+						variant="outline"
+						size="icon"
+						className="size-10"
+						aria-label="Sort sources"
+					/>
+				}
 			>
 				<ArrowUpDown />
-			</Button>
-			{open && (
-				<div
-					role="menu"
-					aria-label="Sort sources"
-					className="absolute right-0 top-full z-30 mt-2 min-w-52 rounded-xl border bg-popover p-1 shadow-lg"
-				>
-					{options.map((option) => {
-						const selected =
-							option.sortBy === sort.sortBy &&
-							option.sortDirection === sort.sortDirection;
-						return (
-							<button
+			</DropdownMenuTrigger>
+			<DropdownMenuContent
+				align="end"
+				className="min-w-52"
+				aria-label="Sort sources"
+			>
+				<DropdownMenuGroup>
+					<DropdownMenuRadioGroup
+						value={value}
+						onValueChange={(next) => {
+							const option = options.find(
+								(item) => `${item.sortBy}:${item.sortDirection}` === next,
+							);
+							if (option)
+								onSortChange({
+									sortBy: option.sortBy,
+									sortDirection: option.sortDirection,
+								});
+						}}
+					>
+						{options.map((option) => (
+							<DropdownMenuRadioItem
 								key={option.label}
-								type="button"
-								role="menuitemradio"
-								aria-checked={selected}
-								className={menuItemClass}
-								onClick={() => {
-									setOpen(false);
-									onSortChange({
-										sortBy: option.sortBy,
-										sortDirection: option.sortDirection,
-									});
-								}}
+								value={`${option.sortBy}:${option.sortDirection}`}
 							>
 								{option.label}
-							</button>
-						);
-					})}
-				</div>
-			)}
-		</div>
+							</DropdownMenuRadioItem>
+						))}
+					</DropdownMenuRadioGroup>
+				</DropdownMenuGroup>
+			</DropdownMenuContent>
+		</DropdownMenu>
 	);
 }

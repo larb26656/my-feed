@@ -1,4 +1,5 @@
 import { type Control, Controller } from "react-hook-form";
+import { Checkbox } from "#/components/ui/checkbox";
 import {
 	Field,
 	FieldDescription,
@@ -6,6 +7,14 @@ import {
 	FieldLabel,
 } from "#/components/ui/field";
 import { Input } from "#/components/ui/input";
+import {
+	Select,
+	SelectContent,
+	SelectGroup,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "#/components/ui/select";
 
 export type SourceTypeDefinition = {
 	code: string;
@@ -158,44 +167,57 @@ export function SourceConfigFields({
 									{meta.label}
 								</FieldLabel>
 								{meta.widget === "select" ? (
-									<select
-										id={id}
-										aria-required={required}
-										aria-invalid={fieldState.invalid}
-										aria-describedby={fieldState.invalid ? errorId : undefined}
-										aria-readonly={readOnly || undefined}
-										disabled={readOnly}
+									<Select
 										value={String(field.value ?? "")}
-										onChange={(event) => {
+										disabled={readOnly}
+										onValueChange={(value) => {
+											if (value === null) return;
 											field.onChange(
 												(property.type === "number" ||
 													property.type === "integer") &&
-													event.target.value !== ""
-													? Number(event.target.value)
-													: event.target.value,
+													value !== ""
+													? Number(value)
+													: value,
 											);
 											clearPreview();
 										}}
 									>
-										<option value="">Select...</option>
-										{property.enum?.map((value) => (
-											<option key={String(value)} value={String(value)}>
-												{String(value)}
-											</option>
-										))}
-									</select>
+										<SelectTrigger
+											id={id}
+											ref={field.ref}
+											onBlur={field.onBlur}
+											aria-required={required}
+											aria-invalid={fieldState.invalid}
+											aria-describedby={
+												fieldState.invalid ? errorId : undefined
+											}
+											aria-readonly={readOnly || undefined}
+										>
+											<SelectValue placeholder="Select..." />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectGroup>
+												<SelectItem value="">Select...</SelectItem>
+												{property.enum?.map((value) => (
+													<SelectItem key={String(value)} value={String(value)}>
+														{String(value)}
+													</SelectItem>
+												))}
+											</SelectGroup>
+										</SelectContent>
+									</Select>
 								) : meta.widget === "checkbox" ? (
-									<input
+									<Checkbox
 										id={id}
+										ref={field.ref}
+										onBlur={field.onBlur}
 										aria-required={required}
 										aria-invalid={fieldState.invalid}
 										aria-describedby={fieldState.invalid ? errorId : undefined}
-										type="checkbox"
 										checked={Boolean(field.value)}
 										disabled={readOnly}
-										readOnly={readOnly}
-										onChange={(event) => {
-											field.onChange(event.target.checked);
+										onCheckedChange={(checked) => {
+											field.onChange(checked);
 											clearPreview();
 										}}
 									/>

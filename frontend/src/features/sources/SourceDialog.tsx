@@ -25,6 +25,7 @@ import {
 	FieldLabel,
 } from "#/components/ui/field";
 import { Input } from "#/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "#/components/ui/radio-group";
 
 import { toastManager } from "#/components/ui/toaster";
 import { FeedItem } from "#/features/feed/FeedItem";
@@ -404,27 +405,47 @@ export function SourceDialog({
 									<legend className="mb-2 text-sm font-medium">
 										Source type
 									</legend>
-									<div className="flex gap-4">
-										{sourceTypes.data?.map((type) => (
-											<label key={type.code}>
-												<input
-													type="radio"
-													value={type.code}
-													{...form.register("type", {
-														onChange: () => {
-															form.setValue(
-																"config",
-																sourceConfigDefaults(type),
-															);
-															form.clearErrors();
-															clearPreview();
-														},
-													})}
-												/>{" "}
-												{type.label}
-											</label>
-										))}
-									</div>
+									<Controller
+										name="type"
+										control={form.control}
+										render={({ field }) => (
+											<RadioGroup
+												aria-label="Source type"
+												className="flex flex-wrap gap-4"
+												value={field.value}
+												onValueChange={(value) => {
+													field.onChange(value);
+													const type = sourceTypes.data?.find(
+														(item) => item.code === value,
+													);
+													if (type)
+														form.setValue("config", sourceConfigDefaults(type));
+													form.clearErrors();
+													clearPreview();
+												}}
+											>
+												{sourceTypes.data?.map((type) => (
+													<label
+														key={type.code}
+														htmlFor={`source-type-${type.code}`}
+														className="flex items-center gap-2"
+													>
+														<RadioGroupItem
+															id={`source-type-${type.code}`}
+															value={type.code}
+															onBlur={field.onBlur}
+															ref={
+																type.code === field.value
+																	? field.ref
+																	: undefined
+															}
+														/>
+														{type.label}
+													</label>
+												))}
+											</RadioGroup>
+										)}
+									/>
 								</fieldset>
 							)}
 							{configDefinition && (

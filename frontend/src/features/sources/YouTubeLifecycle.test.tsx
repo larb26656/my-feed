@@ -82,7 +82,9 @@ test("edits only the name of a YouTube Source", async () => {
 	await user.click(
 		await screen.findByRole("button", { name: "Actions for Channel" }),
 	);
-	await user.click(screen.getByRole("menuitem", { name: "Edit source" }));
+	await user.click(
+		await screen.findByRole("menuitem", { name: "Edit source" }),
+	);
 	await screen.findByLabelText("YouTube channel ID or URL");
 	const name = screen.getByLabelText("Source name");
 	await user.clear(name);
@@ -132,7 +134,9 @@ test("deactivates a YouTube Source through its action menu", async () => {
 	await user.click(
 		await screen.findByRole("button", { name: "Actions for Channel" }),
 	);
-	await user.click(screen.getByRole("menuitem", { name: "Deactivate source" }));
+	await user.click(
+		await screen.findByRole("menuitem", { name: "Deactivate source" }),
+	);
 	await waitFor(() =>
 		expect(fetchMock).toHaveBeenCalledWith(
 			"/api/v1/sources/yt/deactivate",

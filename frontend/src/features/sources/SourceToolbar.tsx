@@ -2,6 +2,14 @@ import { useQuery } from "@tanstack/react-query";
 import { ListFilter } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "#/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuGroup,
+	DropdownMenuRadioGroup,
+	DropdownMenuRadioItem,
+	DropdownMenuTrigger,
+} from "#/components/ui/dropdown-menu";
 import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
 import {
@@ -53,7 +61,6 @@ export function SourceToolbar({
 	const sourceTypes = useSourceTypeOptions();
 	const [name, setName] = useState(initialName);
 	const [type, setType] = useState(initialType);
-	const [filterOpen, setFilterOpen] = useState(false);
 	const onSearchRef = useRef(onSearch);
 	onSearchRef.current = onSearch;
 	const typeRef = useRef(type);
@@ -92,45 +99,43 @@ export function SourceToolbar({
 					className="min-w-0 flex-1"
 					onChange={(event) => setName(event.target.value)}
 				/>
-				<div className="relative">
-					<Button
-						type="button"
-						variant={type !== "all" ? "secondary" : "outline"}
-						size="icon"
-						className="size-10"
-						aria-label="Filter by type"
-						aria-haspopup="menu"
-						aria-expanded={filterOpen}
-						aria-pressed={type !== "all"}
-						onClick={() => setFilterOpen((open) => !open)}
+				<DropdownMenu>
+					<DropdownMenuTrigger
+						render={
+							<Button
+								type="button"
+								variant={type !== "all" ? "secondary" : "outline"}
+								size="icon"
+								className="size-10"
+								aria-label="Filter by type"
+								aria-pressed={type !== "all"}
+							/>
+						}
 					>
 						<ListFilter />
-					</Button>
-					{filterOpen && (
-						<div
-							role="menu"
-							aria-label="Filter by type"
-							className="absolute right-0 top-full z-30 mt-2 min-w-44 rounded-xl border bg-popover p-1 shadow-lg"
-						>
-							{sourceTypes.map((item) => (
-								<button
-									key={item.value}
-									type="button"
-									role="menuitemradio"
-									aria-checked={type === item.value}
-									className="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm hover:bg-muted aria-checked:bg-muted aria-checked:font-medium"
-									onClick={() => {
-										setType(item.value);
-										setFilterOpen(false);
-										publish(name, item.value);
-									}}
-								>
-									{item.label}
-								</button>
-							))}
-						</div>
-					)}
-				</div>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent
+						align="end"
+						className="min-w-44"
+						aria-label="Filter by type"
+					>
+						<DropdownMenuGroup>
+							<DropdownMenuRadioGroup
+								value={type}
+								onValueChange={(value) => {
+									setType(value);
+									publish(name, value);
+								}}
+							>
+								{sourceTypes.map((item) => (
+									<DropdownMenuRadioItem key={item.value} value={item.value}>
+										{item.label}
+									</DropdownMenuRadioItem>
+								))}
+							</DropdownMenuRadioGroup>
+						</DropdownMenuGroup>
+					</DropdownMenuContent>
+				</DropdownMenu>
 				<SourceSortMenu sort={sort} onSortChange={onSortChange} />
 			</div>
 		);

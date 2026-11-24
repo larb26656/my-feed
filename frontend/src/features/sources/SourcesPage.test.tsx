@@ -161,7 +161,9 @@ test("edits the supported Source fields and refreshes management", async () => {
 	await user.click(
 		await screen.findByRole("button", { name: "Actions for Old name" }),
 	);
-	await user.click(screen.getByRole("menuitem", { name: "Edit source" }));
+	await user.click(
+		await screen.findByRole("menuitem", { name: "Edit source" }),
+	);
 	expect(screen.getByRole("heading", { name: "Edit source" })).toBeTruthy();
 	const name = screen.getByLabelText("Source name");
 	await user.clear(name);
@@ -239,7 +241,9 @@ test("moves Sources between Active and Inactive tabs", async () => {
 	await user.click(
 		screen.getByRole("button", { name: "Actions for Engineering Blog" }),
 	);
-	await user.click(screen.getByRole("menuitem", { name: "Deactivate source" }));
+	await user.click(
+		await screen.findByRole("menuitem", { name: "Deactivate source" }),
+	);
 	await waitFor(() =>
 		expect(screen.queryByRole("link", { name: "Engineering Blog" })).toBeNull(),
 	);
@@ -250,7 +254,9 @@ test("moves Sources between Active and Inactive tabs", async () => {
 	await user.click(
 		screen.getByRole("button", { name: "Actions for Engineering Blog" }),
 	);
-	await user.click(screen.getByRole("menuitem", { name: "Activate source" }));
+	await user.click(
+		await screen.findByRole("menuitem", { name: "Activate source" }),
+	);
 	await waitFor(() =>
 		expect(screen.queryByRole("link", { name: "Engineering Blog" })).toBeNull(),
 	);
@@ -328,7 +334,9 @@ test("shows an activation failure without changing a Source", async () => {
 	await user.click(
 		await screen.findByRole("button", { name: "Actions for Engineering Blog" }),
 	);
-	await user.click(screen.getByRole("menuitem", { name: "Deactivate source" }));
+	await user.click(
+		await screen.findByRole("menuitem", { name: "Deactivate source" }),
+	);
 	expect(
 		await screen.findByText(
 			/Could not update source status: Request failed \(503\)/,

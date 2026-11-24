@@ -75,7 +75,7 @@ test.each([
 	);
 	await user.type(screen.getByLabelText("Source name"), "News");
 	if (type === "youtube") {
-		await user.click(screen.getByLabelText("YouTube"));
+		await user.click(screen.getByRole("radio", { name: "YouTube" }));
 		await user.type(
 			screen.getByLabelText("YouTube channel ID or URL"),
 			"UC1234567890123456789012",

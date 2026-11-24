@@ -5,6 +5,14 @@ import {
 	ChevronsRight,
 } from "lucide-react";
 import { Button } from "#/components/ui/button";
+import {
+	Select,
+	SelectContent,
+	SelectGroup,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "#/components/ui/select";
 
 type PaginationBase = {
 	pageIndex: number;
@@ -112,23 +120,29 @@ export function DataTablePagination({
 
 	return (
 		<div className="flex flex-wrap items-center justify-between gap-3">
-			<label className="flex items-center gap-2 text-sm text-muted-foreground">
+			<div className="flex items-center gap-2 text-sm text-muted-foreground">
 				<span>Rows per page</span>
-				<select
-					className="h-9 rounded-lg border bg-background px-2 text-foreground"
-					value={pagination.pageSize}
+				<Select
+					value={String(pagination.pageSize)}
 					disabled={isLoading}
-					onChange={(event) =>
-						pagination.onPageSizeChange(Number(event.target.value))
-					}
+					onValueChange={(value) => {
+						if (value !== null) pagination.onPageSizeChange(Number(value));
+					}}
 				>
-					{(pagination.pageSizeOptions ?? [10, 20, 50]).map((size) => (
-						<option key={size} value={size}>
-							{size}
-						</option>
-					))}
-				</select>
-			</label>
+					<SelectTrigger aria-label="Rows per page">
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectGroup>
+							{(pagination.pageSizeOptions ?? [10, 20, 50]).map((size) => (
+								<SelectItem key={size} value={String(size)}>
+									{size}
+								</SelectItem>
+							))}
+						</SelectGroup>
+					</SelectContent>
+				</Select>
+			</div>
 			<div className="flex flex-wrap items-center gap-2">
 				<span className="min-w-24 text-center text-sm text-muted-foreground">
 					Page {pagination.pageIndex + 1}

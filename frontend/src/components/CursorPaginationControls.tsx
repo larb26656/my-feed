@@ -1,5 +1,13 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "#/components/ui/button";
+import {
+	Select,
+	SelectContent,
+	SelectGroup,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "#/components/ui/select";
 
 type CursorPaginationControlsProps<TPageSize extends number> = {
 	pageSize: TPageSize;
@@ -24,23 +32,29 @@ export function CursorPaginationControls<TPageSize extends number>({
 }: CursorPaginationControlsProps<TPageSize>) {
 	return (
 		<div className="flex items-center justify-end gap-2 border-t pt-3">
-			<label className="mr-1 flex items-center gap-2 text-sm text-muted-foreground">
+			<div className="flex items-center gap-2 text-sm text-muted-foreground">
 				<span>Rows per page</span>
-				<select
-					className="h-8 rounded-lg border bg-background px-2 text-foreground"
-					value={pageSize}
+				<Select
+					value={String(pageSize)}
 					disabled={isLoading}
-					onChange={(event) =>
-						onPageSizeChange(Number(event.target.value) as TPageSize)
-					}
+					onValueChange={(value) => {
+						if (value !== null) onPageSizeChange(Number(value) as TPageSize);
+					}}
 				>
-					{pageSizeOptions.map((size) => (
-						<option key={size} value={size}>
-							{size}
-						</option>
-					))}
-				</select>
-			</label>
+					<SelectTrigger aria-label="Rows per page">
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectGroup>
+							{pageSizeOptions.map((size) => (
+								<SelectItem key={size} value={String(size)}>
+									{size}
+								</SelectItem>
+							))}
+						</SelectGroup>
+					</SelectContent>
+				</Select>
+			</div>
 			<Button
 				variant="ghost"
 				size="icon-sm"

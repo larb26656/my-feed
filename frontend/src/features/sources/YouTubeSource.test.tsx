@@ -70,7 +70,7 @@ test("adds a YouTube Source using its channel ID", async () => {
 	renderPage();
 	const user = userEvent.setup();
 	await user.click(await screen.findByRole("button", { name: "Add Source" }));
-	await user.click(screen.getByLabelText("YouTube"));
+	await user.click(screen.getByRole("radio", { name: "YouTube" }));
 	await user.type(screen.getByLabelText("Source name"), "Channel");
 	await user.type(
 		screen.getByLabelText("YouTube channel ID or URL"),
@@ -108,7 +108,7 @@ test("accepts a canonical channel URL", async () => {
 	renderPage();
 	const user = userEvent.setup();
 	await user.click(await screen.findByRole("button", { name: "Add Source" }));
-	await user.click(screen.getByLabelText("YouTube"));
+	await user.click(screen.getByRole("radio", { name: "YouTube" }));
 	await user.type(screen.getByLabelText("Source name"), "Channel");
 	await user.type(
 		screen.getByLabelText("YouTube channel ID or URL"),
@@ -130,7 +130,7 @@ test("explains supported inputs and rejects a handle", async () => {
 	renderPage();
 	const user = userEvent.setup();
 	await user.click(await screen.findByRole("button", { name: "Add Source" }));
-	await user.click(screen.getByLabelText("YouTube"));
+	await user.click(screen.getByRole("radio", { name: "YouTube" }));
 	expect(
 		screen.getByText(/Handles and custom URLs are not supported/),
 	).toBeTruthy();
@@ -167,7 +167,7 @@ test("shows duplicate channel conflict", async () => {
 	renderPage();
 	const user = userEvent.setup();
 	await user.click(await screen.findByRole("button", { name: "Add Source" }));
-	await user.click(screen.getByLabelText("YouTube"));
+	await user.click(screen.getByRole("radio", { name: "YouTube" }));
 	await user.type(screen.getByLabelText("Source name"), "Channel");
 	await user.type(
 		screen.getByLabelText("YouTube channel ID or URL"),
@@ -259,7 +259,7 @@ test("previews a canonical YouTube channel without a Source name and clears on c
 	renderPage();
 	const user = userEvent.setup();
 	await user.click(await screen.findByRole("button", { name: "Add Source" }));
-	await user.click(screen.getByLabelText("YouTube"));
+	await user.click(screen.getByRole("radio", { name: "YouTube" }));
 	const input = screen.getByLabelText("YouTube channel ID or URL");
 	await user.type(
 		input,
@@ -298,14 +298,14 @@ test("discards a YouTube preview after switching Source Type away and back", asy
 	renderPage();
 	const user = userEvent.setup();
 	await user.click(await screen.findByRole("button", { name: "Add Source" }));
-	await user.click(screen.getByLabelText("YouTube"));
+	await user.click(screen.getByRole("radio", { name: "YouTube" }));
 	await user.type(
 		screen.getByLabelText("YouTube channel ID or URL"),
 		"UC1234567890123456789012",
 	);
 	await user.click(screen.getByRole("button", { name: "Test fetch" }));
-	await user.click(screen.getByLabelText("RSS feed"));
-	await user.click(screen.getByLabelText("YouTube"));
+	await user.click(screen.getByRole("radio", { name: "RSS feed" }));
+	await user.click(screen.getByRole("radio", { name: "YouTube" }));
 	resolvePreview(
 		okJson({
 			entry: {

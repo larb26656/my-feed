@@ -135,7 +135,7 @@ function renderPage() {
 
 async function openMediumAdd(user: ReturnType<typeof userEvent.setup>) {
 	await user.click(await screen.findByRole("button", { name: "Add Source" }));
-	await user.click(screen.getByLabelText("Medium"));
+	await user.click(screen.getByRole("radio", { name: "Medium" }));
 }
 
 test("adds a Medium Profile Source from a username", async () => {
@@ -161,7 +161,8 @@ test("adds a Medium Profile Source from a username", async () => {
 			.compareDocumentPosition(screen.getByLabelText("Identifier")) &
 			Node.DOCUMENT_POSITION_FOLLOWING,
 	).toBeTruthy();
-	await user.selectOptions(screen.getByLabelText("Kind"), "profile");
+	await user.click(screen.getByLabelText("Kind"));
+	await user.click(await screen.findByRole("option", { name: "profile" }));
 	await user.type(screen.getByLabelText("Source name"), "Alice");
 	await user.type(screen.getByLabelText("Identifier"), "@Alice");
 	await user.click(screen.getByRole("button", { name: "Save source" }));
@@ -197,7 +198,8 @@ test("adds a Medium Publication Source from a slug", async () => {
 	renderPage();
 	const user = userEvent.setup();
 	await openMediumAdd(user);
-	await user.selectOptions(screen.getByLabelText("Kind"), "publication");
+	await user.click(screen.getByLabelText("Kind"));
+	await user.click(await screen.findByRole("option", { name: "publication" }));
 	await user.type(screen.getByLabelText("Source name"), "Alice Pub");
 	await user.type(screen.getByLabelText("Identifier"), "alice");
 	await user.click(screen.getByRole("button", { name: "Save source" }));
@@ -224,7 +226,8 @@ test("rejects a Medium identifier URL before save", async () => {
 	renderPage();
 	const user = userEvent.setup();
 	await openMediumAdd(user);
-	await user.selectOptions(screen.getByLabelText("Kind"), "profile");
+	await user.click(screen.getByLabelText("Kind"));
+	await user.click(await screen.findByRole("option", { name: "profile" }));
 	await user.type(screen.getByLabelText("Source name"), "Alice");
 	await user.type(
 		screen.getByLabelText("Identifier"),
@@ -247,7 +250,8 @@ test("rejects a Medium Publication leading @ before save", async () => {
 	renderPage();
 	const user = userEvent.setup();
 	await openMediumAdd(user);
-	await user.selectOptions(screen.getByLabelText("Kind"), "publication");
+	await user.click(screen.getByLabelText("Kind"));
+	await user.click(await screen.findByRole("option", { name: "publication" }));
 	await user.type(screen.getByLabelText("Source name"), "Alice Pub");
 	await user.type(screen.getByLabelText("Identifier"), "@alice");
 	await user.click(screen.getByRole("button", { name: "Save source" }));
@@ -275,7 +279,8 @@ test("previews a Medium Profile and clears on identifier edit", async () => {
 	renderPage();
 	const user = userEvent.setup();
 	await openMediumAdd(user);
-	await user.selectOptions(screen.getByLabelText("Kind"), "profile");
+	await user.click(screen.getByLabelText("Kind"));
+	await user.click(await screen.findByRole("option", { name: "profile" }));
 	const input = screen.getByLabelText("Identifier");
 	await user.type(input, "alice");
 	await user.click(screen.getByRole("button", { name: "Test fetch" }));
@@ -307,7 +312,8 @@ test("previews a Medium Publication using current kind and identifier", async ()
 	renderPage();
 	const user = userEvent.setup();
 	await openMediumAdd(user);
-	await user.selectOptions(screen.getByLabelText("Kind"), "publication");
+	await user.click(screen.getByLabelText("Kind"));
+	await user.click(await screen.findByRole("option", { name: "publication" }));
 	await user.type(screen.getByLabelText("Identifier"), "alice");
 	await user.click(screen.getByRole("button", { name: "Test fetch" }));
 	await screen.findByRole("link", { name: "Pub Story" });
@@ -318,7 +324,8 @@ test("previews a Medium Publication using current kind and identifier", async ()
 		type: "medium",
 		config: { kind: "publication", identifier: "alice" },
 	});
-	await user.selectOptions(screen.getByLabelText("Kind"), "profile");
+	await user.click(screen.getByLabelText("Kind"));
+	await user.click(await screen.findByRole("option", { name: "profile" }));
 	expect(screen.queryByText("Pub Story")).toBeNull();
 });
 
@@ -350,7 +357,8 @@ test.each([
 	renderPage();
 	const user = userEvent.setup();
 	await openMediumAdd(user);
-	await user.selectOptions(screen.getByLabelText("Kind"), "profile");
+	await user.click(screen.getByLabelText("Kind"));
+	await user.click(await screen.findByRole("option", { name: "profile" }));
 	await user.type(screen.getByLabelText("Identifier"), "alice");
 	await user.click(screen.getByRole("button", { name: "Test fetch" }));
 	await screen.findByText(
@@ -391,9 +399,11 @@ test("edits only the name of a Medium Profile and keeps the target fixed", async
 	await user.click(
 		await screen.findByRole("button", { name: "Actions for Alice" }),
 	);
-	await user.click(screen.getByRole("menuitem", { name: "Edit source" }));
-	const kind = (await screen.findByLabelText("Kind")) as HTMLSelectElement;
-	expect(kind.value).toBe("profile");
+	await user.click(
+		await screen.findByRole("menuitem", { name: "Edit source" }),
+	);
+	const kind = (await screen.findByLabelText("Kind")) as HTMLButtonElement;
+	expect(kind.textContent).toContain("profile");
 	expect(kind.disabled).toBe(true);
 	const identifier = screen.getByLabelText("Identifier") as HTMLInputElement;
 	expect(identifier.value).toBe("alice");
@@ -444,9 +454,11 @@ test("edits only the name of a Medium Publication and keeps the target fixed", a
 	await user.click(
 		await screen.findByRole("button", { name: "Actions for Alice Pub" }),
 	);
-	await user.click(screen.getByRole("menuitem", { name: "Edit source" }));
-	const kind = (await screen.findByLabelText("Kind")) as HTMLSelectElement;
-	expect(kind.value).toBe("publication");
+	await user.click(
+		await screen.findByRole("menuitem", { name: "Edit source" }),
+	);
+	const kind = (await screen.findByLabelText("Kind")) as HTMLButtonElement;
+	expect(kind.textContent).toContain("publication");
 	expect(kind.disabled).toBe(true);
 	const identifier = screen.getByLabelText("Identifier") as HTMLInputElement;
 	expect(identifier.value).toBe("alice");

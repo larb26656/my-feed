@@ -45,7 +45,7 @@ test("offers Bluesky in Add Source and previews an eligible post", async () => {
 		</QueryClientProvider>,
 	);
 	const user = userEvent.setup();
-	await user.click(await screen.findByLabelText("Bluesky"));
+	await user.click(await screen.findByRole("radio", { name: "Bluesky" }));
 	await user.type(
 		screen.getByLabelText("Bluesky handle or profile URL"),
 		"@alice.bsky.social",

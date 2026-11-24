@@ -87,7 +87,9 @@ test("edits only the name of a Bluesky Source and keeps the profile read-only", 
 	await user.click(
 		await screen.findByRole("button", { name: "Actions for Alice" }),
 	);
-	await user.click(screen.getByRole("menuitem", { name: "Edit source" }));
+	await user.click(
+		await screen.findByRole("menuitem", { name: "Edit source" }),
+	);
 	const profile = (await screen.findByLabelText(
 		"Bluesky DID",
 	)) as HTMLInputElement;

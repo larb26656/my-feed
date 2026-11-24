@@ -5,3 +5,7 @@
 - Use React Hook Form for forms that need validation or submission state. Keep validation errors associated with their fields and expose submission errors to the user.
 
 - For new or changed form fields, follow the [shadcn React Hook Form pattern](https://ui.shadcn.com/docs/forms/react-hook-form): compose `Controller` with `Field`, `FieldLabel`, and `FieldError`, and associate validation errors with their controls. Use `FieldGroup` for form layout instead of the custom `FormField` wrapper.
+
+## UI components
+
+Before implementing a UI component, search the shadcn registry for a suitable component, including components not yet installed. Prefer an existing or newly added shadcn component when it fits.
