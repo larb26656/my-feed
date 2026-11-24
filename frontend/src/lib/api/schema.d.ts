@@ -202,8 +202,12 @@ export interface paths {
                     unread?: boolean;
                     /** @description Only saved Entries */
                     savedOnly?: boolean;
-                    /** @description Sort direction by publication date (or creation date) */
-                    sortDirection?: "asc" | "desc";
+                    /** @description Sort by recorded time */
+                    createdAtSort?: "asc" | "desc";
+                    /** @description Sort by publication time */
+                    publishedAtSort?: "asc" | "desc";
+                    /** @description Sort by saved time */
+                    savedAtSort?: "asc" | "desc";
                 };
                 header?: never;
                 path?: never;

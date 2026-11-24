@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	sortoption "github.com/larb26656/my-feed/backend/internal/platform/sort"
+
 	"github.com/google/uuid"
 
 	entryapi "github.com/larb26656/my-feed/backend/internal/modules/entry/api"
@@ -164,11 +166,14 @@ type ListEntriesResult struct {
 }
 
 func (s *Service) ListEntries(ctx context.Context, in ListEntriesInput) (*ListEntriesResult, error) {
-	if in.Criteria.SortDirection == "" {
-		in.Criteria.SortDirection = "desc"
+	sort := &in.Criteria.Sort
+	if *sort == (repository.EntryListSort{}) {
+		sort.PublishedAtSort = sortoption.Desc
 	}
-	if in.Criteria.SortDirection != "asc" && in.Criteria.SortDirection != "desc" {
-		return nil, apperr.InvalidInput.New("invalid sort direction")
+	for _, direction := range []sortoption.Direction{sort.CreatedAtSort, sort.PublishedAtSort, sort.SavedAtSort} {
+		if direction != "" && !direction.Valid() {
+			return nil, apperr.InvalidInput.New("invalid sort direction")
+		}
 	}
 	pageSize := DefaultEntryPageSize
 	if in.PageSize != nil && *in.PageSize >= 1 {
@@ -193,7 +198,7 @@ func (s *Service) ListEntries(ctx context.Context, in ListEntriesInput) (*ListEn
 	if len(rows) > pageSize {
 		result.Entries = rows[:pageSize]
 		last := result.Entries[pageSize-1]
-		nextCursor, err := encodeEntryCursor(last.SortAt(), last.ID, in.Criteria)
+		nextCursor, err := encodeEntryCursor(last, in.Criteria)
 		if err != nil {
 			return nil, fmt.Errorf("encode Entry cursor: %w", err)
 		}
@@ -207,30 +212,25 @@ func (s *Service) CountSavedEntries(ctx context.Context) (int, error) {
 }
 
 type entryCursorPayload struct {
-	SortAt        time.Time  `json:"sortAt"`
-	ID            uuid.UUID  `json:"id"`
-	SourceID      *uuid.UUID `json:"sourceId"`
-	Unread        bool       `json:"unread"`
-	SavedOnly     bool       `json:"savedOnly"`
-	SortDirection string     `json:"sortDirection,omitempty"`
+	Version  int                          `json:"version"`
+	Position repository.EntryListCursor   `json:"position"`
+	Criteria repository.EntryListCriteria `json:"criteria"`
 }
 
-func encodeEntryCursor(sortAt time.Time, id uuid.UUID, criteria repository.EntryListCriteria) (string, error) {
-	return cursor.Encode(entryCursorPayload{SortAt: sortAt.UTC(), ID: id, SourceID: criteria.SourceID, Unread: criteria.Unread, SavedOnly: criteria.SavedOnly, SortDirection: criteria.SortDirection})
+func encodeEntryCursor(entry *domain.Entry, criteria repository.EntryListCriteria) (string, error) {
+	return cursor.Encode(entryCursorPayload{Version: 1, Position: repository.EntryListCursor{CreatedAt: entry.CreatedAt, PublishedAt: entry.PublishedAt, SavedAt: entry.SavedAt, ID: entry.ID}, Criteria: criteria})
 }
 
 func decodeEntryCursor(token string, criteria repository.EntryListCriteria) (*repository.EntryListCursor, error) {
 	var payload entryCursorPayload
-	if err := cursor.Decode(token, &payload); err != nil || payload.SortAt.IsZero() || payload.ID == uuid.Nil {
+	if err := cursor.Decode(token, &payload); err != nil || payload.Version != 1 || payload.Position.CreatedAt.IsZero() || payload.Position.ID == uuid.Nil {
 		return nil, apperr.InvalidInput.New("invalid cursor")
 	}
-	if payload.SortDirection == "" {
-		payload.SortDirection = "desc"
-	}
-	if payload.SortDirection != criteria.SortDirection || (payload.SourceID == nil) != (criteria.SourceID == nil) || (payload.SourceID != nil && *payload.SourceID != *criteria.SourceID) || payload.Unread != criteria.Unread || payload.SavedOnly != criteria.SavedOnly {
+	stored := payload.Criteria
+	if stored.Sort != criteria.Sort || (stored.SourceID == nil) != (criteria.SourceID == nil) || (stored.SourceID != nil && *stored.SourceID != *criteria.SourceID) || stored.Unread != criteria.Unread || stored.SavedOnly != criteria.SavedOnly {
 		return nil, apperr.InvalidInput.New("cursor does not match criteria")
 	}
-	return &repository.EntryListCursor{SortAt: payload.SortAt.UTC(), ID: payload.ID}, nil
+	return &payload.Position, nil
 }
 
 func (s *Service) MarkEntryRead(ctx context.Context, id uuid.UUID) (*domain.Entry, error) {

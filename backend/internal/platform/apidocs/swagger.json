@@ -792,11 +792,34 @@
                         }
                     },
                     {
-                        "description": "Sort direction by publication date (or creation date)",
+                        "description": "Sort by recorded time",
                         "in": "query",
-                        "name": "sortDirection",
+                        "name": "createdAtSort",
                         "schema": {
-                            "default": "desc",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Sort by publication time",
+                        "in": "query",
+                        "name": "publishedAtSort",
+                        "schema": {
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Sort by saved time",
+                        "in": "query",
+                        "name": "savedAtSort",
+                        "schema": {
                             "enum": [
                                 "asc",
                                 "desc"

@@ -3,6 +3,8 @@ package http
 import (
 	"time"
 
+	sortoption "github.com/larb26656/my-feed/backend/internal/platform/sort"
+
 	"github.com/google/uuid"
 	"github.com/larb26656/my-feed/backend/internal/modules/entry/service"
 	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
@@ -48,10 +50,12 @@ func (req ingestEntryRequest) input() service.IngestEntryInput {
 
 type listEntriesQuery struct {
 	httpx.CursorPageOption
-	SourceID      *queryUUID `form:"sourceId"`
-	Unread        bool       `form:"unread"`
-	SavedOnly     bool       `form:"savedOnly"`
-	SortDirection string     `form:"sortDirection" binding:"omitempty,oneof=asc desc"`
+	SourceID        *queryUUID `form:"sourceId"`
+	Unread          bool       `form:"unread"`
+	SavedOnly       bool       `form:"savedOnly"`
+	CreatedAtSort   string     `form:"createdAtSort" binding:"omitempty,oneof=asc desc"`
+	PublishedAtSort string     `form:"publishedAtSort" binding:"omitempty,oneof=asc desc"`
+	SavedAtSort     string     `form:"savedAtSort" binding:"omitempty,oneof=asc desc"`
 }
 
 type queryUUID struct {
@@ -66,7 +70,9 @@ func (req listEntriesQuery) input() service.ListEntriesInput {
 	in := service.ListEntriesInput{PageSize: &req.PageSize}
 	in.Criteria.Unread = req.Unread
 	in.Criteria.SavedOnly = req.SavedOnly
-	in.Criteria.SortDirection = req.SortDirection
+	in.Criteria.Sort.CreatedAtSort = sortoption.Direction(req.CreatedAtSort)
+	in.Criteria.Sort.PublishedAtSort = sortoption.Direction(req.PublishedAtSort)
+	in.Criteria.Sort.SavedAtSort = sortoption.Direction(req.SavedAtSort)
 	if req.SourceID != nil {
 		in.Criteria.SourceID = &req.SourceID.UUID
 	}

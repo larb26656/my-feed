@@ -3,9 +3,12 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
+
+	sortoption "github.com/larb26656/my-feed/backend/internal/platform/sort"
 
 	"github.com/google/uuid"
 	entrydomain "github.com/larb26656/my-feed/backend/internal/modules/entry/domain"
@@ -119,7 +122,7 @@ func TestSQLiteListsEntriesNewestFirst(t *testing.T) {
 	}
 
 	// Act
-	entries, err := repo.ListEntries(context.Background(), nil, repository.EntryListCriteria{}, 10)
+	entries, err := repo.ListEntries(context.Background(), nil, repository.EntryListCriteria{Sort: repository.EntryListSort{PublishedAtSort: "desc"}}, 10)
 
 	// Assert
 	require.NoError(t, err)
@@ -141,10 +144,10 @@ func TestSQLiteCursorReturnsOnlyEntriesAfterItsPosition(t *testing.T) {
 		_, err = repo.CreateEntry(context.Background(), article)
 		require.NoError(t, err)
 	}
-	cursor := &repository.EntryListCursor{SortAt: newer.SortAt(), ID: newer.ID}
+	cursor := &repository.EntryListCursor{CreatedAt: newer.CreatedAt, PublishedAt: newer.PublishedAt, ID: newer.ID}
 
 	// Act
-	entries, err := repo.ListEntries(context.Background(), cursor, repository.EntryListCriteria{}, 10)
+	entries, err := repo.ListEntries(context.Background(), cursor, repository.EntryListCriteria{Sort: repository.EntryListSort{PublishedAtSort: "desc"}}, 10)
 
 	// Assert
 	require.NoError(t, err)
@@ -211,4 +214,61 @@ func TestSQLiteReturnsNotFoundForAMissingEntry(t *testing.T) {
 	require.ErrorAs(t, err, &failure)
 	require.Equal(t, apperr.KindNotFound, failure.Kind)
 	require.Equal(t, "NOT_FOUND", failure.Code)
+}
+
+func TestSQLiteSortPriorityAndNullsLastAcrossPages(t *testing.T) {
+	// Arrange
+	repo, source := entryRepository(t)
+	base := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	var entries []*entrydomain.Entry
+	for i := 0; i < 4; i++ {
+		e, err := entrydomain.NewEntry(source.ID, entrydomain.EntryMetadata{Title: "News", Link: fmt.Sprintf("https://example.test/sort-%d", i)})
+		require.NoError(t, err)
+		e.CreatedAt = base
+		if i == 3 {
+			e.CreatedAt = base.Add(time.Hour)
+		}
+		if i == 0 || i == 3 {
+			at := base.Add(time.Hour)
+			e.PublishedAt = &at
+		}
+		if i == 1 {
+			at := base
+			e.PublishedAt = &at
+		}
+		_, err = repo.CreateEntry(context.Background(), e)
+		require.NoError(t, err)
+		entries = append(entries, e)
+	}
+	for _, scenario := range []struct {
+		name      string
+		direction string
+		want      []int
+	}{
+		{"ascending", "asc", []int{1, 0, 2, 3}},
+		{"descending", "desc", []int{0, 1, 2, 3}},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			// Act
+			criteria := repository.EntryListCriteria{Sort: repository.EntryListSort{CreatedAtSort: "asc", PublishedAtSort: sortoption.Direction(scenario.direction)}}
+			var after *repository.EntryListCursor
+			var got []uuid.UUID
+			for {
+				page, err := repo.ListEntries(context.Background(), after, criteria, 1)
+				require.NoError(t, err)
+				if len(page) == 0 {
+					break
+				}
+				e := page[0]
+				got = append(got, e.ID)
+				after = &repository.EntryListCursor{CreatedAt: e.CreatedAt, PublishedAt: e.PublishedAt, SavedAt: e.SavedAt, ID: e.ID}
+			}
+			// Assert
+			var want []uuid.UUID
+			for _, i := range scenario.want {
+				want = append(want, entries[i].ID)
+			}
+			require.Equal(t, want, got)
+		})
+	}
 }

@@ -4,7 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"time"
+
+	sortoption "github.com/larb26656/my-feed/backend/internal/platform/sort"
 
 	"github.com/google/uuid"
 
@@ -66,16 +69,59 @@ func (r *Repository) ListEntries(ctx context.Context, after *repository.EntryLis
 	if criteria.Unread {
 		query += ` AND read_at IS NULL`
 	}
-	direction, op := "DESC", "<"
-	if criteria.SortDirection == "asc" {
-		direction, op = "ASC", ">"
+	type sortField struct {
+		column    string
+		direction sortoption.Direction
+		value     *time.Time
 	}
+	fields := []sortField{{"created_at", criteria.Sort.CreatedAtSort, nil}, {"published_at", criteria.Sort.PublishedAtSort, nil}, {"saved_at", criteria.Sort.SavedAtSort, nil}}
 	if after != nil {
-		query += ` AND (COALESCE(published_at, created_at) ` + op + ` ? OR (COALESCE(published_at, created_at) = ? AND id ` + op + ` ?))`
-		sortAt := after.SortAt.UTC().UnixNano()
-		args = append(args, sortAt, sortAt, after.ID.String())
+		fields[0].value = &after.CreatedAt
+		fields[1].value = after.PublishedAt
+		fields[2].value = after.SavedAt
 	}
-	query += ` ORDER BY COALESCE(published_at, created_at) ` + direction + `, id ` + direction + ` LIMIT ?`
+	var orders, alternatives, equal []string
+	var seekArgs, equalArgs []any
+	for _, field := range fields {
+		if field.direction == "" {
+			continue
+		}
+		direction, op := "ASC", ">"
+		if field.direction == sortoption.Desc {
+			direction, op = "DESC", "<"
+		}
+		orders = append(orders, field.column+" IS NULL ASC", field.column+" "+direction)
+		if after == nil {
+			continue
+		}
+		var comparison string
+		var comparisonArgs []any
+		if field.value == nil {
+			comparison = "0"
+			equal = append(equal, field.column+" IS NULL")
+		} else {
+			value := field.value.UTC().UnixNano()
+			comparison = "(" + field.column + " IS NULL OR " + field.column + " " + op + " ?)"
+			comparisonArgs = append(comparisonArgs, value)
+			equal = append(equal, field.column+" = ?")
+		}
+		prefix := equal[:len(equal)-1]
+		alternatives = append(alternatives, "("+strings.Join(append(append([]string{}, prefix...), comparison), " AND ")+")")
+		seekArgs = append(seekArgs, equalArgs...)
+		seekArgs = append(seekArgs, comparisonArgs...)
+		if field.value != nil {
+			equalArgs = append(equalArgs, field.value.UTC().UnixNano())
+		}
+	}
+	orders = append(orders, "id ASC")
+	if after != nil {
+		alternatives = append(alternatives, "("+strings.Join(append(equal, "id > ?"), " AND ")+")")
+		seekArgs = append(seekArgs, equalArgs...)
+		seekArgs = append(seekArgs, after.ID.String())
+		query += " AND (" + strings.Join(alternatives, " OR ") + ")"
+		args = append(args, seekArgs...)
+	}
+	query += " ORDER BY " + strings.Join(orders, ", ") + " LIMIT ?"
 	args = append(args, limit)
 	rows, err := r.q.QueryContext(ctx, query, args...)
 	if err != nil {

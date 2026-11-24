@@ -4,10 +4,16 @@ import { buttonVariants } from "#/components/ui/button";
 import { cn } from "#/lib/utils";
 
 export function FeedFilters({
+	sortField,
+	setSortField,
 	sortDirection,
 	setSortDirection,
 	className,
 }: {
+	sortField: "publishedAtSort" | "createdAtSort" | "savedAtSort";
+	setSortField: (
+		field: "publishedAtSort" | "createdAtSort" | "savedAtSort",
+	) => void;
 	sortDirection: "asc" | "desc";
 	setSortDirection: (direction: "asc" | "desc") => void;
 	className?: string;
@@ -20,6 +26,18 @@ export function FeedFilters({
 			)}
 		>
 			<div className="flex items-center gap-3">
+				<select
+					aria-label="Sort entries by"
+					value={sortField}
+					onChange={(event) =>
+						setSortField(event.target.value as typeof sortField)
+					}
+					className="min-h-10 rounded-md bg-transparent px-2 text-xs text-muted-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-primary"
+				>
+					<option value="publishedAtSort">Published</option>
+					<option value="createdAtSort">Recorded</option>
+					<option value="savedAtSort">Saved</option>
+				</select>
 				<select
 					aria-label="Sort entries"
 					value={sortDirection}

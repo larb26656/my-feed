@@ -18,6 +18,9 @@ export function FeedPage({
 	savedOnly?: boolean;
 }) {
 	const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+	const [sortField, setSortField] = useState<
+		"publishedAtSort" | "createdAtSort" | "savedAtSort"
+	>("publishedAtSort");
 	const { allSources, sourcesLoading, sourcesError } = useFeedState();
 	const source = allSources.find((item) => item.id === sourceId);
 	const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -26,6 +29,7 @@ export function FeedPage({
 		savedOnly,
 		unread: false,
 		sortDirection,
+		sortField,
 	});
 	const mutation = useToggleEntry();
 	const visible = query.data?.pages.flatMap((page) => page.data) ?? [];
@@ -79,6 +83,8 @@ export function FeedPage({
 					<h1 className="sr-only">{savedOnly ? "Saved" : "My Feed"}</h1>
 				)}
 				<FeedFilters
+					sortField={sortField}
+					setSortField={setSortField}
 					sortDirection={sortDirection}
 					setSortDirection={setSortDirection}
 					className={sourceId ? "mb-2 py-1" : undefined}

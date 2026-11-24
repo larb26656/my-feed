@@ -215,7 +215,9 @@ test("requests the selected sort direction from the API", async () => {
 		</QueryClientProvider>,
 	);
 	await waitFor(() =>
-		expect(calls.some((url) => url.includes("sortDirection=desc"))).toBe(true),
+		expect(calls.some((url) => url.includes("publishedAtSort=desc"))).toBe(
+			true,
+		),
 	);
 	await userEvent
 		.setup()
@@ -224,6 +226,15 @@ test("requests the selected sort direction from the API", async () => {
 			"asc",
 		);
 	await waitFor(() =>
-		expect(calls.some((url) => url.includes("sortDirection=asc"))).toBe(true),
+		expect(calls.some((url) => url.includes("publishedAtSort=asc"))).toBe(true),
+	);
+	await userEvent
+		.setup()
+		.selectOptions(
+			screen.getByRole("combobox", { name: "Sort entries by" }),
+			"savedAtSort",
+		);
+	await waitFor(() =>
+		expect(calls.some((url) => url.includes("savedAtSort=asc"))).toBe(true),
 	);
 });

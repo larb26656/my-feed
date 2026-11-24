@@ -5,4 +5,5 @@ export type EntryFilters = {
 	savedOnly: boolean;
 	unread: boolean;
 	sortDirection: "asc" | "desc";
+	sortField: "publishedAtSort" | "createdAtSort" | "savedAtSort";
 };

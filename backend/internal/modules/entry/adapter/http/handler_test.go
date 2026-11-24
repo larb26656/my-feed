@@ -260,7 +260,7 @@ func TestSavedCountIncludesOnlyCurrentlySavedArticles(t *testing.T) {
 	}
 }
 
-func TestEntriesWithTheSamePublicationTimeAreSortedByDescendingID(t *testing.T) {
+func TestEntriesWithTheSamePublicationTimeAreSortedByAscendingID(t *testing.T) {
 	// Arrange
 	router := api.New(t)
 	sourceID := rssSource(t, router)
@@ -269,7 +269,7 @@ func TestEntriesWithTheSamePublicationTimeAreSortedByDescendingID(t *testing.T) 
 		article := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sourceID, "title": "News", "link": fmt.Sprintf("https://example.test/%d", i), "publishedAt": "2025-01-01T00:00:00Z"}, 201))
 		ids = append(ids, article.ID)
 	}
-	sort.Sort(sort.Reverse(sort.StringSlice(ids)))
+	sort.Strings(ids)
 
 	// Act
 	page := decodePage(t, testkit.Request(t, router, "GET", "/api/v1/entries/", nil, 200))
@@ -551,7 +551,7 @@ func TestEntryPageUsesSharedPageSizeDefaultsAndBounds(t *testing.T) {
 	}
 }
 
-func TestEntriesWithoutPublicationDatesUseTheirCreationDateForOrdering(t *testing.T) {
+func TestEntriesWithoutPublicationDatesAppearLastByDefault(t *testing.T) {
 	// Arrange
 	router := api.New(t)
 	sourceID := rssSource(t, router)
@@ -565,8 +565,8 @@ func TestEntriesWithoutPublicationDatesUseTheirCreationDateForOrdering(t *testin
 
 	// Assert
 	require.Len(t, page.Data, 2)
-	require.Equal(t, undated.ID, page.Data[0].ID)
-	require.Equal(t, published.ID, page.Data[1].ID)
+	require.Equal(t, published.ID, page.Data[0].ID)
+	require.Equal(t, undated.ID, page.Data[1].ID)
 }
 
 func decodeSuccess[T any](t *testing.T, response *httptest.ResponseRecorder) T {
@@ -606,14 +606,42 @@ func TestOldestFirstPaginationAndCursorDirection(t *testing.T) {
 		ids = append(ids, article.ID)
 	}
 	sort.Strings(ids)
-	first := decodePage(t, testkit.Request(t, router, "GET", "/api/v1/entries/?pageSize=2&sortDirection=asc", nil, 200))
+	first := decodePage(t, testkit.Request(t, router, "GET", "/api/v1/entries/?pageSize=2&publishedAtSort=asc", nil, 200))
 	require.Len(t, first.Data, 2)
 	require.Equal(t, ids[:2], []string{first.Data[0].ID, first.Data[1].ID})
 	require.NotEmpty(t, first.Meta.NextCursor)
 	cursor := url.QueryEscape(first.Meta.NextCursor)
-	second := decodePage(t, testkit.Request(t, router, "GET", "/api/v1/entries/?pageSize=2&sortDirection=asc&cursor="+cursor, nil, 200))
+	second := decodePage(t, testkit.Request(t, router, "GET", "/api/v1/entries/?pageSize=2&publishedAtSort=asc&cursor="+cursor, nil, 200))
 	require.Len(t, second.Data, 1)
 	require.Equal(t, ids[2], second.Data[0].ID)
-	testkit.Request(t, router, "GET", "/api/v1/entries/?sortDirection=desc&cursor="+cursor, nil, 400)
-	testkit.Request(t, router, "GET", "/api/v1/entries/?sortDirection=invalid", nil, 400)
+	testkit.Request(t, router, "GET", "/api/v1/entries/?publishedAtSort=desc&cursor="+cursor, nil, 400)
+	testkit.Request(t, router, "GET", "/api/v1/entries/?publishedAtSort=invalid", nil, 400)
+}
+
+func TestMultipleSortFieldsContinueAcrossNulls(t *testing.T) {
+	router := api.New(t)
+	sourceID := rssSource(t, router)
+	makeEntry := func(name, published string) entry {
+		body := map[string]string{"sourceId": sourceID, "title": name, "link": "https://example.test/" + name}
+		if published != "" {
+			body["publishedAt"] = published
+		}
+		return decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", body, 201))
+	}
+	a := makeEntry("a", "2025-01-01T00:00:00Z")
+	b := makeEntry("b", "2025-01-01T00:00:00Z")
+	c := makeEntry("c", "")
+	testkit.Request(t, router, "POST", "/api/v1/entries/"+b.ID+"/save", nil, 200)
+	query := "/api/v1/entries/?pageSize=1&publishedAtSort=desc&savedAtSort=asc"
+	var got []string
+	for {
+		page := decodePage(t, testkit.Request(t, router, "GET", query, nil, 200))
+		require.Len(t, page.Data, 1)
+		got = append(got, page.Data[0].ID)
+		if page.Meta.NextCursor == "" {
+			break
+		}
+		query = "/api/v1/entries/?pageSize=1&publishedAtSort=desc&savedAtSort=asc&cursor=" + url.QueryEscape(page.Meta.NextCursor)
+	}
+	require.Equal(t, []string{b.ID, a.ID, c.ID}, got)
 }
