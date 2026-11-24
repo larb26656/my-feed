@@ -1,13 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Source } from "#/features/feed/types";
-import { api, type PageMeta, type SourcesPage } from "#/lib/api";
+import { api, type PageMeta } from "#/lib/api";
 import { sourceKeys } from "#/lib/query-keys";
-
-export type SourcesPageSize = 10 | 20 | 50;
-export type SourceFilters = {
-	name: string;
-	type: string;
-};
 
 export function useSources(enabled = true) {
 	return useQuery({
@@ -39,39 +33,6 @@ export function useSidebarSources() {
 			);
 			return data;
 		},
-	});
-}
-
-export function useSourcesPage(
-	active: boolean,
-	page: number,
-	pageSize: SourcesPageSize,
-	filters: SourceFilters,
-	sort: { sortBy: string; sortDirection: string },
-) {
-	return useQuery({
-		queryKey: sourceKeys.page(active, page, pageSize, filters, sort),
-		queryFn: async (): Promise<SourcesPage> => {
-			const params = new URLSearchParams({
-				activeEqual: String(active),
-				page: String(page),
-				pageSize: String(pageSize),
-				[`${sort.sortBy}Sort`]: sort.sortDirection,
-			});
-			if (filters.name.trim()) params.set("nameLike", filters.name.trim());
-			if (filters.type) params.set("typeEqual", filters.type);
-			const result = await api<Source[], PageMeta>(`/sources/?${params}`);
-			return {
-				data: result.data,
-				meta: result.meta ?? {
-					page,
-					pageSize,
-					total: result.data.length,
-					totalPages: 1,
-				},
-			};
-		},
-		placeholderData: (previous) => previous,
 	});
 }
 

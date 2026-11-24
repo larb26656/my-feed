@@ -3,8 +3,7 @@ import { useState } from "react";
 import { Button } from "#/components/ui/button";
 import type { Source } from "#/features/feed/types";
 
-type SourcesItemProps = {
-	source: Source;
+export type SourceActionHandlers = {
 	activationPending: boolean;
 	activationSourceId?: string;
 	onEdit: (source: Source) => void;
@@ -12,22 +11,40 @@ type SourcesItemProps = {
 	onToggleActive: (source: Source) => void;
 };
 
-export function SourcesItem({
+type SourceActionsProps = SourceActionHandlers & {
+	source: Source;
+	appearance?: "outline" | "ghost";
+};
+
+const menuItemClass =
+	"flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-muted disabled:opacity-50";
+
+export function SourceActions({
 	source,
 	activationPending,
 	activationSourceId,
 	onEdit,
 	onImage,
 	onToggleActive,
-}: SourcesItemProps) {
+	appearance = "outline",
+}: SourceActionsProps) {
 	const [menuOpen, setMenuOpen] = useState(false);
 
 	if (source.type === "manual") return null;
 
+	const pendingHere = activationPending && activationSourceId === source.id;
+	const activationLabel = pendingHere
+		? source.active
+			? "Deactivating..."
+			: "Activating..."
+		: source.active
+			? "Deactivate source"
+			: "Activate source";
+
 	return (
 		<div className="relative flex justify-end">
 			<Button
-				variant="outline"
+				variant={appearance}
 				size="icon"
 				aria-label={`Actions for ${source.name}`}
 				aria-haspopup="menu"
@@ -40,12 +57,12 @@ export function SourcesItem({
 				<div
 					role="menu"
 					aria-label={`${source.name} actions`}
-					className="absolute right-0 top-full z-20 mt-2 min-w-52 rounded-xl border bg-popover p-1 shadow-lg"
+					className="absolute right-0 top-full z-30 mt-2 min-w-52 rounded-xl border bg-popover p-1 shadow-lg"
 				>
 					<button
 						type="button"
 						role="menuitem"
-						className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-muted"
+						className={menuItemClass}
 						onClick={() => {
 							setMenuOpen(false);
 							onEdit(source);
@@ -57,7 +74,7 @@ export function SourcesItem({
 					<button
 						type="button"
 						role="menuitem"
-						className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-muted"
+						className={menuItemClass}
 						onClick={() => {
 							setMenuOpen(false);
 							onImage(source);
@@ -70,20 +87,14 @@ export function SourcesItem({
 						type="button"
 						role="menuitem"
 						disabled={activationPending}
-						className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-muted disabled:opacity-50"
+						className={menuItemClass}
 						onClick={() => {
 							setMenuOpen(false);
 							onToggleActive(source);
 						}}
 					>
 						<Power size={14} />
-						{activationPending && activationSourceId === source.id
-							? source.active
-								? "Deactivating..."
-								: "Activating..."
-							: source.active
-								? "Deactivate source"
-								: "Activate source"}
+						{activationLabel}
 					</button>
 				</div>
 			)}

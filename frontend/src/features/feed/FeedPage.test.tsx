@@ -193,6 +193,82 @@ test("announces when the persisted Saved count cannot load", async () => {
 	);
 });
 
+test("keeps Saved entries in saved-time order from the API", async () => {
+	const calls: string[] = [];
+	vi.stubGlobal(
+		"fetch",
+		vi.fn(async (url: string) => {
+			calls.push(url);
+			if (url.includes("/sources/")) {
+				return okJson([
+					{ id: "news", name: "News", type: "rss", active: true },
+				]);
+			}
+			if (url.endsWith("/entries/saved-count")) return okJson({ count: 2 });
+			return okJson(
+				[
+					{
+						id: "saved-later",
+						sourceId: "news",
+						title: "Saved later",
+						link: "https://example.com/later",
+						description: "",
+						createdAt: "2020-01-01T00:00:00Z",
+						publishedAt: "2010-01-01T00:00:00Z",
+						savedAt: "2024-06-01T00:00:00Z",
+					},
+					{
+						id: "saved-earlier",
+						sourceId: "news",
+						title: "Saved earlier",
+						link: "https://example.com/earlier",
+						description: "",
+						createdAt: "2020-01-01T00:00:00Z",
+						publishedAt: "2024-01-01T00:00:00Z",
+						savedAt: "2024-01-01T00:00:00Z",
+					},
+				],
+				{ pageSize: 10 },
+			);
+		}),
+	);
+	const client = new QueryClient({
+		defaultOptions: { queries: { retry: false } },
+	});
+	render(
+		<QueryClientProvider client={client}>
+			<FeedProvider>
+				<FeedPage savedOnly />
+			</FeedProvider>
+		</QueryClientProvider>,
+	);
+	const later = await screen.findByRole("link", { name: "Saved later" });
+	const earlier = screen.getByRole("link", { name: "Saved earlier" });
+	expect(
+		later.compareDocumentPosition(earlier) & Node.DOCUMENT_POSITION_FOLLOWING,
+	).toBeTruthy();
+	expect(
+		calls.some(
+			(url) =>
+				url.includes("savedOnly=true") && url.includes("savedAtSort=desc"),
+		),
+	).toBe(true);
+	await userEvent
+		.setup()
+		.selectOptions(
+			screen.getByRole("combobox", { name: "Sort entries" }),
+			"asc",
+		);
+	await waitFor(() =>
+		expect(
+			calls.some(
+				(url) =>
+					url.includes("savedOnly=true") && url.includes("savedAtSort=asc"),
+			),
+		).toBe(true),
+	);
+});
+
 test("requests the selected sort direction from the API", async () => {
 	const calls: string[] = [];
 	vi.stubGlobal(

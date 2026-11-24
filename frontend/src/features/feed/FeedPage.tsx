@@ -18,11 +18,18 @@ export function FeedPage({
 	savedOnly?: boolean;
 }) {
 	const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-	const [sortField, setSortField] = useState<
-		"publishedAtSort" | "createdAtSort" | "savedAtSort"
-	>("publishedAtSort");
+	const [chosenSortField, setSortField] = useState<
+		"publishedAtSort" | "createdAtSort" | "savedAtSort" | null
+	>(null);
 	const { allSources, sourcesLoading, sourcesError } = useFeedState();
 	const source = allSources.find((item) => item.id === sourceId);
+	const sortField =
+		chosenSortField ??
+		(savedOnly
+			? "savedAtSort"
+			: source?.type === "manual"
+				? "createdAtSort"
+				: "publishedAtSort");
 	const loadMoreRef = useRef<HTMLDivElement>(null);
 	const query = useEntries({
 		sourceId,

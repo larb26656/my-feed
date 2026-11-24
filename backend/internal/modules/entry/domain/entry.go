@@ -53,6 +53,8 @@ func NewEntry(sourceID uuid.UUID, meta EntryMetadata) (*Entry, error) {
 	}, nil
 }
 
+// SortAt is the publication time, or the recorded time when the source did not
+// provide one. Saved lists and the manual Source order by other timestamps.
 func (e *Entry) SortAt() time.Time {
 	if e.PublishedAt != nil {
 		return e.PublishedAt.UTC()
