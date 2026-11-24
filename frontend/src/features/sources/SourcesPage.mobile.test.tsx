@@ -277,7 +277,7 @@ test("loads the next page when the list reaches the end", async () => {
 	renderPage();
 	expect(await screen.findByRole("link", { name: "Source 01" })).toBeTruthy();
 	expect(screen.queryByRole("link", { name: "Source 21" })).toBeNull();
-	expect(await screen.findByText("Loading more")).toBeTruthy();
+	expect(await screen.findByText("Loading more...")).toBeTruthy();
 	expect(screen.getByText("25 sources")).toBeTruthy();
 	releaseSecond();
 	expect(await screen.findByRole("link", { name: "Source 21" })).toBeTruthy();

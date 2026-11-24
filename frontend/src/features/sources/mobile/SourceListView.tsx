@@ -1,6 +1,5 @@
-import { LoaderCircle } from "lucide-react";
-import { useEffect, useRef } from "react";
 import { ErrorState } from "#/components/ErrorState";
+import { InfiniteScroll } from "#/components/InfiniteScroll";
 import { NoDataState } from "#/components/NoDataState";
 import { Button } from "#/components/ui/button";
 import { Skeleton } from "#/components/ui/skeleton";
@@ -41,42 +40,12 @@ export function SourceListView({
 	const sources = query.data?.pages.flatMap((page) => page.data) ?? [];
 	const total = query.data?.pages[0]?.meta.total ?? sources.length;
 	const label = active ? "active" : "inactive";
-	const sentinelRef = useRef<HTMLDivElement>(null);
-	const loadingMore = useRef(false);
 	const {
 		hasNextPage,
 		isFetchingNextPage,
 		isFetchNextPageError,
 		fetchNextPage,
 	} = query;
-
-	useEffect(() => {
-		if (!isFetchingNextPage) loadingMore.current = false;
-	}, [isFetchingNextPage]);
-
-	useEffect(() => {
-		const node = sentinelRef.current;
-		if (
-			!node ||
-			!hasNextPage ||
-			isFetchingNextPage ||
-			isFetchNextPageError ||
-			typeof IntersectionObserver === "undefined"
-		) {
-			return;
-		}
-		const observer = new IntersectionObserver(
-			(entries) => {
-				if (!entries.some((entry) => entry.isIntersecting)) return;
-				if (loadingMore.current) return;
-				loadingMore.current = true;
-				void fetchNextPage();
-			},
-			{ rootMargin: "240px" },
-		);
-		observer.observe(node);
-		return () => observer.disconnect();
-	}, [fetchNextPage, hasNextPage, isFetchNextPageError, isFetchingNextPage]);
 
 	return (
 		<div className="mt-3" aria-busy={query.isFetching || isFetchingNextPage}>
@@ -87,55 +56,40 @@ export function SourceListView({
 				</div>
 			)}
 
-			{query.isLoading ? (
-				<div className="space-y-2">
-					<p className="sr-only">Loading {label} sources</p>
-					<SourceCardSkeleton />
-					<SourceCardSkeleton />
-					<SourceCardSkeleton />
-					<SourceCardSkeleton />
-				</div>
-			) : query.isError && sources.length === 0 ? (
-				<ErrorState
-					error={query.error ?? "Sources unavailable"}
-					message="Could not load sources. Please try again"
-					action={
-						<Button onClick={() => void query.refetch()}>Try again</Button>
-					}
-				/>
-			) : sources.length === 0 ? (
-				<NoDataState title={sourcesEmptyMessage(active, filters)} />
-			) : (
-				<ul aria-label={`${label} sources`} className="space-y-2">
-					{sources.map((source) => (
-						<SourceCard key={source.id} source={source} actions={actions} />
-					))}
-				</ul>
-			)}
-
-			{hasNextPage && (
-				<div ref={sentinelRef} className="h-px" aria-hidden="true" />
-			)}
-			{isFetchingNextPage && (
-				<output className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
-					<LoaderCircle className="animate-spin" />
-					Loading more
-				</output>
-			)}
-			{isFetchNextPageError && (
-				<div className="py-3 text-center">
-					<p role="alert" className="text-sm text-destructive">
-						Could not load more sources.
-					</p>
-					<Button
-						variant="outline"
-						className="mt-2"
-						onClick={() => void fetchNextPage()}
-					>
-						Try again
-					</Button>
-				</div>
-			)}
+			<InfiniteScroll
+				next={{
+					hasPage: hasNextPage,
+					isLoading: isFetchingNextPage,
+					isError: isFetchNextPageError,
+					load: fetchNextPage,
+				}}
+			>
+				{query.isLoading ? (
+					<div className="space-y-2">
+						<p className="sr-only">Loading {label} sources</p>
+						<SourceCardSkeleton />
+						<SourceCardSkeleton />
+						<SourceCardSkeleton />
+						<SourceCardSkeleton />
+					</div>
+				) : query.isError && sources.length === 0 ? (
+					<ErrorState
+						error={query.error ?? "Sources unavailable"}
+						message="Could not load sources. Please try again"
+						action={
+							<Button onClick={() => void query.refetch()}>Try again</Button>
+						}
+					/>
+				) : sources.length === 0 ? (
+					<NoDataState title={sourcesEmptyMessage(active, filters)} />
+				) : (
+					<ul aria-label={`${label} sources`} className="space-y-2">
+						{sources.map((source) => (
+							<SourceCard key={source.id} source={source} actions={actions} />
+						))}
+					</ul>
+				)}
+			</InfiniteScroll>
 		</div>
 	);
 }

@@ -1,10 +1,10 @@
-import { Link } from "@tanstack/react-router";
-import { Settings2 } from "lucide-react";
 import { SourceAvatar } from "#/components/SourceAvatar";
 import { SourceTypeBadge } from "#/components/SourceTypeBadge";
-import { buttonVariants } from "#/components/ui/button";
 import { Skeleton } from "#/components/ui/skeleton";
-import { cn } from "#/lib/utils";
+import {
+	type SourceActionHandlers,
+	SourceActions,
+} from "#/features/sources/SourceActions";
 import type { Source } from "./types";
 
 function sourceDescription(source: Source) {
@@ -12,36 +12,27 @@ function sourceDescription(source: Source) {
 	return typeof value === "string" ? value.trim() : "";
 }
 
-function ManageSourcesLink({ sourceId }: { sourceId?: string }) {
-	return (
-		<Link
-			to="/sources"
-			search={sourceId ? { sourceId } : {}}
-			className={cn(
-				buttonVariants(),
-				"mt-3 bg-[#2563eb] px-4 text-white hover:bg-[#1d4ed8]",
-			)}
-		>
-			<Settings2 data-icon="inline-start" />
-			Manage sources
-		</Link>
-	);
-}
-
 export function SourceHeader({
 	source,
 	loading,
 	error,
+	actions,
 }: {
 	source?: Source;
 	loading: boolean;
 	error: boolean;
+	actions?: SourceActionHandlers;
 }) {
 	const description = source ? sourceDescription(source) : "";
 
 	return (
 		<header className="border-b border-border [--avatar-ring:color-mix(in_oklch,var(--muted)_50%,var(--background))] md:mb-3 md:overflow-hidden md:rounded-xl md:border md:bg-card md:[--avatar-ring:var(--card)] dark:[--avatar-ring:var(--background)] md:dark:[--avatar-ring:var(--card)]">
 			<div className="relative h-24 bg-primary md:h-28">
+				{source && actions && (
+					<div className="absolute right-3 top-3 z-20">
+						<SourceActions source={source} {...actions} />
+					</div>
+				)}
 				<div className="absolute inset-x-0 bottom-0 z-10 flex translate-y-1/2 justify-center">
 					{source ? (
 						<SourceAvatar
@@ -73,7 +64,6 @@ export function SourceHeader({
 								{description}
 							</p>
 						)}
-						<ManageSourcesLink sourceId={source.id} />
 					</>
 				) : loading ? (
 					<div className="flex flex-col items-center" aria-busy="true">
@@ -89,7 +79,6 @@ export function SourceHeader({
 								? "Could not load source details."
 								: "Source details are unavailable."}
 						</p>
-						<ManageSourcesLink />
 					</div>
 				)}
 			</div>

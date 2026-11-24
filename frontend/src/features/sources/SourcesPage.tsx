@@ -2,17 +2,13 @@ import { Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "#/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "#/components/ui/tabs";
-import { toastManager } from "#/components/ui/toaster";
-import type { Source } from "#/features/feed/types";
 import { SourceTableView } from "#/features/sources/desktop/SourceTableView";
 import { SourceListView } from "#/features/sources/mobile/SourceListView";
-import { ProfileImageDialog } from "#/features/sources/ProfileImageDialog";
-import type { SourceActionHandlers } from "#/features/sources/SourceActions";
-import { SourceDialog } from "#/features/sources/SourceDialog";
 import { SourceToolbar } from "#/features/sources/SourceToolbar";
 import type { SourceFilters, SourceSort } from "#/features/sources/source.api";
 import { useIsMobile } from "#/features/sources/useIsMobile";
-import { useSetSourceActive, useSources } from "#/hooks/queries";
+import { useSources } from "#/hooks/queries";
+import { useSourceActions } from "./useSourceActions";
 
 type SourcesTab = "active" | "inactive";
 
@@ -74,10 +70,7 @@ export function SourcesPage({ focusSourceId }: { focusSourceId?: string }) {
 		setAppliedFilters({ name: focused.name, type: focused.type });
 		setSearchRevision((current) => current + 1);
 	}, [focusSourceId, focused]);
-	const [imageSource, setImageSource] = useState<Source | null>(null);
-	const [editing, setEditing] = useState<Source | null>(null);
-	const [showForm, setShowForm] = useState(false);
-	const activationMutation = useSetSourceActive();
+	const { actions, openCreate, dialogs } = useSourceActions();
 
 	const applyFilters = (filters: SourceFilters) => {
 		setAppliedFilters((current) =>
@@ -86,36 +79,9 @@ export function SourcesPage({ focusSourceId }: { focusSourceId?: string }) {
 				: filters,
 		);
 	};
-	const handleActivationSuccess = (source: Source) => {
-		toastManager.add({
-			title: source.active ? "Source activated" : "Source deactivated",
-			type: "success",
-		});
-	};
-	const openCreate = () => {
-		setEditing(null);
-		setShowForm(true);
-	};
-	const openEdit = (source: Source) => {
-		setEditing(source);
-		setShowForm(true);
-	};
 	const onTabChange = (next: string | number | null) => {
 		if (next !== "active" && next !== "inactive") return;
 		setTab(next);
-	};
-	const actions: SourceActionHandlers = {
-		activationPending: activationMutation.isPending,
-		activationSourceId: activationMutation.variables?.id,
-		onEdit: openEdit,
-		onImage: setImageSource,
-		onToggleActive: (item) => {
-			activationMutation.reset();
-			activationMutation.mutate(
-				{ id: item.id, active: !item.active },
-				{ onSuccess: handleActivationSuccess },
-			);
-		},
 	};
 	const active = tab === "active";
 
@@ -123,21 +89,7 @@ export function SourcesPage({ focusSourceId }: { focusSourceId?: string }) {
 		<section>
 			<SourcesHeader isMobile={isMobile} onCreate={openCreate} />
 
-			{imageSource && (
-				<ProfileImageDialog
-					source={imageSource}
-					onClose={() => setImageSource(null)}
-				/>
-			)}
-			{showForm && (
-				<SourceDialog editing={editing} onClose={() => setShowForm(false)} />
-			)}
-
-			{activationMutation.isError && (
-				<p role="alert" className="mt-4 text-sm text-destructive">
-					Could not update source status: {activationMutation.error.message}
-				</p>
-			)}
+			{dialogs}
 
 			<Tabs
 				value={tab}

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { FeedPage } from "#/features/feed/FeedPage";
+import { SavedPage } from "#/features/feed/SavedPage";
 export const Route = createFileRoute("/_app/saved")({
-	component: () => <FeedPage savedOnly />,
+	component: SavedPage,
 });

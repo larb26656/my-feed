@@ -6,6 +6,8 @@ import { afterEach, expect, test, vi } from "vitest";
 import { failJson, okJson } from "#/lib/api/test-helpers";
 import { FeedPage } from "./FeedPage";
 import { FeedProvider, useFeedState } from "./FeedState";
+import { SavedPage } from "./SavedPage";
+import { SourceFeedPage } from "./SourceFeedPage";
 
 vi.mock("@tanstack/react-router", () => ({
 	Link: ({
@@ -27,7 +29,7 @@ afterEach(() => {
 	vi.unstubAllGlobals();
 });
 
-test("combines Source and Saved while retaining names of deactivated Sources", async () => {
+test("shows the feed of a deactivated source", async () => {
 	const calls: string[] = [];
 	vi.stubGlobal(
 		"fetch",
@@ -73,22 +75,19 @@ test("combines Source and Saved while retaining names of deactivated Sources", a
 	render(
 		<QueryClientProvider client={client}>
 			<FeedProvider>
-				<FeedPage sourceId="inactive" savedOnly />
+				<SourceFeedPage sourceId="inactive" />
 			</FeedProvider>
 		</QueryClientProvider>,
 	);
 	expect(await screen.findAllByText("Deactivated Source")).toHaveLength(2);
 	expect(
-		screen.getByRole("link", { name: "Manage sources" }).getAttribute("href"),
-	).toBe("/sources?sourceId=inactive");
+		screen.getByRole("button", { name: "Actions for Deactivated Source" }),
+	).toBeTruthy();
 	await waitFor(() =>
 		expect(
 			calls.some((url) => {
 				const params = new URL(url, "http://localhost").searchParams;
-				return (
-					params.get("sourceId") === "inactive" &&
-					params.get("savedOnly") === "true"
-				);
+				return params.get("sourceId") === "inactive";
 			}),
 		).toBe(true),
 	);
@@ -238,7 +237,7 @@ test("keeps Saved entries in saved-time order from the API", async () => {
 	render(
 		<QueryClientProvider client={client}>
 			<FeedProvider>
-				<FeedPage savedOnly />
+				<SavedPage />
 			</FeedProvider>
 		</QueryClientProvider>,
 	);

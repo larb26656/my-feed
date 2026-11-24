@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import { SourceHeader } from "./SourceHeader";
 import type { Source } from "./types";
@@ -38,6 +39,12 @@ function renderHeader(
 				source={source}
 				loading={options.loading ?? false}
 				error={options.error ?? false}
+				actions={{
+					activationPending: false,
+					onEdit: vi.fn(),
+					onImage: vi.fn(),
+					onToggleActive: vi.fn(),
+				}}
 			/>
 		</QueryClientProvider>,
 	);
@@ -59,8 +66,8 @@ test("centers the source name, type, and description", () => {
 		screen.getByText("Videos about web, AI, and modern dev."),
 	).toBeTruthy();
 	expect(
-		screen.getByRole("link", { name: "Manage sources" }).getAttribute("href"),
-	).toBe("/sources?sourceId=fireship");
+		screen.getByRole("button", { name: "Actions for Fireship" }),
+	).toBeTruthy();
 });
 
 test("hides an empty description and labels other source types", () => {
@@ -112,7 +119,32 @@ test("shows a loading state and an unavailable source message", () => {
 		</QueryClientProvider>,
 	);
 	expect(screen.getByText("Could not load source details.")).toBeTruthy();
-	expect(
-		screen.getByRole("link", { name: "Manage sources" }).getAttribute("href"),
-	).toBe("/sources");
+	expect(screen.queryByRole("button", { name: /Actions for/ })).toBeNull();
+});
+
+test("opens the shared source actions and invokes edit", async () => {
+	const onEdit = vi.fn();
+	const client = new QueryClient();
+	render(
+		<QueryClientProvider client={client}>
+			<SourceHeader
+				source={fireship}
+				loading={false}
+				error={false}
+				actions={{
+					activationPending: false,
+					onEdit,
+					onImage: vi.fn(),
+					onToggleActive: vi.fn(),
+				}}
+			/>
+		</QueryClientProvider>,
+	);
+	await userEvent.click(
+		screen.getByRole("button", { name: "Actions for Fireship" }),
+	);
+	await userEvent.click(
+		await screen.findByRole("menuitem", { name: "Edit source" }),
+	);
+	expect(onEdit).toHaveBeenCalledWith(fireship);
 });
