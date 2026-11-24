@@ -21,6 +21,23 @@ export const sourceKeys = {
 			filters,
 			sort,
 		] as const,
+	infinite: (
+		active: boolean,
+		pageSize: number,
+		filters: {
+			name: string;
+			type: string;
+		},
+		sort: { sortBy: string; sortDirection: string },
+	) =>
+		[
+			"sources",
+			"infinite",
+			active ? "active" : "inactive",
+			pageSize,
+			filters,
+			sort,
+		] as const,
 };
 
 export const entryKeys = {
