@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
+	sortoption "github.com/larb26656/my-feed/backend/internal/platform/sort"
 )
 
 type createSourceRequest struct {
@@ -20,11 +21,13 @@ type updateSourceRequest struct {
 }
 type listSourcesQuery struct {
 	httpx.PageOption
-	NameLike      string `form:"nameLike"`
-	TypeEqual     string `form:"typeEqual"`
-	ActiveEqual   *bool  `form:"activeEqual"`
-	SortBy        string `form:"sortBy" binding:"oneof=name type active createdAt"`
-	SortDirection string `form:"sortDirection" binding:"oneof=asc desc"`
+	NameLike      string               `form:"nameLike"`
+	TypeEqual     string               `form:"typeEqual"`
+	ActiveEqual   *bool                `form:"activeEqual"`
+	NameSort      sortoption.Direction `form:"nameSort"`
+	TypeSort      sortoption.Direction `form:"typeSort"`
+	ActiveSort    sortoption.Direction `form:"activeSort"`
+	CreatedAtSort sortoption.Direction `form:"createdAtSort"`
 }
 
 type previewSourceRequest struct {

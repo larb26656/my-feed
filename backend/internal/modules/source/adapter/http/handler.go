@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
+	"github.com/larb26656/my-feed/backend/internal/modules/source/repository"
 	"github.com/larb26656/my-feed/backend/internal/modules/source/service"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	httpx "github.com/larb26656/my-feed/backend/internal/platform/http"
@@ -74,8 +75,10 @@ func (h *Handler) createSource(c *gin.Context) {
 // @Param nameLike query string false "Case-insensitive substring match on Source name"
 // @Param typeEqual query string false "Exact Source Type"
 // @Param activeEqual query bool false "Filter by active status; omit to include both"
-// @Param sortBy query string false "Sort field" Enums(name, type, active, createdAt) default(createdAt)
-// @Param sortDirection query string false "Sort direction" Enums(asc, desc) default(asc)
+// @Param nameSort query string false "Name sort direction (first priority)" Enums(asc, desc)
+// @Param typeSort query string false "Type sort direction (second priority)" Enums(asc, desc)
+// @Param activeSort query string false "Active sort direction (third priority)" Enums(asc, desc)
+// @Param createdAtSort query string false "Creation time sort direction (fourth priority; default asc when no sort supplied)" Enums(asc, desc)
 // @Success 200 {object} PageResponse
 // @Failure 400 {object} httpx.ErrorResponse
 // @Failure 404 {object} httpx.ErrorResponse
@@ -84,14 +87,15 @@ func (h *Handler) createSource(c *gin.Context) {
 // @Router /api/v1/sources [get]
 func (h *Handler) listSources(c *gin.Context) {
 	r := c.Request
-	req := listSourcesQuery{PageOption: httpx.NewPageOption(), SortBy: "createdAt", SortDirection: "asc"}
+	req := listSourcesQuery{PageOption: httpx.NewPageOption()}
 	if err := c.ShouldBindQuery(&req); err != nil {
 		_ = c.Error(apperr.InvalidInput.Wrap(err, "Invalid Source query"))
 		return
 	}
 	list, total, err := h.svc.ListSourcesPage(r.Context(), service.ListSourcesPageInput{
-		NameLike: req.NameLike, TypeEqual: req.TypeEqual, ActiveEqual: req.ActiveEqual,
-		SortBy: req.SortBy, SortDirection: req.SortDirection, Page: req.Page, PageSize: req.PageSize,
+		Criteria: repository.SourceListCriteria{NameLike: req.NameLike, TypeEqual: req.TypeEqual, ActiveEqual: req.ActiveEqual},
+		Sort:     repository.SourceListSort{NameSort: req.NameSort, TypeSort: req.TypeSort, ActiveSort: req.ActiveSort, CreatedAtSort: req.CreatedAtSort},
+		Page:     repository.SourcePage{Page: req.Page, PageSize: req.PageSize},
 	})
 	if err != nil {
 		_ = c.Error(err)

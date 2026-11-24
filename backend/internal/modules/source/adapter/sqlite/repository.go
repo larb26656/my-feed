@@ -18,6 +18,7 @@ import (
 	"github.com/larb26656/my-feed/backend/internal/modules/source/repository"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	"github.com/larb26656/my-feed/backend/internal/platform/database"
+	sortoption "github.com/larb26656/my-feed/backend/internal/platform/sort"
 )
 
 func init() {
@@ -43,7 +44,7 @@ type querier interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
-func (r *Repository) ListSourcesPage(ctx context.Context, q repository.SourcePageQuery) ([]*domain.Source, int64, error) {
+func (r *Repository) ListSourcesPage(ctx context.Context, q repository.SourceListCriteria, sort repository.SourceListSort, page repository.SourcePage) ([]*domain.Source, int64, error) {
 	where := []string{"1=1"}
 	args := []any{}
 	if q.NameLike != "" {
@@ -59,27 +60,39 @@ func (r *Repository) ListSourcesPage(ctx context.Context, q repository.SourcePag
 		args = append(args, *q.ActiveEqual)
 	}
 	clause := " WHERE " + strings.Join(where, " AND ")
-	columns := map[string]string{"name": "name", "type": "type", "active": "active", "createdAt": "created_at"}
-	column, ok := columns[q.SortBy]
-	if !ok {
-		return nil, 0, fmt.Errorf("invalid sort field")
+	order := []string{}
+	outerOrder := []string{}
+	for _, field := range []struct {
+		column    string
+		direction sortoption.Direction
+	}{
+		{"name", sort.NameSort}, {"type", sort.TypeSort}, {"active", sort.ActiveSort}, {"created_at", sort.CreatedAtSort},
+	} {
+		if field.direction == "" {
+			continue
+		}
+		if !field.direction.Valid() {
+			return nil, 0, fmt.Errorf("invalid sort direction")
+		}
+		direction := "ASC"
+		if field.direction == sortoption.Desc {
+			direction = "DESC"
+		}
+		order = append(order, field.column+" "+direction)
+		outerOrder = append(outerOrder, "page."+field.column+" "+direction)
 	}
-	direction := "ASC"
-	if q.SortDirection == "desc" {
-		direction = "DESC"
-	} else if q.SortDirection != "asc" {
-		return nil, 0, fmt.Errorf("invalid sort direction")
-	}
+	order = append(order, "id ASC")
+	outerOrder = append(outerOrder, "page.id ASC")
 	query := `WITH filtered AS (SELECT * FROM sources` + clause + `),
-		page AS (SELECT * FROM filtered ORDER BY ` + column + " " + direction + `, id ASC LIMIT ? OFFSET ?)
+		page AS (SELECT * FROM filtered ORDER BY ` + strings.Join(order, ", ") + ` LIMIT ? OFFSET ?)
 		SELECT page.id, page.name, page.type, COALESCE(json_extract(page.config, '$.url'), page.rss_url), COALESCE(json_extract(page.config, '$.channelId'), page.youtube_channel_id),
 		page.active, page.created_at, page.updated_at, page.profile_image_id, page.config, page.key, (SELECT count(*) FROM filtered)
-		FROM (SELECT 1) LEFT JOIN page ON 1=1 ORDER BY page.` + column + " " + direction + ", page.id ASC"
+		FROM (SELECT 1) LEFT JOIN page ON 1=1 ORDER BY ` + strings.Join(outerOrder, ", ")
 	offset := math.MaxInt
-	if q.Page-1 <= math.MaxInt/q.PageSize {
-		offset = (q.Page - 1) * q.PageSize
+	if page.Page-1 <= math.MaxInt/page.PageSize {
+		offset = (page.Page - 1) * page.PageSize
 	}
-	args = append(args, q.PageSize, offset)
+	args = append(args, page.PageSize, offset)
 	rows, err := r.q.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err

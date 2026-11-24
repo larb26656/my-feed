@@ -38,24 +38,6 @@ type realClock struct{}
 
 func (realClock) Now() time.Time { return time.Now().UTC() }
 
-// TokenPair is the access and refresh credentials returned after login/refresh.
-type TokenPair struct {
-	AccessToken  string
-	RefreshToken string
-	ExpiresIn    time.Duration
-}
-
-// LoginInput is the Reader credential submitted at login.
-type LoginInput struct {
-	Username string
-	Password string
-}
-
-// RefreshInput carries the opaque refresh token for rotation or logout.
-type RefreshInput struct {
-	RefreshToken string
-}
-
 // Service handles login, refresh rotation, and logout for Reader Sessions.
 type Service struct {
 	repo  repository.Repository

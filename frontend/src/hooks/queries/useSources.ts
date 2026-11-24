@@ -56,8 +56,7 @@ export function useSourcesPage(
 				activeEqual: String(active),
 				page: String(page),
 				pageSize: String(pageSize),
-				sortBy: sort.sortBy,
-				sortDirection: sort.sortDirection,
+				[`${sort.sortBy}Sort`]: sort.sortDirection,
 			});
 			if (filters.name.trim()) params.set("nameLike", filters.name.trim());
 			if (filters.type) params.set("typeEqual", filters.type);

@@ -25,15 +25,3 @@ type Repository interface {
 	UpdateFetchJob(ctx context.Context, job *domain.FetchJob) error
 	WithTx(tx database.Transaction) Repository
 }
-
-// FetchJobListCursor is a position in the newest-first Fetch Job history.
-type FetchJobListCursor struct {
-	CreatedAt time.Time
-	ID        uuid.UUID
-}
-
-// FetchJobListCriteria contains the supported Fetch Job history filters.
-type FetchJobListCriteria struct {
-	SourceID *uuid.UUID
-	Status   *domain.Status
-}

@@ -22,6 +22,7 @@ import (
 	typeapi "github.com/larb26656/my-feed/backend/internal/modules/sourcetype/api"
 	"github.com/larb26656/my-feed/backend/internal/platform/apperr"
 	"github.com/larb26656/my-feed/backend/internal/platform/database"
+	sortoption "github.com/larb26656/my-feed/backend/internal/platform/sort"
 )
 
 type Service struct {
@@ -47,8 +48,6 @@ var _ sourceapi.TransactionalLifecycle = (*Service)(nil)
 func (s *Service) WithTx(tx database.Transaction) sourceapi.Lifecycle {
 	return &Service{repo: s.repo.WithTx(tx), types: s.types, obtain: s.obtain, files: s.files, imageMu: s.imageMu}
 }
-
-type CreateSourceInput = sourceapi.CreateSourceInput
 
 func (s *Service) CreateSource(ctx context.Context, in CreateSourceInput) (*sourceapi.Source, error) {
 	typ := domain.Type(strings.TrimSpace(in.Type))
@@ -76,22 +75,12 @@ func (s *Service) GetSource(ctx context.Context, id uuid.UUID) (*domain.Source, 
 	return s.repo.GetSourceByID(ctx, id)
 }
 
-type ListSourcesInput struct {
-	IncludeDeactivated bool
-}
-
-type ListSourcesPageInput struct {
-	NameLike, TypeEqual, SortBy, SortDirection string
-	ActiveEqual                                *bool
-	Page, PageSize                             int
-}
-
 func (s *Service) ListSourcesPage(ctx context.Context, in ListSourcesPageInput) ([]*domain.Source, int64, error) {
-	if in.TypeEqual != "" && in.TypeEqual != string(domain.TypeManual) {
+	if in.Criteria.TypeEqual != "" && in.Criteria.TypeEqual != string(domain.TypeManual) {
 		valid := false
 		if catalog, ok := s.types.(typeapi.Catalog); ok {
 			for _, definition := range catalog.Definitions() {
-				if definition.Code == in.TypeEqual {
+				if definition.Code == in.Criteria.TypeEqual {
 					valid = true
 					break
 				}
@@ -102,13 +91,18 @@ func (s *Service) ListSourcesPage(ctx context.Context, in ListSourcesPageInput) 
 		}
 	}
 
-	if in.Page < 1 || in.PageSize < 1 || in.PageSize > 100 {
+	if in.Page.Page < 1 || in.Page.PageSize < 1 || in.Page.PageSize > 100 {
 		return nil, 0, apperr.InvalidInput.New("invalid source page")
 	}
-	items, total, err := s.repo.ListSourcesPage(ctx, repository.SourcePageQuery{
-		NameLike: in.NameLike, TypeEqual: in.TypeEqual, ActiveEqual: in.ActiveEqual,
-		SortBy: in.SortBy, SortDirection: in.SortDirection, Page: in.Page, PageSize: in.PageSize,
-	})
+	for _, direction := range []sortoption.Direction{in.Sort.NameSort, in.Sort.TypeSort, in.Sort.ActiveSort, in.Sort.CreatedAtSort} {
+		if direction != "" && !direction.Valid() {
+			return nil, 0, apperr.InvalidInput.New("invalid source sort direction")
+		}
+	}
+	if in.Sort == (repository.SourceListSort{}) {
+		in.Sort.CreatedAtSort = sortoption.Asc
+	}
+	items, total, err := s.repo.ListSourcesPage(ctx, in.Criteria, in.Sort, in.Page)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list sources page: %w", err)
 	}
@@ -147,11 +141,6 @@ func (s *Service) ReactivateSource(ctx context.Context, id uuid.UUID) (*domain.S
 		return nil, err
 	}
 	return src, nil
-}
-
-type UpdateSourceInput struct {
-	Config map[string]any
-	Name   string
 }
 
 func (s *Service) UpdateSource(ctx context.Context, id uuid.UUID, in UpdateSourceInput) (*domain.Source, error) {

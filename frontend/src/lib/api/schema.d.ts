@@ -1138,10 +1138,14 @@ export interface paths {
                     typeEqual?: string;
                     /** @description Filter by active status; omit to include both */
                     activeEqual?: boolean;
-                    /** @description Sort field */
-                    sortBy?: "name" | "type" | "active" | "createdAt";
-                    /** @description Sort direction */
-                    sortDirection?: "asc" | "desc";
+                    /** @description Name sort direction (first priority) */
+                    nameSort?: "asc" | "desc";
+                    /** @description Type sort direction (second priority) */
+                    typeSort?: "asc" | "desc";
+                    /** @description Active sort direction (third priority) */
+                    activeSort?: "asc" | "desc";
+                    /** @description Creation time sort direction (fourth priority; default asc when no sort supplied) */
+                    createdAtSort?: "asc" | "desc";
                 };
                 header?: never;
                 path?: never;

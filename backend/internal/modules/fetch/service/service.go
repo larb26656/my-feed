@@ -79,17 +79,6 @@ func (s *Service) GetFetchJob(ctx context.Context, id uuid.UUID) (*domain.FetchJ
 
 const DefaultFetchJobPageSize = 20
 
-type ListFetchJobsInput struct {
-	Cursor   *string
-	PageSize *int
-	Criteria repository.FetchJobListCriteria
-}
-
-type ListFetchJobsResult struct {
-	Jobs       []*domain.FetchJob
-	NextCursor *string
-}
-
 func (s *Service) ListFetchJobs(ctx context.Context, in ListFetchJobsInput) (*ListFetchJobsResult, error) {
 	pageSize := DefaultFetchJobPageSize
 	if in.PageSize != nil {

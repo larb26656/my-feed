@@ -1776,26 +1776,46 @@
                         }
                     },
                     {
-                        "description": "Sort field",
+                        "description": "Name sort direction (first priority)",
                         "in": "query",
-                        "name": "sortBy",
+                        "name": "nameSort",
                         "schema": {
-                            "default": "createdAt",
                             "enum": [
-                                "name",
-                                "type",
-                                "active",
-                                "createdAt"
+                                "asc",
+                                "desc"
                             ],
                             "type": "string"
                         }
                     },
                     {
-                        "description": "Sort direction",
+                        "description": "Type sort direction (second priority)",
                         "in": "query",
-                        "name": "sortDirection",
+                        "name": "typeSort",
                         "schema": {
-                            "default": "asc",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Active sort direction (third priority)",
+                        "in": "query",
+                        "name": "activeSort",
+                        "schema": {
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Creation time sort direction (fourth priority; default asc when no sort supplied)",
+                        "in": "query",
+                        "name": "createdAtSort",
+                        "schema": {
                             "enum": [
                                 "asc",
                                 "desc"

@@ -366,8 +366,7 @@ test("sends search criteria and resets the page", async () => {
 				(params) =>
 					params.get("nameLike") === "blog" &&
 					params.get("typeEqual") === "youtube" &&
-					params.get("sortBy") === "createdAt" &&
-					params.get("sortDirection") === "desc" &&
+					params.get("createdAtSort") === "desc" &&
 					params.get("page") === "1",
 			),
 		).toBe(true);

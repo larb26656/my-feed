@@ -162,13 +162,13 @@ func TestSourceListSortsNamesDescending(t *testing.T) {
 	createRSSSource(t, router, "Alpha", "https://example.test/alpha")
 	want := createRSSSource(t, router, "Zebra", "https://example.test/zebra")
 	// Act
-	got := decodeSuccess[[]source](t, testkit.Request(t, router, "GET", "/api/v1/sources/?sortBy=name&sortDirection=desc", nil, 200))
+	got := decodeSuccess[[]source](t, testkit.Request(t, router, "GET", "/api/v1/sources/?nameSort=desc", nil, 200))
 	// Assert
 	require.Equal(t, want.ID, got[0].ID)
 }
 
 func TestSourceListRejectsInvalidQueries(t *testing.T) {
-	for _, query := range []string{"page=0", "pageSize=101", "typeEqual=unknown", "activeEqual=maybe", "sortBy=unknown", "sortDirection=sideways"} {
+	for _, query := range []string{"page=0", "pageSize=101", "typeEqual=unknown", "activeEqual=maybe", "nameSort=sideways", "createdAtSort=sideways"} {
 		t.Run(query, func(t *testing.T) {
 			// Arrange
 			router := api.New(t)
@@ -644,4 +644,19 @@ func TestCreateAndPreviewRequireConfig(t *testing.T) {
 	router := api.New(t)
 	testkit.Request(t, router, "POST", "/api/v1/sources", map[string]any{"name": "News", "type": "rss", "rssUrl": "https://example.test/feed"}, 400)
 	testkit.Request(t, router, "POST", "/api/v1/sources/preview", map[string]any{"type": "rss", "rssUrl": "https://example.test/feed"}, 400)
+}
+
+func TestSourceListMultiFieldSortAndPagination(t *testing.T) {
+	router := api.New(t)
+	first := createRSSSource(t, router, "Alpha", "https://example.test/multi-a")
+	second := createRSSSource(t, router, "Alpha", "https://example.test/multi-b")
+	createRSSSource(t, router, "Zebra", "https://example.test/multi-c")
+	testkit.Request(t, router, "POST", "/api/v1/sources/"+second.ID+"/deactivate", nil, 200)
+	// Query order must not change the fixed name-then-active priority.
+	query := "activeSort=asc&nameSort=asc&nameLike=a&pageSize=1"
+	page1 := testkit.Decode[httpx.SuccessResponse[[]source]](t, testkit.Request(t, router, "GET", "/api/v1/sources/?"+query+"&page=1", nil, 200))
+	page2 := testkit.Decode[httpx.SuccessResponse[[]source]](t, testkit.Request(t, router, "GET", "/api/v1/sources/?"+query+"&page=2", nil, 200))
+	require.Equal(t, second.ID, page1.Data[0].ID)
+	require.Equal(t, first.ID, page2.Data[0].ID)
+	require.Equal(t, float64(4), page1.Meta.(map[string]any)["total"])
 }

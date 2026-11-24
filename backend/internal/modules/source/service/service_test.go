@@ -100,3 +100,14 @@ func TestEnsuringSavedLinksPropagatesStorageFailures(t *testing.T) {
 		})
 	}
 }
+
+func TestListSourcesPageRejectsInvalidSortWithoutHTTP(t *testing.T) {
+	svc := service.New(nil)
+	_, _, err := svc.ListSourcesPage(context.Background(), service.ListSourcesPageInput{
+		Page: repository.SourcePage{Page: 1, PageSize: 10},
+		Sort: repository.SourceListSort{TypeSort: "sideways"},
+	})
+	var appErr *apperr.AppError
+	require.ErrorAs(t, err, &appErr)
+	require.Equal(t, apperr.KindInvalid, appErr.Kind)
+}

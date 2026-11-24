@@ -16,7 +16,7 @@ import (
 
 type failingListRepo struct{ repository.Repository }
 
-func (failingListRepo) ListSourcesPage(context.Context, repository.SourcePageQuery) ([]*domain.Source, int64, error) {
+func (failingListRepo) ListSourcesPage(context.Context, repository.SourceListCriteria, repository.SourceListSort, repository.SourcePage) ([]*domain.Source, int64, error) {
 	return nil, 0, errors.New("private database failure")
 }
 

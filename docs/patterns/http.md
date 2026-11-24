@@ -63,13 +63,13 @@ Each field may have its own direction. Define a fixed priority for the fields in
 
 The Entry list accepts `createdAtSort`, `publishedAtSort`, and `savedAtSort`, in that priority order. For example, `publishedAtSort=desc&savedAtSort=asc` orders by publication time descending, then saved time ascending when publication times match, then ID ascending. If no sort is supplied, the default is `publishedAtSort=desc`. Entries without a publication or saved time sort last for that field; the default does not substitute creation time for a missing publication time.
 
-The repository adapter maps the supported fields and directions to known SQL expressions; never interpolate a client-provided column name or direction into SQL. Existing endpoints may use an older sort contract, such as the Source list below. Changing such a contract is a breaking API change and requires an explicit migration decision and client updates.
+The repository adapter maps the supported fields and directions to known SQL expressions; never interpolate a client-provided column name or direction into SQL. Changing an existing sort contract is a breaking API change and requires an explicit migration decision and client updates.
 
 ### Page numbers
 
 Initialize `httpx.PageOption` with `httpx.NewPageOption()` before binding the query. The defaults are `page=1` and `pageSize=10`. Apply the same filters to the page query and the total count, and pass the total before pagination to `httpx.Page`. The helper computes `totalPages` from the total and page size.
 
-The Source list accepts `nameLike` (case-insensitive literal substring), `typeEqual` (`rss`, `youtube`, or `manual`), and `activeEqual` (`true` or `false`). Without `activeEqual`, it returns Sources of both statuses. Set `sortBy` to `name`, `type`, `active`, or `createdAt`, and `sortDirection` to `asc` or `desc`; the default is `createdAt` ascending, with ID as the tie-breaker.
+The Source list accepts `nameLike` (case-insensitive literal substring), `typeEqual` (`rss`, `youtube`, or `manual`), and `activeEqual` (`true` or `false`). Without `activeEqual`, it returns Sources of both statuses. The sort fields are `nameSort`, `typeSort`, `activeSort`, and `createdAtSort`, in that priority order. Each accepts `asc` or `desc`. When no sort is supplied, the default is `createdAtSort=asc`; ID ascending is the final tie-breaker.
 
 ### Cursors
 
