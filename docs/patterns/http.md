@@ -55,6 +55,16 @@ For example, a domain conflict defined with code `CONFLICT` produces this envelo
 
 Name new criteria fields for the property and comparison they perform: use `NameLike` for a partial match and `NameEqual` for an exact match. Use the corresponding lower-camel-case names in query parameters, such as `nameLike` and `nameEqual`. Apply the same convention to other properties, for example `typeEqual`.
 
+### Sorting
+
+For new list sort contracts, define a sort object with one optional field per sortable property. Suffix each field with `Sort`, and use the corresponding lower-camel-case query parameter, such as `createdAtSort`. Use `platform/sort.Direction` directly for query fields and sort options. Its query binding accepts empty values or `asc` and `desc`, so do not repeat `oneof=asc desc` on each field. Keep filter criteria separate from the sort object through the service and repository contracts. Bind and validate the query in the HTTP adapter; validate service inputs as well, since callers can bypass HTTP.
+
+Each field may have its own direction. Define a fixed priority for the fields in the endpoint contract and apply only those supplied by the client. The order of query parameters does not change that priority. When none are supplied, the service creates the endpoint's default sort object; do not add default fields to a partially supplied sort. Append ID ascending as the final tie-breaker. Sort nullable values last in both directions.
+
+The Entry list accepts `createdAtSort`, `publishedAtSort`, and `savedAtSort`, in that priority order. For example, `publishedAtSort=desc&savedAtSort=asc` orders by publication time descending, then saved time ascending when publication times match, then ID ascending. If no sort is supplied, the default is `publishedAtSort=desc`. Entries without a publication or saved time sort last for that field; the default does not substitute creation time for a missing publication time.
+
+The repository adapter maps the supported fields and directions to known SQL expressions; never interpolate a client-provided column name or direction into SQL. Existing endpoints may use an older sort contract, such as the Source list below. Changing such a contract is a breaking API change and requires an explicit migration decision and client updates.
+
 ### Page numbers
 
 Initialize `httpx.PageOption` with `httpx.NewPageOption()` before binding the query. The defaults are `page=1` and `pageSize=10`. Apply the same filters to the page query and the total count, and pass the total before pagination to `httpx.Page`. The helper computes `totalPages` from the total and page size.
@@ -65,8 +75,8 @@ The Source list accepts `nameLike` (case-insensitive literal substring), `typeEq
 
 Initialize `httpx.CursorPageOption` with `httpx.NewCursorPageOption()` and embed it in the query DTO alongside the endpoint's filters and sort options. The repository filters and orders the result before seeking past the cursor. The client sends `meta.nextCursor` as `cursor` with the same filters and sort options.
 
-For SQLite, derive the cursor from the query's ordering and its tie-breaker so rows that share a sort value can be paged consistently.
+For SQLite, derive the cursor from the query's ordering and its tie-breaker so rows that share a sort value can be paged consistently. Store the selected sort, the position values (including nulls), and filter criteria in the cursor. Reject a cursor when its sort or filters differ from the request. The seek predicate must follow the same field priority, individual directions, null placement, and ID tie-breaker as `ORDER BY`.
 
 ## Verify at the route boundary
 
-Run requests through `httptest` and the module's `RegisterRoutes` as HTTP integration tests. Include the router's error middleware when checking the error envelope. Cover query binding and continuation across filtered, sorted pages. See the [testing pattern](./testing.md).
+Run requests through `httptest` and the module's `RegisterRoutes` as HTTP integration tests. Include the router's error middleware when checking the error envelope. Cover query binding and continuation across filtered, sorted pages. For multi-field sorts, verify priority, mixed directions, tied values, null placement, and cursor mismatch. See the [testing pattern](./testing.md).

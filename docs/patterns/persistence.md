@@ -15,6 +15,12 @@ type Repository interface {
 }
 ```
 
+## List contracts and file organization
+
+Keep repository method signatures in `repository.go`. Place input types such as list criteria, sort options, and cursor positions in `request.go`. Place dedicated result types in `response.go` when needed; methods can return domain types directly without a separate response file.
+
+Criteria describe filters only. Define sort options as a separate type and pass criteria and sort separately to list methods. Keep cursor and pagination inputs separate as well. The service applies defaults and validates sort values before calling the repository.
+
 ## SQLite adapter
 
 Place the implementation in `internal/modules/{module}/adapter/sqlite/`.

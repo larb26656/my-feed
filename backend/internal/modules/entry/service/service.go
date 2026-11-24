@@ -11,7 +11,6 @@ import (
 
 	"github.com/google/uuid"
 
-	entryapi "github.com/larb26656/my-feed/backend/internal/modules/entry/api"
 	"github.com/larb26656/my-feed/backend/internal/modules/entry/domain"
 	"github.com/larb26656/my-feed/backend/internal/modules/entry/repository"
 	sourceapi "github.com/larb26656/my-feed/backend/internal/modules/source/api"
@@ -28,21 +27,6 @@ func New(repo repository.Repository, sources sourceapi.EntryReader) *Service {
 	return &Service{repo: repo, sources: sources}
 }
 
-type SaveLinkInput struct {
-	Title       string
-	Link        string
-	Description string
-	Thumbnail   *string
-	PublishedAt *time.Time
-}
-
-// SaveLinkResult is the outcome of recording a link on the manual Source.
-// Created is true only when a new Entry was written; metadata refresh is false.
-type SaveLinkResult struct {
-	Entry   *domain.Entry
-	Created bool
-}
-
 // SaveLink records an Entry on the system manual "Saved links" Source.
 // The client does not pass a Source id; the server resolves the singleton.
 func (s *Service) SaveLink(ctx context.Context, in SaveLinkInput) (*SaveLinkResult, error) {
@@ -55,15 +39,6 @@ func (s *Service) SaveLink(ctx context.Context, in SaveLinkInput) (*SaveLinkResu
 		return nil, err
 	}
 	return &SaveLinkResult{Entry: result.Entry, Created: result.Created}, nil
-}
-
-type IngestEntryInput = entryapi.IngestEntryInput
-
-// IngestEntryResult is the outcome of recording an Entry through ingest.
-// Created is true only when a new Entry was written; metadata refresh is false.
-type IngestEntryResult struct {
-	Entry   *domain.Entry
-	Created bool
 }
 
 // IngestEntry records an Entry into an active fetchable Source.
@@ -154,19 +129,8 @@ func (s *Service) GetEntry(ctx context.Context, id uuid.UUID) (*domain.Entry, er
 
 const DefaultEntryPageSize = 20
 
-type ListEntriesInput struct {
-	Cursor   *string
-	PageSize *int
-	Criteria repository.EntryListCriteria
-}
-
-type ListEntriesResult struct {
-	Entries    []*domain.Entry
-	NextCursor *string
-}
-
 func (s *Service) ListEntries(ctx context.Context, in ListEntriesInput) (*ListEntriesResult, error) {
-	sort := &in.Criteria.Sort
+	sort := &in.Sort
 	if *sort == (repository.EntryListSort{}) {
 		sort.PublishedAtSort = sortoption.Desc
 	}
@@ -182,14 +146,14 @@ func (s *Service) ListEntries(ctx context.Context, in ListEntriesInput) (*ListEn
 
 	var after *repository.EntryListCursor
 	if in.Cursor != nil {
-		decoded, err := decodeEntryCursor(*in.Cursor, in.Criteria)
+		decoded, err := decodeEntryCursor(*in.Cursor, in.Criteria, in.Sort)
 		if err != nil {
 			return nil, err
 		}
 		after = decoded
 	}
 
-	rows, err := s.repo.ListEntries(ctx, after, in.Criteria, pageSize+1)
+	rows, err := s.repo.ListEntries(ctx, after, in.Criteria, in.Sort, pageSize+1)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +162,7 @@ func (s *Service) ListEntries(ctx context.Context, in ListEntriesInput) (*ListEn
 	if len(rows) > pageSize {
 		result.Entries = rows[:pageSize]
 		last := result.Entries[pageSize-1]
-		nextCursor, err := encodeEntryCursor(last, in.Criteria)
+		nextCursor, err := encodeEntryCursor(last, in.Criteria, in.Sort)
 		if err != nil {
 			return nil, fmt.Errorf("encode Entry cursor: %w", err)
 		}
@@ -211,23 +175,28 @@ func (s *Service) CountSavedEntries(ctx context.Context) (int, error) {
 	return s.repo.CountSavedEntries(ctx)
 }
 
+type entryCursorCriteria struct {
+	repository.EntryListCriteria
+	Sort repository.EntryListSort `json:"sort"`
+}
+
 type entryCursorPayload struct {
-	Version  int                          `json:"version"`
-	Position repository.EntryListCursor   `json:"position"`
-	Criteria repository.EntryListCriteria `json:"criteria"`
+	Version  int                        `json:"version"`
+	Position repository.EntryListCursor `json:"position"`
+	Criteria entryCursorCriteria        `json:"criteria"`
 }
 
-func encodeEntryCursor(entry *domain.Entry, criteria repository.EntryListCriteria) (string, error) {
-	return cursor.Encode(entryCursorPayload{Version: 1, Position: repository.EntryListCursor{CreatedAt: entry.CreatedAt, PublishedAt: entry.PublishedAt, SavedAt: entry.SavedAt, ID: entry.ID}, Criteria: criteria})
+func encodeEntryCursor(entry *domain.Entry, criteria repository.EntryListCriteria, sort repository.EntryListSort) (string, error) {
+	return cursor.Encode(entryCursorPayload{Version: 1, Position: repository.EntryListCursor{CreatedAt: entry.CreatedAt, PublishedAt: entry.PublishedAt, SavedAt: entry.SavedAt, ID: entry.ID}, Criteria: entryCursorCriteria{EntryListCriteria: criteria, Sort: sort}})
 }
 
-func decodeEntryCursor(token string, criteria repository.EntryListCriteria) (*repository.EntryListCursor, error) {
+func decodeEntryCursor(token string, criteria repository.EntryListCriteria, sort repository.EntryListSort) (*repository.EntryListCursor, error) {
 	var payload entryCursorPayload
 	if err := cursor.Decode(token, &payload); err != nil || payload.Version != 1 || payload.Position.CreatedAt.IsZero() || payload.Position.ID == uuid.Nil {
 		return nil, apperr.InvalidInput.New("invalid cursor")
 	}
 	stored := payload.Criteria
-	if stored.Sort != criteria.Sort || (stored.SourceID == nil) != (criteria.SourceID == nil) || (stored.SourceID != nil && *stored.SourceID != *criteria.SourceID) || stored.Unread != criteria.Unread || stored.SavedOnly != criteria.SavedOnly {
+	if stored.Sort != sort || (stored.SourceID == nil) != (criteria.SourceID == nil) || (stored.SourceID != nil && *stored.SourceID != *criteria.SourceID) || stored.Unread != criteria.Unread || stored.SavedOnly != criteria.SavedOnly {
 		return nil, apperr.InvalidInput.New("cursor does not match criteria")
 	}
 	return &payload.Position, nil

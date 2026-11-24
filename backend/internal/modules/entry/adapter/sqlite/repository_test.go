@@ -122,7 +122,7 @@ func TestSQLiteListsEntriesNewestFirst(t *testing.T) {
 	}
 
 	// Act
-	entries, err := repo.ListEntries(context.Background(), nil, repository.EntryListCriteria{Sort: repository.EntryListSort{PublishedAtSort: "desc"}}, 10)
+	entries, err := repo.ListEntries(context.Background(), nil, repository.EntryListCriteria{}, repository.EntryListSort{PublishedAtSort: "desc"}, 10)
 
 	// Assert
 	require.NoError(t, err)
@@ -147,7 +147,7 @@ func TestSQLiteCursorReturnsOnlyEntriesAfterItsPosition(t *testing.T) {
 	cursor := &repository.EntryListCursor{CreatedAt: newer.CreatedAt, PublishedAt: newer.PublishedAt, ID: newer.ID}
 
 	// Act
-	entries, err := repo.ListEntries(context.Background(), cursor, repository.EntryListCriteria{Sort: repository.EntryListSort{PublishedAtSort: "desc"}}, 10)
+	entries, err := repo.ListEntries(context.Background(), cursor, repository.EntryListCriteria{}, repository.EntryListSort{PublishedAtSort: "desc"}, 10)
 
 	// Assert
 	require.NoError(t, err)
@@ -250,11 +250,11 @@ func TestSQLiteSortPriorityAndNullsLastAcrossPages(t *testing.T) {
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
 			// Act
-			criteria := repository.EntryListCriteria{Sort: repository.EntryListSort{CreatedAtSort: "asc", PublishedAtSort: sortoption.Direction(scenario.direction)}}
+			sort := repository.EntryListSort{CreatedAtSort: "asc", PublishedAtSort: sortoption.Direction(scenario.direction)}
 			var after *repository.EntryListCursor
 			var got []uuid.UUID
 			for {
-				page, err := repo.ListEntries(context.Background(), after, criteria, 1)
+				page, err := repo.ListEntries(context.Background(), after, repository.EntryListCriteria{}, sort, 1)
 				require.NoError(t, err)
 				if len(page) == 0 {
 					break

@@ -56,7 +56,7 @@ func (r *Repository) GetEntryBySourceAndLink(ctx context.Context, sourceID uuid.
 	return scanEntry(r.q.QueryRowContext(ctx, `SELECT `+entryColumns+` FROM entries WHERE source_id = ? AND link = ?`, sourceID.String(), link))
 }
 
-func (r *Repository) ListEntries(ctx context.Context, after *repository.EntryListCursor, criteria repository.EntryListCriteria, limit int) ([]*domain.Entry, error) {
+func (r *Repository) ListEntries(ctx context.Context, after *repository.EntryListCursor, criteria repository.EntryListCriteria, sort repository.EntryListSort, limit int) ([]*domain.Entry, error) {
 	query := `SELECT ` + entryColumns + ` FROM entries WHERE 1=1`
 	args := []any{}
 	if criteria.SourceID != nil {
@@ -74,7 +74,7 @@ func (r *Repository) ListEntries(ctx context.Context, after *repository.EntryLis
 		direction sortoption.Direction
 		value     *time.Time
 	}
-	fields := []sortField{{"created_at", criteria.Sort.CreatedAtSort, nil}, {"published_at", criteria.Sort.PublishedAtSort, nil}, {"saved_at", criteria.Sort.SavedAtSort, nil}}
+	fields := []sortField{{"created_at", sort.CreatedAtSort, nil}, {"published_at", sort.PublishedAtSort, nil}, {"saved_at", sort.SavedAtSort, nil}}
 	if after != nil {
 		fields[0].value = &after.CreatedAt
 		fields[1].value = after.PublishedAt

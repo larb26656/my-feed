@@ -50,12 +50,12 @@ func (req ingestEntryRequest) input() service.IngestEntryInput {
 
 type listEntriesQuery struct {
 	httpx.CursorPageOption
-	SourceID        *queryUUID `form:"sourceId"`
-	Unread          bool       `form:"unread"`
-	SavedOnly       bool       `form:"savedOnly"`
-	CreatedAtSort   string     `form:"createdAtSort" binding:"omitempty,oneof=asc desc"`
-	PublishedAtSort string     `form:"publishedAtSort" binding:"omitempty,oneof=asc desc"`
-	SavedAtSort     string     `form:"savedAtSort" binding:"omitempty,oneof=asc desc"`
+	SourceID        *queryUUID           `form:"sourceId"`
+	Unread          bool                 `form:"unread"`
+	SavedOnly       bool                 `form:"savedOnly"`
+	CreatedAtSort   sortoption.Direction `form:"createdAtSort"`
+	PublishedAtSort sortoption.Direction `form:"publishedAtSort"`
+	SavedAtSort     sortoption.Direction `form:"savedAtSort"`
 }
 
 type queryUUID struct {
@@ -70,9 +70,9 @@ func (req listEntriesQuery) input() service.ListEntriesInput {
 	in := service.ListEntriesInput{PageSize: &req.PageSize}
 	in.Criteria.Unread = req.Unread
 	in.Criteria.SavedOnly = req.SavedOnly
-	in.Criteria.Sort.CreatedAtSort = sortoption.Direction(req.CreatedAtSort)
-	in.Criteria.Sort.PublishedAtSort = sortoption.Direction(req.PublishedAtSort)
-	in.Criteria.Sort.SavedAtSort = sortoption.Direction(req.SavedAtSort)
+	in.Sort.CreatedAtSort = req.CreatedAtSort
+	in.Sort.PublishedAtSort = req.PublishedAtSort
+	in.Sort.SavedAtSort = req.SavedAtSort
 	if req.SourceID != nil {
 		in.Criteria.SourceID = &req.SourceID.UUID
 	}

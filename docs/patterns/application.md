@@ -24,7 +24,7 @@ func (s *Service) Publish(ctx context.Context, id uuid.UUID) (*domain.Product, e
 }
 ```
 
-Define operation inputs such as `CreateInput` in the service package. The HTTP adapter maps request DTOs to those inputs. Add operation context with `fmt.Errorf` and `%w` when returning errors. Wrapping preserves typed errors for callers that use `errors.As`. See the [application error pattern](./errors.md) for translating errors at a layer that knows their application meaning.
+Define operation inputs such as `CreateInput` in the service package. The HTTP adapter maps request DTOs to those inputs. Place service input types in `service/request.go` and dedicated result types in `service/response.go`; keep operation logic in the service implementation. Return domain types directly when a dedicated result type is unnecessary. Add operation context with `fmt.Errorf` and `%w` when returning errors. Wrapping preserves typed errors for callers that use `errors.As`. See the [application error pattern](./errors.md) for translating errors at a layer that knows their application meaning.
 
 ## Module-to-module calls
 
