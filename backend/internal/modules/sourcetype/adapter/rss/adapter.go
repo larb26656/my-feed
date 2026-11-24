@@ -108,7 +108,7 @@ func Definition(client HTTPClient) typeapi.Definition {
 	return typeapi.Definition{Code: "rss", Label: "RSS feed", Schema: map[string]any{
 		"$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object", "additionalProperties": false,
 		"properties": map[string]any{"url": map[string]any{"type": "string", "pattern": `^\s*https?://([^\s/@]+@)?(\[[0-9a-fA-F:.]+\]|[^\s/:?#@\[\]]+)(:[0-9]+)?([/?#][^\s]*)?\s*$`}}, "required": []any{"url"},
-	}, UI: map[string]any{"url": map[string]any{"label": "RSS / Atom feed URL", "widget": "url", "error": "Please enter a valid RSS / Atom URL"}}, Normalize: normalize, Obtainer: New(client)}
+	}, FieldOrder: []string{"url"}, UI: map[string]any{"url": map[string]any{"label": "RSS / Atom feed URL", "widget": "url", "error": "Please enter a valid RSS / Atom URL"}}, Normalize: normalize, Obtainer: New(client)}
 }
 
 func normalize(_ context.Context, config map[string]any) (map[string]any, string, error) {

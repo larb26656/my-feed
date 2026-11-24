@@ -114,7 +114,7 @@ func Definition(client HTTPClient) api.Definition {
 				},
 			},
 		},
-		UI: map[string]any{
+		FieldOrder: []string{"kind", "identifier"}, UI: map[string]any{
 			"kind": map[string]any{
 				"label":  "Kind",
 				"widget": "select",

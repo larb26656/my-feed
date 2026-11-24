@@ -26,17 +26,16 @@ afterEach(() => {
 const mediumDefinition = {
 	code: "medium",
 	label: "Medium",
+	fieldOrder: ["kind", "identifier"],
 	schema: {
 		$schema: "https://json-schema.org/draft/2020-12/schema",
 		type: "object",
 		additionalProperties: false,
 		properties: {
+			identifier: { type: "string" },
 			kind: {
 				type: "string",
 				enum: ["profile", "publication"],
-			},
-			identifier: {
-				type: "string",
 			},
 		},
 		required: ["kind", "identifier"],
@@ -156,7 +155,12 @@ test("adds a Medium Profile Source from a username", async () => {
 	renderPage();
 	const user = userEvent.setup();
 	await openMediumAdd(user);
-	expect(screen.getByLabelText("Kind")).toBeTruthy();
+	expect(
+		screen
+			.getByLabelText("Kind")
+			.compareDocumentPosition(screen.getByLabelText("Identifier")) &
+			Node.DOCUMENT_POSITION_FOLLOWING,
+	).toBeTruthy();
 	await user.selectOptions(screen.getByLabelText("Kind"), "profile");
 	await user.type(screen.getByLabelText("Source name"), "Alice");
 	await user.type(screen.getByLabelText("Identifier"), "@Alice");

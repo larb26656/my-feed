@@ -124,7 +124,7 @@ func Definition(client HTTPClient) typeapi.Definition {
 	return typeapi.Definition{Code: "youtube", Label: "YouTube", Schema: map[string]any{
 		"$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object", "additionalProperties": false,
 		"properties": map[string]any{"channelId": map[string]any{"type": "string", "pattern": `^\s*(https://www\.youtube\.com/channel/)?UC[A-Za-z0-9_-]{22}\s*$`}}, "required": []any{"channelId"},
-	}, UI: map[string]any{"channelId": map[string]any{"label": "YouTube channel ID or URL", "widget": "text", "description": "Handles and custom URLs are not supported.", "error": "Enter a channel ID starting with UC or a canonical YouTube channel URL"}}, Normalize: normalize, Obtainer: New(client)}
+	}, FieldOrder: []string{"channelId"}, UI: map[string]any{"channelId": map[string]any{"label": "YouTube channel ID or URL", "widget": "text", "description": "Handles and custom URLs are not supported.", "error": "Enter a channel ID starting with UC or a canonical YouTube channel URL"}}, Normalize: normalize, Obtainer: New(client)}
 }
 
 func normalize(_ context.Context, config map[string]any) (map[string]any, string, error) {

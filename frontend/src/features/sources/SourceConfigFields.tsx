@@ -10,6 +10,7 @@ import { Input } from "#/components/ui/input";
 export type SourceTypeDefinition = {
 	code: string;
 	label: string;
+	fieldOrder?: string[];
 	schema: Record<string, unknown>;
 	ui: Record<
 		string,
@@ -124,12 +125,19 @@ export function SourceConfigFields({
 		| undefined;
 	if (
 		!properties ||
+		(definition.fieldOrder &&
+			(definition.fieldOrder.length !== Object.keys(properties).length ||
+				new Set(definition.fieldOrder).size !== definition.fieldOrder.length ||
+				definition.fieldOrder.some(
+					(key) => !Object.hasOwn(properties, key),
+				))) ||
 		!supportsSourceConfigFields(definition.schema, definition.ui)
 	)
 		return <p role="alert">This Source Type configuration is unsupported</p>;
 	return (
 		<>
-			{Object.entries(properties).map(([key, property]) => {
+			{(definition.fieldOrder ?? Object.keys(properties)).map((key) => {
+				const property = properties[key];
 				const meta = definition.ui[key];
 				const id = `source-config-${key}`;
 				const required =
