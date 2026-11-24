@@ -164,11 +164,8 @@ type ListEntriesResult struct {
 }
 
 func (s *Service) ListEntries(ctx context.Context, in ListEntriesInput) (*ListEntriesResult, error) {
-	if in.Criteria.SortDirection == "" {
-		in.Criteria.SortDirection = "desc"
-	}
-	if in.Criteria.SortDirection != "asc" && in.Criteria.SortDirection != "desc" {
-		return nil, apperr.InvalidInput.New("invalid sort direction")
+	if err := s.prepareListCriteria(ctx, &in.Criteria); err != nil {
+		return nil, err
 	}
 	pageSize := DefaultEntryPageSize
 	if in.PageSize != nil && *in.PageSize >= 1 {
@@ -193,7 +190,7 @@ func (s *Service) ListEntries(ctx context.Context, in ListEntriesInput) (*ListEn
 	if len(rows) > pageSize {
 		result.Entries = rows[:pageSize]
 		last := result.Entries[pageSize-1]
-		nextCursor, err := encodeEntryCursor(last.SortAt(), last.ID, in.Criteria)
+		nextCursor, err := encodeEntryCursor(orderTime(last, in.Criteria.Order), last.ID, in.Criteria)
 		if err != nil {
 			return nil, fmt.Errorf("encode Entry cursor: %w", err)
 		}
@@ -202,21 +199,65 @@ func (s *Service) ListEntries(ctx context.Context, in ListEntriesInput) (*ListEn
 	return result, nil
 }
 
+// prepareListCriteria chooses the timestamp that orders this list.
+// Saved lists use the bookmark time. The manual Saved links Source uses the
+// time the link was recorded. Every other list keeps publication time.
+func (s *Service) prepareListCriteria(ctx context.Context, criteria *repository.EntryListCriteria) error {
+	if criteria.SortDirection == "" {
+		criteria.SortDirection = "desc"
+	}
+	if criteria.SortDirection != "asc" && criteria.SortDirection != "desc" {
+		return apperr.InvalidInput.New("invalid sort direction")
+	}
+	criteria.Order = repository.EntryOrderPublished
+	if criteria.SavedOnly {
+		criteria.Order = repository.EntryOrderSaved
+		return nil
+	}
+	if criteria.SourceID == nil {
+		return nil
+	}
+	src, err := s.sources.Get(ctx, *criteria.SourceID)
+	if err != nil {
+		if isNotFound(err) {
+			return nil
+		}
+		return err
+	}
+	if src.Type == sourceapi.SourceTypeManual {
+		criteria.Order = repository.EntryOrderRecorded
+	}
+	return nil
+}
+
+func orderTime(e *domain.Entry, order repository.EntryOrder) time.Time {
+	switch order {
+	case repository.EntryOrderSaved:
+		if e.SavedAt != nil {
+			return e.SavedAt.UTC()
+		}
+	case repository.EntryOrderRecorded:
+		return e.CreatedAt.UTC()
+	}
+	return e.SortAt()
+}
+
 func (s *Service) CountSavedEntries(ctx context.Context) (int, error) {
 	return s.repo.CountSavedEntries(ctx)
 }
 
 type entryCursorPayload struct {
-	SortAt        time.Time  `json:"sortAt"`
-	ID            uuid.UUID  `json:"id"`
-	SourceID      *uuid.UUID `json:"sourceId"`
-	Unread        bool       `json:"unread"`
-	SavedOnly     bool       `json:"savedOnly"`
-	SortDirection string     `json:"sortDirection,omitempty"`
+	SortAt        time.Time             `json:"sortAt"`
+	ID            uuid.UUID             `json:"id"`
+	SourceID      *uuid.UUID            `json:"sourceId"`
+	Unread        bool                  `json:"unread"`
+	SavedOnly     bool                  `json:"savedOnly"`
+	SortDirection string                `json:"sortDirection,omitempty"`
+	Order         repository.EntryOrder `json:"order,omitempty"`
 }
 
 func encodeEntryCursor(sortAt time.Time, id uuid.UUID, criteria repository.EntryListCriteria) (string, error) {
-	return cursor.Encode(entryCursorPayload{SortAt: sortAt.UTC(), ID: id, SourceID: criteria.SourceID, Unread: criteria.Unread, SavedOnly: criteria.SavedOnly, SortDirection: criteria.SortDirection})
+	return cursor.Encode(entryCursorPayload{SortAt: sortAt.UTC(), ID: id, SourceID: criteria.SourceID, Unread: criteria.Unread, SavedOnly: criteria.SavedOnly, SortDirection: criteria.SortDirection, Order: criteria.Order})
 }
 
 func decodeEntryCursor(token string, criteria repository.EntryListCriteria) (*repository.EntryListCursor, error) {
@@ -227,7 +268,7 @@ func decodeEntryCursor(token string, criteria repository.EntryListCriteria) (*re
 	if payload.SortDirection == "" {
 		payload.SortDirection = "desc"
 	}
-	if payload.SortDirection != criteria.SortDirection || (payload.SourceID == nil) != (criteria.SourceID == nil) || (payload.SourceID != nil && *payload.SourceID != *criteria.SourceID) || payload.Unread != criteria.Unread || payload.SavedOnly != criteria.SavedOnly {
+	if payload.SortDirection != criteria.SortDirection || payload.Order != criteria.Order || (payload.SourceID == nil) != (criteria.SourceID == nil) || (payload.SourceID != nil && *payload.SourceID != *criteria.SourceID) || payload.Unread != criteria.Unread || payload.SavedOnly != criteria.SavedOnly {
 		return nil, apperr.InvalidInput.New("cursor does not match criteria")
 	}
 	return &repository.EntryListCursor{SortAt: payload.SortAt.UTC(), ID: payload.ID}, nil

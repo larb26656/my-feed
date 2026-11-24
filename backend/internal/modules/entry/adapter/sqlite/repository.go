@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -54,6 +55,10 @@ func (r *Repository) GetEntryBySourceAndLink(ctx context.Context, sourceID uuid.
 }
 
 func (r *Repository) ListEntries(ctx context.Context, after *repository.EntryListCursor, criteria repository.EntryListCriteria, limit int) ([]*domain.Entry, error) {
+	orderExpr, err := entryOrderExpr(criteria.Order)
+	if err != nil {
+		return nil, err
+	}
 	query := `SELECT ` + entryColumns + ` FROM entries WHERE 1=1`
 	args := []any{}
 	if criteria.SourceID != nil {
@@ -71,11 +76,11 @@ func (r *Repository) ListEntries(ctx context.Context, after *repository.EntryLis
 		direction, op = "ASC", ">"
 	}
 	if after != nil {
-		query += ` AND (COALESCE(published_at, created_at) ` + op + ` ? OR (COALESCE(published_at, created_at) = ? AND id ` + op + ` ?))`
+		query += ` AND (` + orderExpr + ` ` + op + ` ? OR (` + orderExpr + ` = ? AND id ` + op + ` ?))`
 		sortAt := after.SortAt.UTC().UnixNano()
 		args = append(args, sortAt, sortAt, after.ID.String())
 	}
-	query += ` ORDER BY COALESCE(published_at, created_at) ` + direction + `, id ` + direction + ` LIMIT ?`
+	query += ` ORDER BY ` + orderExpr + ` ` + direction + `, id ` + direction + ` LIMIT ?`
 	args = append(args, limit)
 	rows, err := r.q.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -136,6 +141,19 @@ func scanEntry(row scanner) (*domain.Entry, error) {
 	e.CreatedAt = time.Unix(0, createdAt).UTC()
 	e.UpdatedAt = time.Unix(0, updatedAt).UTC()
 	return &e, nil
+}
+
+func entryOrderExpr(order repository.EntryOrder) (string, error) {
+	switch order {
+	case repository.EntryOrderPublished:
+		return "COALESCE(published_at, created_at)", nil
+	case repository.EntryOrderSaved:
+		return "saved_at", nil
+	case repository.EntryOrderRecorded:
+		return "created_at", nil
+	default:
+		return "", fmt.Errorf("invalid entry list order")
+	}
 }
 
 func timeArg(v *time.Time) any {

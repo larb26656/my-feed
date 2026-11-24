@@ -9,6 +9,19 @@ import (
 	"github.com/larb26656/my-feed/backend/internal/platform/database"
 )
 
+// EntryOrder selects which timestamp orders an Entry list.
+// The zero value orders by publication time.
+type EntryOrder string
+
+const (
+	// EntryOrderPublished orders by publication time, then recorded time.
+	EntryOrderPublished EntryOrder = ""
+	// EntryOrderSaved orders by the time the reader saved the Entry.
+	EntryOrderSaved EntryOrder = "saved"
+	// EntryOrderRecorded orders by the time the Entry was recorded.
+	EntryOrderRecorded EntryOrder = "recorded"
+)
+
 // EntryListCursor is the decoded position in the ordered Entry stream.
 type EntryListCursor struct {
 	SortAt time.Time
@@ -20,6 +33,9 @@ type EntryListCriteria struct {
 	Unread        bool
 	SavedOnly     bool
 	SortDirection string
+	// Order is chosen by the service from the list being read.
+	// Callers outside the service leave it empty to order by publication time.
+	Order EntryOrder
 }
 
 type Repository interface {
