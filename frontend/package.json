@@ -15,7 +15,9 @@
     "check": "biome check",
     "test": "vitest run",
     "openapi:generate": "openapi-typescript ../backend/internal/platform/apidocs/swagger.json -o src/lib/api/schema.d.ts",
-    "openapi:check": "openapi-typescript ../backend/internal/platform/apidocs/swagger.json -o /tmp/my-feed-openapi-schema.d.ts && diff -u src/lib/api/schema.d.ts /tmp/my-feed-openapi-schema.d.ts"
+    "openapi:check": "openapi-typescript ../backend/internal/platform/apidocs/swagger.json -o /tmp/my-feed-openapi-schema.d.ts && diff -u src/lib/api/schema.d.ts /tmp/my-feed-openapi-schema.d.ts",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
@@ -47,6 +49,9 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.5",
+    "@storybook/addon-a11y": "^10.6.8",
+    "@storybook/addon-themes": "^10.6.8",
+    "@storybook/react-vite": "^10.6.8",
     "@tanstack/devtools-vite": "0.8.6",
     "@tanstack/router-cli": "^1.132.0",
     "@tanstack/router-plugin": "1.169.0",
@@ -58,6 +63,7 @@
     "@vitejs/plugin-react": "^6.0.1",
     "jsdom": "^31.0.1",
     "openapi-typescript": "^7.13.0",
+    "storybook": "^10.6.8",
     "typescript": "^6.0.2",
     "vite": "^8.0.0",
     "vitest": "^5.1.0"

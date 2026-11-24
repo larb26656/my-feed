@@ -203,3 +203,7 @@ Loaders simplify your data fetching logic dramatically. Check out more informati
 You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
 
 For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
+
+## Storybook
+
+Run `pnpm storybook` to develop components in isolation at http://localhost:6006. Use the toolbar to switch between light and dark themes. Run `pnpm build-storybook` to build the static site in `storybook-static/`. Stories live alongside their components as `*.stories.tsx`.
