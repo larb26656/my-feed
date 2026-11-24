@@ -1737,6 +1737,7 @@ export interface components {
     schemas: {
         "github_com_larb26656_my-feed_backend_internal_modules_sourcetype_api.Definition": {
             code?: string;
+            fieldOrder?: string[];
             label?: string;
             schema?: {
                 [key: string]: unknown;

@@ -6,6 +6,13 @@
                     "code": {
                         "type": "string"
                     },
+                    "fieldOrder": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
                     "label": {
                         "type": "string"
                     },

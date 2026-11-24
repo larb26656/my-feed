@@ -154,7 +154,7 @@ Export `MY_FEED_API_KEY` in the environment that starts Codex; the server's `.en
 
 ## Development
 
-To enable the repository's Git hooks, install [Lefthook](https://lefthook.dev/install/) and run `make hooks` from the repository root. Install frontend dependencies with `cd frontend && pnpm install` before committing frontend changes. When matching files are staged, the pre-commit hook checks backend formatting, lint, and architecture, and runs Biome on the matching frontend files. These checks read the working tree, including unstaged changes.
+To enable the repository's Git hooks, install [Lefthook](https://lefthook.dev/install/) and run `make hooks` from the repository root. Install frontend dependencies with `cd frontend && pnpm install` before committing frontend changes. When matching files are staged, the pre-commit hook checks backend formatting, lint, architecture, and OpenAPI consistency, and runs Biome on the matching frontend files. These checks read the working tree, including unstaged changes.
 
 | Task | Command |
 | --- | --- |

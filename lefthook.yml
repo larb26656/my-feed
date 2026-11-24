@@ -13,6 +13,10 @@ pre-commit:
     - name: backend-check-arch
       glob: "backend/**/*.{go,mod,sum}"
       run: make backend:check-arch
+    - name: backend-check-openapi
+      glob: "{backend/**/*.{go,mod,sum},backend/Makefile,backend/scripts/openapi-nullable.py,backend/internal/platform/apidocs/swagger.json}"
+      root: backend/
+      run: make check-openapi
     - name: frontend-check
       glob: "frontend/**/*.{js,jsx,ts,tsx,json,jsonc,css}"
       root: frontend/
