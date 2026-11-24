@@ -124,7 +124,7 @@ func Definition(client HTTPClient) api.Definition {
 			},
 			"required": []any{"kind", "value"},
 		},
-		UI: map[string]any{
+		FieldOrder: []string{"kind", "value"}, UI: map[string]any{
 			"kind":  map[string]any{"label": "Follow by", "widget": "select"},
 			"value": map[string]any{"label": "Tag or username", "widget": "text", "description": "Enter a tag like #go or a username like @ben."},
 		},

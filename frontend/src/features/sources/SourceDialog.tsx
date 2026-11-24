@@ -65,6 +65,7 @@ export function SourceDialog({
 				types: {
 					code: string;
 					label: string;
+					fieldOrder?: string[];
 					schema: Record<string, unknown>;
 					ui: Record<
 						string,

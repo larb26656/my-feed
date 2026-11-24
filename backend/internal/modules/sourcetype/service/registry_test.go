@@ -29,3 +29,12 @@ func TestStartupRejectsMissingObtainHandler(t *testing.T) {
 	_, err := service.New(definition)
 	require.Error(t, err)
 }
+
+func TestStartupRejectsInvalidFieldOrder(t *testing.T) {
+	for _, order := range [][]string{nil, {"missing"}, {"url", "url"}} {
+		definition := rss.Definition(nil)
+		definition.FieldOrder = order
+		_, err := service.New(definition)
+		require.ErrorContains(t, err, "field order")
+	}
+}

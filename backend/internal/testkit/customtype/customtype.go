@@ -43,7 +43,7 @@ func Definition(t testing.TB) typeapi.Definition {
 	require.NoError(t, err)
 	var schema map[string]any
 	require.NoError(t, json.Unmarshal(raw, &schema))
-	return typeapi.Definition{Code: "custom", Label: "Custom", Schema: schema, UI: map[string]any{"text": map[string]any{"label": "Text", "widget": "text"}, "url": map[string]any{"label": "URL", "widget": "url"}, "count": map[string]any{"label": "Count", "widget": "number"}, "choice": map[string]any{"label": "Choice", "widget": "select"}, "enabled": map[string]any{"label": "Enabled", "widget": "checkbox"}}, Normalize: func(_ context.Context, c map[string]any) (map[string]any, string, error) {
+	return typeapi.Definition{Code: "custom", Label: "Custom", Schema: schema, FieldOrder: []string{"text", "url", "count", "choice", "enabled"}, UI: map[string]any{"text": map[string]any{"label": "Text", "widget": "text"}, "url": map[string]any{"label": "URL", "widget": "url"}, "count": map[string]any{"label": "Count", "widget": "number"}, "choice": map[string]any{"label": "Choice", "widget": "select"}, "enabled": map[string]any{"label": "Enabled", "widget": "checkbox"}}, Normalize: func(_ context.Context, c map[string]any) (map[string]any, string, error) {
 		var config Config
 		raw, err := json.Marshal(c)
 		if err != nil {

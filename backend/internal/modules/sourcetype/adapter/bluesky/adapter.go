@@ -45,7 +45,7 @@ func Definition(client HTTPClient) api.Definition {
 			},
 			"required": []any{"did"},
 		},
-		UI: map[string]any{
+		FieldOrder: []string{"did"}, UI: map[string]any{
 			"did": map[string]any{
 				"label":       "Bluesky handle or profile URL",
 				"widget":      "text",

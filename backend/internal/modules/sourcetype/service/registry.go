@@ -115,6 +115,16 @@ func validateDefinition(d api.Definition) error {
 	if !ok || len(properties) == 0 || len(d.UI) != len(properties) {
 		return fmt.Errorf("fields and UI metadata must agree")
 	}
+	if len(d.FieldOrder) != len(properties) {
+		return fmt.Errorf("field order must contain every field once")
+	}
+	seen := make(map[string]bool, len(properties))
+	for _, name := range d.FieldOrder {
+		if _, ok := properties[name]; !ok || seen[name] {
+			return fmt.Errorf("field order must contain every field once")
+		}
+		seen[name] = true
+	}
 	for name, raw := range properties {
 		field, ok := raw.(map[string]any)
 		if !ok {
