@@ -4,11 +4,13 @@ import { buttonVariants } from "#/components/ui/button";
 import { FeedItem } from "./FeedItem";
 import type { Entry, Source } from "./types";
 export function FeedList({
+	emptyState,
 	visible,
 	sources,
 	disabled,
 	onToggle,
 }: {
+	emptyState: "feed" | "saved" | "source";
 	visible: Entry[];
 	sources: Source[];
 	disabled: boolean;
@@ -19,12 +21,24 @@ export function FeedList({
 			{visible.length === 0 ? (
 				<NoDataState
 					illustration="feed"
-					title="Nothing to read yet"
-					description="Add sources to follow or save links you want to read here"
+					title={
+						emptyState === "saved"
+							? "No saved entries yet"
+							: "Nothing to read yet"
+					}
+					description={
+						emptyState === "saved"
+							? "Bookmark entries to find them here"
+							: emptyState === "source"
+								? "This source has no entries yet"
+								: "Add sources to follow or save links you want to read here"
+					}
 					action={
-						<Link to="/record-link" className={buttonVariants()}>
-							Save Link
-						</Link>
+						emptyState === "feed" ? (
+							<Link to="/record-link" className={buttonVariants()}>
+								Save Link
+							</Link>
+						) : undefined
 					}
 				/>
 			) : (

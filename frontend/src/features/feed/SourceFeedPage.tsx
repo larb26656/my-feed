@@ -4,7 +4,7 @@ import { buttonVariants } from "#/components/ui/button";
 import { useSourceActions } from "#/features/sources/useSourceActions";
 import { useEntries } from "#/hooks/queries";
 import { FeedEntries } from "./FeedEntries";
-import { FeedFilters } from "./FeedFilters";
+import { FeedSort } from "./FeedSort";
 import { useFeedState } from "./FeedState";
 import { SourceHeader } from "./SourceHeader";
 import { useFeedSort } from "./useFeedSort";
@@ -22,7 +22,7 @@ export function SourceFeedPage({ sourceId }: { sourceId: string }) {
 		sortDirection: sort.sortDirection,
 	});
 	return (
-		<FeedEntries query={query}>
+		<section className="mx-auto max-w-6xl md:px-5 md:py-7">
 			<Link
 				to="/sources"
 				className={buttonVariants({
@@ -40,7 +40,10 @@ export function SourceFeedPage({ sourceId }: { sourceId: string }) {
 				actions={actions}
 			/>
 			{dialogs}
-			<FeedFilters {...sort} className="mb-2 py-1" />
-		</FeedEntries>
+			<div className="mb-2 flex items-center justify-end px-4 py-1 md:px-0">
+				<FeedSort {...sort} />
+			</div>
+			<FeedEntries query={query} emptyState="source" />
+		</section>
 	);
 }
