@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import { failJson, okJson } from "#/lib/api/test-helpers";
@@ -347,4 +353,44 @@ test.each([
 		name === "Saved" ? "No saved entries yet" : "Nothing to read yet",
 	);
 	expect(Boolean(empty.querySelector("a"))).toBe(hasAdd);
+});
+
+test.each([
+	{ name: "Feed toolbar", page: <FeedPage />, target: "Sort entries" },
+	{ name: "Saved toolbar", page: <SavedPage />, target: "Sort entries" },
+	{
+		name: "Source header",
+		page: <SourceFeedPage sourceId="news" />,
+		target: "All Sources",
+	},
+])("refreshes from the $name", async ({ page, target }) => {
+	let entryRequests = 0;
+	vi.stubGlobal(
+		"fetch",
+		vi.fn(async (url: string) => {
+			if (url.includes("/sources/"))
+				return okJson([
+					{ id: "news", name: "News", type: "rss", active: true },
+				]);
+			if (url.endsWith("/entries/saved-count")) return okJson({ count: 0 });
+			entryRequests++;
+			return okJson([], { pageSize: 10 });
+		}),
+	);
+	const client = new QueryClient({
+		defaultOptions: { queries: { retry: false } },
+	});
+	render(
+		<QueryClientProvider client={client}>
+			<FeedProvider>{page}</FeedProvider>
+		</QueryClientProvider>,
+	);
+	await screen.findByRole("status");
+	await waitFor(() => expect(entryRequests).toBeGreaterThan(0));
+	const before = entryRequests;
+	const element = screen.queryByLabelText(target) ?? screen.getByText(target);
+	fireEvent.touchStart(element, { touches: [{ clientX: 0, clientY: 0 }] });
+	fireEvent.touchMove(element, { touches: [{ clientX: 0, clientY: 180 }] });
+	fireEvent.touchEnd(element);
+	await waitFor(() => expect(entryRequests).toBeGreaterThan(before));
 });
