@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import { failJson, okJson } from "#/lib/api/test-helpers";
@@ -14,12 +20,17 @@ vi.mock("@tanstack/react-router", () => ({
 		children,
 		to,
 		search,
+		"aria-label": ariaLabel,
 	}: {
 		children: React.ReactNode;
 		to?: string;
 		search?: { sourceId?: string };
+		"aria-label"?: string;
 	}) => (
-		<a href={search?.sourceId ? `${to}?sourceId=${search.sourceId}` : to}>
+		<a
+			aria-label={ariaLabel}
+			href={search?.sourceId ? `${to}?sourceId=${search.sourceId}` : to}
+		>
 			{children}
 		</a>
 	),
@@ -303,13 +314,83 @@ test("requests the selected sort direction from the API", async () => {
 	await waitFor(() =>
 		expect(calls.some((url) => url.includes("publishedAtSort=asc"))).toBe(true),
 	);
-	await userEvent
-		.setup()
-		.click(screen.getByRole("combobox", { name: "Sort entries by" }));
-	await userEvent
-		.setup()
-		.click(await screen.findByRole("option", { name: "Saved" }));
-	await waitFor(() =>
-		expect(calls.some((url) => url.includes("savedAtSort=asc"))).toBe(true),
+	expect(
+		screen.queryByRole("combobox", { name: "Sort entries by" }),
+	).toBeNull();
+});
+
+test.each([
+	{ name: "Feed", page: <FeedPage />, hasAdd: true },
+	{ name: "Saved", page: <SavedPage />, hasAdd: false },
+	{ name: "Source", page: <SourceFeedPage sourceId="news" />, hasAdd: false },
+])("shows the appropriate toolbar on $name", async ({ name, page, hasAdd }) => {
+	vi.stubGlobal(
+		"fetch",
+		vi.fn(async (url: string) => {
+			if (url.includes("/sources/"))
+				return okJson([
+					{ id: "news", name: "News", type: "rss", active: true },
+				]);
+			if (url.endsWith("/entries/saved-count")) return okJson({ count: 0 });
+			return okJson([], { pageSize: 10 });
+		}),
 	);
+	const client = new QueryClient({
+		defaultOptions: { queries: { retry: false } },
+	});
+	render(
+		<QueryClientProvider client={client}>
+			<FeedProvider>{page}</FeedProvider>
+		</QueryClientProvider>,
+	);
+	expect(screen.getByRole("combobox", { name: "Sort entries" })).toBeTruthy();
+	expect(Boolean(screen.queryByLabelText("Save Link"))).toBe(hasAdd);
+	await screen.findByText(
+		name === "Saved" ? "No saved entries yet" : "Nothing to read yet",
+	);
+	const empty = screen.getByRole("status");
+	expect(empty.textContent).toContain(
+		name === "Saved" ? "No saved entries yet" : "Nothing to read yet",
+	);
+	expect(Boolean(empty.querySelector("a"))).toBe(hasAdd);
+});
+
+test.each([
+	{ name: "Feed toolbar", page: <FeedPage />, target: "Sort entries" },
+	{ name: "Saved toolbar", page: <SavedPage />, target: "Sort entries" },
+	{
+		name: "Source header",
+		page: <SourceFeedPage sourceId="news" />,
+		target: "All Sources",
+	},
+])("refreshes from the $name", async ({ page, target }) => {
+	let entryRequests = 0;
+	vi.stubGlobal(
+		"fetch",
+		vi.fn(async (url: string) => {
+			if (url.includes("/sources/"))
+				return okJson([
+					{ id: "news", name: "News", type: "rss", active: true },
+				]);
+			if (url.endsWith("/entries/saved-count")) return okJson({ count: 0 });
+			entryRequests++;
+			return okJson([], { pageSize: 10 });
+		}),
+	);
+	const client = new QueryClient({
+		defaultOptions: { queries: { retry: false } },
+	});
+	render(
+		<QueryClientProvider client={client}>
+			<FeedProvider>{page}</FeedProvider>
+		</QueryClientProvider>,
+	);
+	await screen.findByRole("status");
+	await waitFor(() => expect(entryRequests).toBeGreaterThan(0));
+	const before = entryRequests;
+	const element = screen.queryByLabelText(target) ?? screen.getByText(target);
+	fireEvent.touchStart(element, { touches: [{ clientX: 0, clientY: 0 }] });
+	fireEvent.touchMove(element, { touches: [{ clientX: 0, clientY: 180 }] });
+	fireEvent.touchEnd(element);
+	await waitFor(() => expect(entryRequests).toBeGreaterThan(before));
 });
