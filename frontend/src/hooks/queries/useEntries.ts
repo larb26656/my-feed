@@ -75,12 +75,12 @@ export function useSaveLink() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async (input: SaveLinkInput) => {
-			const { data } = await api<Entry>("/entries/save-link", {
+			const { data, status } = await api<Entry>("/entries/save-link", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(input),
 			});
-			return data;
+			return { entry: data, created: status === 201 };
 		},
 		onSuccess: () =>
 			queryClient.invalidateQueries({ queryKey: entryKeys.root }),

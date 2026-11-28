@@ -320,7 +320,7 @@ func TestSQLiteFindsAnEntryByItsSourceAndLink(t *testing.T) {
 	require.NoError(t, err)
 
 	// Act
-	got, err := repo.GetEntryBySourceAndLink(context.Background(), source.ID, article.Link)
+	got, err := repo.GetEntryByLink(context.Background(), article.Link)
 
 	// Assert
 	require.NoError(t, err)

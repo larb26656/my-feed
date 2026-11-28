@@ -101,3 +101,16 @@ test("shows a field error for an invalid publication date without submitting", a
 	).toBeTruthy();
 	expect(fetchMock).not.toHaveBeenCalled();
 });
+
+test("announces when the link already exists", async () => {
+	vi.stubGlobal(
+		"fetch",
+		vi.fn(async () => okJson({ id: "existing" }, undefined, 200)),
+	);
+	renderPage();
+	const user = userEvent.setup();
+	await user.type(screen.getByLabelText("Entry title"), "Article");
+	await user.type(screen.getByLabelText("Link"), "https://example.com/article");
+	await user.click(screen.getByRole("button", { name: "Save Link" }));
+	expect(await screen.findByText("Link already exists")).toBeTruthy();
+});

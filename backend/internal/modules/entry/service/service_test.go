@@ -24,7 +24,7 @@ type upsertRepo struct {
 	update func(*domain.Entry) (*domain.Entry, error)
 }
 
-func (r upsertRepo) GetEntryBySourceAndLink(context.Context, uuid.UUID, string) (*domain.Entry, error) {
+func (r upsertRepo) GetEntryByLink(context.Context, string) (*domain.Entry, error) {
 	return r.lookup()
 }
 
@@ -119,4 +119,16 @@ func TestIngestionPropagatesStorageFailuresInsteadOfReportingSuccess(t *testing.
 			require.Nil(t, result)
 		})
 	}
+}
+
+func TestIngestionLeavesAnotherSourcesEntryUnchanged(t *testing.T) {
+	owner, incoming := uuid.New(), uuid.New()
+	existing, err := domain.NewEntry(owner, domain.EntryMetadata{Title: "Original", Link: "https://example.test/a"})
+	require.NoError(t, err)
+	repo := upsertRepo{lookup: func() (*domain.Entry, error) { return existing, nil }}
+	result, err := service.New(repo, rssLookup{id: incoming}).IngestEntry(context.Background(), service.IngestEntryInput{SourceID: incoming, Title: "Different", Link: existing.Link})
+	require.NoError(t, err)
+	require.False(t, result.Created)
+	require.Equal(t, owner, result.Entry.SourceID)
+	require.Equal(t, "Original", result.Entry.Title)
 }
