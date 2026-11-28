@@ -39,7 +39,10 @@ test("records a link, refreshes Entries, and announces success", async () => {
 
 	const user = userEvent.setup();
 	await user.type(screen.getByLabelText("Entry title"), "A useful article");
-	await user.type(screen.getByLabelText("Link"), "https://example.com/article");
+	await user.type(
+		screen.getByLabelText("Link (optional)"),
+		"https://example.com/article",
+	);
 	await user.type(screen.getByLabelText("Description"), "A short summary");
 	await user.click(screen.getByRole("button", { name: "Save Link" }));
 
@@ -71,10 +74,12 @@ test("shows field validation and submission failures", async () => {
 	const user = userEvent.setup();
 	await user.click(screen.getByRole("button", { name: "Save Link" }));
 	expect(await screen.findByText("Please enter an entry title")).toBeTruthy();
-	expect(await screen.findByText("Please enter a valid link")).toBeTruthy();
 	expect(fetchMock).not.toHaveBeenCalled();
 	await user.type(screen.getByLabelText("Entry title"), "A useful article");
-	await user.type(screen.getByLabelText("Link"), "https://example.com/article");
+	await user.type(
+		screen.getByLabelText("Link (optional)"),
+		"https://example.com/article",
+	);
 	await user.click(screen.getByRole("button", { name: "Save Link" }));
 	expect((await screen.findByRole("alert")).textContent).toContain(
 		"Could not save link: Request failed (422)",
@@ -90,7 +95,10 @@ test("shows a field error for an invalid publication date without submitting", a
 	renderPage();
 	const user = userEvent.setup();
 	await user.type(screen.getByLabelText("Entry title"), "A useful article");
-	await user.type(screen.getByLabelText("Link"), "https://example.com/article");
+	await user.type(
+		screen.getByLabelText("Link (optional)"),
+		"https://example.com/article",
+	);
 	const publishedAt = screen.getByLabelText("Publication date (optional)");
 	publishedAt.setAttribute("type", "text");
 	fireEvent.change(publishedAt, { target: { value: "not-a-date" } });
@@ -100,4 +108,22 @@ test("shows a field error for an invalid publication date without submitting", a
 		await screen.findByText("Please enter a valid publication date"),
 	).toBeTruthy();
 	expect(fetchMock).not.toHaveBeenCalled();
+});
+
+test("records an Entry without a link", async () => {
+	const fetchMock = vi.fn(async () =>
+		okJson({ id: "entry-1", title: "Standalone", link: null }, undefined, 201),
+	);
+	vi.stubGlobal("fetch", fetchMock);
+	renderPage();
+	const user = userEvent.setup();
+	await user.type(screen.getByLabelText("Entry title"), "Standalone");
+	await user.click(screen.getByRole("button", { name: "Save Link" }));
+	expect(await screen.findByText("Link saved")).toBeTruthy();
+	expect(fetchMock).toHaveBeenCalledWith(
+		"/api/v1/entries/save-link",
+		expect.objectContaining({
+			body: JSON.stringify({ title: "Standalone", link: "", description: "" }),
+		}),
+	);
 });
