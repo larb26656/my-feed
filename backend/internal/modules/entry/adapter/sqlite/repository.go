@@ -39,7 +39,7 @@ const entryColumns = `id, source_id, title, link, description, thumbnail, publis
 
 func (r *Repository) CreateEntry(ctx context.Context, e *domain.Entry) (*domain.Entry, error) {
 	row := r.q.QueryRowContext(ctx, `INSERT INTO entries (`+entryColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING `+entryColumns,
-		e.ID.String(), e.SourceID.String(), e.Title, e.Link, e.Description, e.Thumbnail,
+		e.ID.String(), e.SourceID.String(), e.Title, linkArg(e.Link), e.Description, e.Thumbnail,
 		timeArg(e.PublishedAt), e.CreatedAt.UTC().UnixNano(), e.UpdatedAt.UTC().UnixNano(), timeArg(e.ReadAt), timeArg(e.SavedAt))
 	created, err := scanEntry(row)
 	if database.IsUniqueConstraintViolation(err) {
@@ -147,7 +147,7 @@ func (r *Repository) CountSavedEntries(ctx context.Context) (int, error) {
 
 func (r *Repository) UpdateEntry(ctx context.Context, e *domain.Entry) (*domain.Entry, error) {
 	row := r.q.QueryRowContext(ctx, `UPDATE entries SET title = ?, link = ?, description = ?, thumbnail = ?, published_at = ?, updated_at = ?, read_at = ?, saved_at = ? WHERE id = ? RETURNING `+entryColumns,
-		e.Title, e.Link, e.Description, e.Thumbnail, timeArg(e.PublishedAt), e.UpdatedAt.UTC().UnixNano(), timeArg(e.ReadAt), timeArg(e.SavedAt), e.ID.String())
+		e.Title, linkArg(e.Link), e.Description, e.Thumbnail, timeArg(e.PublishedAt), e.UpdatedAt.UTC().UnixNano(), timeArg(e.ReadAt), timeArg(e.SavedAt), e.ID.String())
 	return scanEntry(row)
 }
 
@@ -156,10 +156,10 @@ type scanner interface{ Scan(...any) error }
 func scanEntry(row scanner) (*domain.Entry, error) {
 	var e domain.Entry
 	var id, sourceID string
-	var thumbnail sql.NullString
+	var link, thumbnail sql.NullString
 	var publishedAt, readAt, savedAt sql.NullInt64
 	var createdAt, updatedAt int64
-	err := row.Scan(&id, &sourceID, &e.Title, &e.Link, &e.Description, &thumbnail, &publishedAt, &createdAt, &updatedAt, &readAt, &savedAt)
+	err := row.Scan(&id, &sourceID, &e.Title, &link, &e.Description, &thumbnail, &publishedAt, &createdAt, &updatedAt, &readAt, &savedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, apperr.ResourceNotFound.Wrap(err, "entry not found")
@@ -173,6 +173,7 @@ func scanEntry(row scanner) (*domain.Entry, error) {
 	if e.SourceID, parseErr = uuid.Parse(sourceID); parseErr != nil {
 		return nil, parseErr
 	}
+	e.Link = link.String
 	if thumbnail.Valid {
 		e.Thumbnail = &thumbnail.String
 	}
@@ -197,4 +198,11 @@ func nullableTime(v sql.NullInt64) *time.Time {
 	}
 	t := time.Unix(0, v.Int64).UTC()
 	return &t
+}
+
+func linkArg(link string) any {
+	if link == "" {
+		return nil
+	}
+	return link
 }

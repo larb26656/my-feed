@@ -81,6 +81,17 @@ func (s *Service) upsertEntry(ctx context.Context, sourceID uuid.UUID, in entryM
 	}
 
 	link := strings.TrimSpace(in.Link)
+	if link == "" {
+		entry, err := domain.NewEntry(sourceID, meta)
+		if err != nil {
+			return nil, err
+		}
+		created, err := s.repo.CreateEntry(ctx, entry)
+		if err != nil {
+			return nil, err
+		}
+		return &IngestEntryResult{Entry: created, Created: true}, nil
+	}
 	existing, err := s.repo.GetEntryBySourceAndLink(ctx, sourceID, link)
 	if err == nil {
 		if err := existing.RefreshMetadata(meta); err != nil {

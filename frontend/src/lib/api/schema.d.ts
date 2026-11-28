@@ -1844,7 +1844,7 @@ export interface components {
             createdAt?: string;
             description?: string;
             id?: string;
-            link?: string;
+            link?: string | null;
             publishedAt?: string;
             readAt?: string;
             savedAt?: string;
@@ -1855,7 +1855,7 @@ export interface components {
         };
         "internal_modules_entry_adapter_http.ingestEntryRequest": {
             description?: string;
-            link: string;
+            link?: string;
             publishedAt?: string;
             sourceId: string;
             thumbnail?: string;
@@ -1863,7 +1863,7 @@ export interface components {
         };
         "internal_modules_entry_adapter_http.saveLinkRequest": {
             description?: string;
-            link: string;
+            link?: string;
             publishedAt?: string;
             thumbnail?: string;
             title: string;

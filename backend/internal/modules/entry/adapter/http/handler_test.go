@@ -419,7 +419,7 @@ func TestIngestionRejectsManualSources(t *testing.T) {
 
 func TestIngestionRejectsBlankMetadata(t *testing.T) {
 	for _, scenario := range []struct{ name, title, link string }{
-		{"blank title", " ", "https://example.test/a"}, {"blank link", "News", " "},
+		{"blank title", " ", "https://example.test/a"},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
 			// Arrange
@@ -772,4 +772,26 @@ func TestMultipleSortFieldsContinueAcrossNulls(t *testing.T) {
 		query = "/api/v1/entries/?pageSize=1&publishedAtSort=desc&savedAtSort=asc&cursor=" + url.QueryEscape(page.Meta.NextCursor)
 	}
 	require.Equal(t, []string{b.ID, a.ID, c.ID}, got)
+}
+
+func TestLinklessEntriesCoexistAndCanBeRead(t *testing.T) {
+	router := api.New(t)
+	sourceID := rssSource(t, router)
+	var ids []string
+	for _, link := range []any{nil, "", "  "} {
+		body := map[string]any{"sourceId": sourceID, "title": "Linkless", "link": link}
+		got := decodeSuccess[struct {
+			ID   string
+			Link *string
+		}](t, testkit.Request(t, router, "POST", "/api/v1/entries/", body, 201))
+		require.Nil(t, got.Link)
+		ids = append(ids, got.ID)
+		read := decodeSuccess[struct{ Link *string }](t, testkit.Request(t, router, "GET", "/api/v1/entries/"+got.ID, nil, 200))
+		require.Nil(t, read.Link)
+	}
+	require.Len(t, map[string]bool{ids[0]: true, ids[1]: true, ids[2]: true}, 3)
+	manual := decodeSuccess[struct{ Link *string }](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]any{"title": "Manual", "link": "  "}, 201))
+	require.Nil(t, manual.Link)
+	linked := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]any{"title": "Linked", "link": "  https://example.test/trim  "}, 201))
+	require.Equal(t, "https://example.test/trim", linked.Link)
 }

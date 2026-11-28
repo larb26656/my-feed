@@ -120,3 +120,17 @@ func TestIngestionPropagatesStorageFailuresInsteadOfReportingSuccess(t *testing.
 		})
 	}
 }
+
+func TestIngestLinklessEntriesAreCreatedIndependently(t *testing.T) {
+	sourceID := uuid.New()
+	repo := upsertRepo{create: func(e *domain.Entry) (*domain.Entry, error) { return e, nil }}
+	svc := service.New(repo, rssLookup{id: sourceID})
+	first, err := svc.IngestEntry(context.Background(), service.IngestEntryInput{SourceID: sourceID, Title: "First", Link: "  "})
+	require.NoError(t, err)
+	second, err := svc.IngestEntry(context.Background(), service.IngestEntryInput{SourceID: sourceID, Title: "Second"})
+	require.NoError(t, err)
+	require.True(t, first.Created)
+	require.True(t, second.Created)
+	require.NotEqual(t, first.Entry.ID, second.Entry.ID)
+	require.Empty(t, first.Entry.Link)
+}

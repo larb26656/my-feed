@@ -40,7 +40,7 @@ func TestSaveLinkToolRecordsEntryWithoutMarkingSaved(t *testing.T) {
 		Required   []string                   `json:"required"`
 	}
 	require.NoError(t, json.Unmarshal(rawSchema, &schema))
-	require.ElementsMatch(t, []string{"title", "link"}, schema.Required)
+	require.ElementsMatch(t, []string{"title"}, schema.Required)
 	for _, field := range []string{"thumbnail", "publishedAt"} {
 		require.JSONEq(t, `{"description":"`+map[string]string{"thumbnail": "Optional thumbnail URL", "publishedAt": "Optional source-published time (RFC3339)"}[field]+`","anyOf":[{"type":"null"},{"type":"string"}]}`, string(schema.Properties[field]))
 	}

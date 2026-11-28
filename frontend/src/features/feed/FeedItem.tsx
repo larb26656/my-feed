@@ -46,6 +46,7 @@ export function FeedItem(props: Props) {
 	const description =
 		entry.description?.trim() === entry.title.trim() ? "" : entry.description;
 	const copyLink = () => {
+		if (!entry.link) return;
 		void navigator.clipboard.writeText(entry.link).then(() => {
 			setCopied(true);
 			window.setTimeout(() => setCopied(false), 2000);
@@ -113,14 +114,18 @@ export function FeedItem(props: Props) {
 								read && "text-muted-foreground",
 							)}
 						>
-							<a
-								href={entry.link}
-								target="_blank"
-								rel="noreferrer"
-								className="hover:underline"
-							>
-								{entry.title}
-							</a>
+							{entry.link ? (
+								<a
+									href={entry.link}
+									target="_blank"
+									rel="noreferrer"
+									className="hover:underline"
+								>
+									{entry.title}
+								</a>
+							) : (
+								entry.title
+							)}
 						</h3>
 						{description && (
 							<RichDescription
@@ -130,20 +135,27 @@ export function FeedItem(props: Props) {
 							/>
 						)}
 					</div>
-					{entry.thumbnail && (
-						<a
-							href={entry.link}
-							target="_blank"
-							rel="noreferrer"
-							className="block w-full shrink-0 overflow-hidden rounded-xl sm:w-44 lg:w-52"
-						>
+					{entry.thumbnail &&
+						(entry.link ? (
+							<a
+								href={entry.link}
+								target="_blank"
+								rel="noreferrer"
+								className="block w-full shrink-0 overflow-hidden rounded-xl sm:w-44 lg:w-52"
+							>
+								<img
+									src={entry.thumbnail}
+									alt=""
+									className="aspect-video w-full object-cover"
+								/>
+							</a>
+						) : (
 							<img
 								src={entry.thumbnail}
 								alt=""
-								className="aspect-video w-full object-cover"
+								className="aspect-video w-full shrink-0 rounded-xl object-cover sm:w-44 lg:w-52"
 							/>
-						</a>
-					)}
+						))}
 				</div>
 				<div className="mt-3 flex items-center text-muted-foreground">
 					{description && overflowing && (
@@ -178,21 +190,23 @@ export function FeedItem(props: Props) {
 							>
 								{read ? <CircleCheck size={17} /> : <BookOpenCheck size={17} />}
 							</Button>
-							<Button
-								type="button"
-								variant="ghost"
-								size="icon"
-								onClick={copyLink}
-								aria-label={copied ? "Link copied" : "Copy link"}
-								title={copied ? "Link copied" : "Copy link"}
-								className="size-11 sm:size-10"
-							>
-								{copied ? (
-									<Check size={18} strokeWidth={1.9} />
-								) : (
-									<Copy size={18} strokeWidth={1.7} />
-								)}
-							</Button>
+							{entry.link && (
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon"
+									onClick={copyLink}
+									aria-label={copied ? "Link copied" : "Copy link"}
+									title={copied ? "Link copied" : "Copy link"}
+									className="size-11 sm:size-10"
+								>
+									{copied ? (
+										<Check size={18} strokeWidth={1.9} />
+									) : (
+										<Copy size={18} strokeWidth={1.7} />
+									)}
+								</Button>
+							)}
 							<Button
 								type="button"
 								variant="ghost"

@@ -274,7 +274,10 @@
                         "type": "string"
                     },
                     "link": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     },
                     "publishedAt": {
                         "type": "string"
@@ -322,7 +325,6 @@
                     }
                 },
                 "required": [
-                    "link",
                     "sourceId",
                     "title"
                 ],
@@ -350,7 +352,6 @@
                     }
                 },
                 "required": [
-                    "link",
                     "title"
                 ],
                 "type": "object"
