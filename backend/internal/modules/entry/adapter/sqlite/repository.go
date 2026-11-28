@@ -52,8 +52,8 @@ func (r *Repository) GetEntryByID(ctx context.Context, id uuid.UUID) (*domain.En
 	return scanEntry(r.q.QueryRowContext(ctx, `SELECT `+entryColumns+` FROM entries WHERE id = ?`, id.String()))
 }
 
-func (r *Repository) GetEntryBySourceAndLink(ctx context.Context, sourceID uuid.UUID, link string) (*domain.Entry, error) {
-	return scanEntry(r.q.QueryRowContext(ctx, `SELECT `+entryColumns+` FROM entries WHERE source_id = ? AND link = ?`, sourceID.String(), link))
+func (r *Repository) GetEntryByLink(ctx context.Context, link string) (*domain.Entry, error) {
+	return scanEntry(r.q.QueryRowContext(ctx, `SELECT `+entryColumns+` FROM entries WHERE link = ?`, link))
 }
 
 func (r *Repository) ListEntries(ctx context.Context, after *repository.EntryListCursor, criteria repository.EntryListCriteria, sort repository.EntryListSort, limit int) ([]*domain.Entry, error) {

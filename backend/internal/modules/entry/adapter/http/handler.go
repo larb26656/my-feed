@@ -58,6 +58,7 @@ func (h *Handler) savedCount(c *gin.Context) {
 // @Accept json
 // @Param request body saveLinkRequest true "Request body"
 // @Success 201 {object} httpx.SuccessResponse[entryResponse]
+// @Success 200 {object} httpx.SuccessResponse[entryResponse]
 // @Failure 400 {object} httpx.ErrorResponse
 // @Failure 404 {object} httpx.ErrorResponse
 // @Failure 409 {object} httpx.ErrorResponse
@@ -73,7 +74,11 @@ func (h *Handler) saveLink(c *gin.Context) {
 		_ = c.Error(err)
 		return
 	}
-	c.JSON(http.StatusCreated, httpx.Success(toEntryResponse(result.Entry)))
+	status := http.StatusCreated
+	if !result.Created {
+		status = http.StatusOK
+	}
+	c.JSON(status, httpx.Success(toEntryResponse(result.Entry)))
 }
 
 // @Summary Ingest Entry

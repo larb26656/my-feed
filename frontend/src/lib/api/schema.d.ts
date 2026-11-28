@@ -364,6 +364,15 @@ export interface paths {
                 };
             };
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_entry_adapter_http_entryResponse"];
+                    };
+                };
                 /** @description Created */
                 201: {
                     headers: {

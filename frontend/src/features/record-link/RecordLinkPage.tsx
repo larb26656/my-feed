@@ -57,8 +57,11 @@ export function RecordLinkPage() {
 					: {}),
 			},
 			{
-				onSuccess: () => {
-					toastManager.add({ title: "Link saved", type: "success" });
+				onSuccess: ({ created }) => {
+					toastManager.add({
+						title: created ? "Link saved" : "Link already exists",
+						type: "success",
+					});
 					form.reset();
 				},
 				onError: (error) => {

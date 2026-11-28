@@ -139,14 +139,14 @@ func TestSavingTheSameLinkRefreshesTheExistingBookmark(t *testing.T) {
 	article["title"] = "Updated bookmark"
 
 	// Act
-	refreshed := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", article, 201))
+	refreshed := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", article, 200))
 
 	// Assert
 	require.Equal(t, first.ID, refreshed.ID)
 	require.Equal(t, "Updated bookmark", refreshed.Title)
 }
 
-func TestTheSameLinkUnderManualAndRSSSourcesHasSeparateIdentities(t *testing.T) {
+func TestTheSameLinkUnderManualAndRSSSourcesKeepsFirstIdentity(t *testing.T) {
 	// Arrange
 	router := api.New(t)
 	sourceID := rssSource(t, router)
@@ -155,12 +155,11 @@ func TestTheSameLinkUnderManualAndRSSSourcesHasSeparateIdentities(t *testing.T) 
 	article["sourceId"] = sourceID
 
 	// Act
-	rss := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", article, 201))
+	rss := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", article, 200))
 
 	// Assert
-	require.NotEqual(t, manual.ID, rss.ID)
-	require.Equal(t, sourceID, rss.SourceID)
-	require.NotEqual(t, manual.SourceID, rss.SourceID)
+	require.Equal(t, manual.ID, rss.ID)
+	require.Equal(t, manual.SourceID, rss.SourceID)
 }
 
 func TestSavingAnUnreadArticleLeavesItUnread(t *testing.T) {
@@ -379,7 +378,7 @@ func TestInvalidEntryRequestsReturnUsefulBusinessErrors(t *testing.T) {
 func TestSaveLinkReturnsValidationDetails(t *testing.T) {
 	router := api.New(t)
 	response := testkit.Request(t, router, "POST", "/api/v1/entries/save-link",
-		map[string]string{"title": "Example"}, http.StatusBadRequest)
+		map[string]string{"link": "https://example.test"}, http.StatusBadRequest)
 	failure := decodeFailure(t, response)
 	require.Equal(t, "VALIDATION", failure.Code)
 	require.Contains(t, response.Body.String(), `"rule":"required"`)

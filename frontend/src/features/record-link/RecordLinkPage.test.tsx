@@ -127,3 +127,19 @@ test("records an Entry without a link", async () => {
 		}),
 	);
 });
+
+test("announces when the link already exists", async () => {
+	vi.stubGlobal(
+		"fetch",
+		vi.fn(async () => okJson({ id: "existing" }, undefined, 200)),
+	);
+	renderPage();
+	const user = userEvent.setup();
+	await user.type(screen.getByLabelText("Entry title"), "Article");
+	await user.type(
+		screen.getByLabelText("Link (optional)"),
+		"https://example.com/article",
+	);
+	await user.click(screen.getByRole("button", { name: "Save Link" }));
+	expect(await screen.findByText("Link already exists")).toBeTruthy();
+});

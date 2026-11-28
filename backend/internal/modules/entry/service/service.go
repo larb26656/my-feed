@@ -92,8 +92,11 @@ func (s *Service) upsertEntry(ctx context.Context, sourceID uuid.UUID, in entryM
 		}
 		return &IngestEntryResult{Entry: created, Created: true}, nil
 	}
-	existing, err := s.repo.GetEntryBySourceAndLink(ctx, sourceID, link)
+	existing, err := s.repo.GetEntryByLink(ctx, link)
 	if err == nil {
+		if existing.SourceID != sourceID {
+			return &IngestEntryResult{Entry: existing, Created: false}, nil
+		}
 		if err := existing.RefreshMetadata(meta); err != nil {
 			return nil, err
 		}
@@ -119,10 +122,13 @@ func (s *Service) upsertEntry(ctx context.Context, sourceID uuid.UUID, in entryM
 		return nil, err
 	}
 
-	// Race: another writer inserted the same Source+link first.
-	existing, err = s.repo.GetEntryBySourceAndLink(ctx, sourceID, entry.Link)
+	// Race: another writer inserted the same link first.
+	existing, err = s.repo.GetEntryByLink(ctx, entry.Link)
 	if err != nil {
 		return nil, err
+	}
+	if existing.SourceID != sourceID {
+		return &IngestEntryResult{Entry: existing, Created: false}, nil
 	}
 	if err := existing.RefreshMetadata(meta); err != nil {
 		return nil, err

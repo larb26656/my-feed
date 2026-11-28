@@ -26,6 +26,7 @@ test("unwraps success data and meta from the envelope", async () => {
 	await expect(api("/entries/")).resolves.toEqual({
 		data: [{ id: "1" }],
 		meta: { pageSize: 10, nextCursor: "abc" },
+		status: 200,
 	});
 });
 
@@ -121,6 +122,7 @@ test("refreshes once on 401 then retries", async () => {
 	await expect(api("/entries/")).resolves.toEqual({
 		data: [{ id: "1" }],
 		meta: undefined,
+		status: 200,
 	});
 	expect(getAccessToken()).toBe("new-access");
 	expect(fetchMock).toHaveBeenCalledTimes(3);
