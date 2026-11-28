@@ -80,12 +80,12 @@ func (s *Service) upsertEntry(ctx context.Context, sourceID uuid.UUID, in entryM
 		PublishedAt: in.PublishedAt,
 	}
 
+	entry, err := domain.NewEntry(sourceID, meta)
+	if err != nil {
+		return nil, err
+	}
 	link := strings.TrimSpace(in.Link)
 	if link == "" {
-		entry, err := domain.NewEntry(sourceID, meta)
-		if err != nil {
-			return nil, err
-		}
 		created, err := s.repo.CreateEntry(ctx, entry)
 		if err != nil {
 			return nil, err
@@ -110,10 +110,6 @@ func (s *Service) upsertEntry(ctx context.Context, sourceID uuid.UUID, in entryM
 		return nil, err
 	}
 
-	entry, err := domain.NewEntry(sourceID, meta)
-	if err != nil {
-		return nil, err
-	}
 	created, err := s.repo.CreateEntry(ctx, entry)
 	if err == nil {
 		return &IngestEntryResult{Entry: created, Created: true}, nil

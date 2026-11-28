@@ -794,3 +794,37 @@ func TestLinklessEntriesCoexistAndCanBeRead(t *testing.T) {
 	linked := decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/save-link", map[string]any{"title": "Linked", "link": "  https://example.test/trim  "}, 201))
 	require.Equal(t, "https://example.test/trim", linked.Link)
 }
+
+func TestMissingLinksCreateIndependentEntriesAtBothRecordingEndpoints(t *testing.T) {
+	for _, endpoint := range []string{"/api/v1/entries/", "/api/v1/entries/save-link"} {
+		t.Run(endpoint, func(t *testing.T) {
+			router := api.New(t)
+			sourceID := rssSource(t, router)
+			var ids []string
+			for _, value := range []any{"omitted", nil, "", "  \t "} {
+				body := map[string]any{"title": "Note", "sourceId": sourceID}
+				if value != "omitted" {
+					body["link"] = value
+				}
+				got := decodeSuccess[entry](t, testkit.Request(t, router, "POST", endpoint, body, 201))
+				require.Empty(t, got.Link)
+				require.NotContains(t, ids, got.ID)
+				ids = append(ids, got.ID)
+			}
+		})
+	}
+}
+
+func TestLinkComparisonTrimsWhitespaceButPreservesQueryStrings(t *testing.T) {
+	router := api.New(t)
+	sourceID := rssSource(t, router)
+	record := func(link string, status int) entry {
+		return decodeSuccess[entry](t, testkit.Request(t, router, "POST", "/api/v1/entries/", map[string]string{"sourceId": sourceID, "title": "Article", "link": link}, status))
+	}
+	first := record("  https://example.test/a?version=1  ", 201)
+	same := record("https://example.test/a?version=1", 200)
+	different := record("https://example.test/a?version=2", 201)
+	require.Equal(t, first.ID, same.ID)
+	require.NotEqual(t, first.ID, different.ID)
+	require.Equal(t, "https://example.test/a?version=1", first.Link)
+}

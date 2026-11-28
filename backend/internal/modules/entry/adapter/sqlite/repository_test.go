@@ -419,3 +419,48 @@ func TestSQLiteSortPriorityAndNullsLastAcrossPages(t *testing.T) {
 		})
 	}
 }
+
+func TestConcurrentSourcesCannotInsertTheSameLink(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "race.db")
+	db, err := sql.Open("sqlite", "file:"+path+"?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	db.SetMaxOpenConns(2)
+	testkit.Migrate(t, db)
+	sources := make([]*sourcedomain.Source, 2)
+	entries := make([]*entrydomain.Entry, 2)
+	for i := range sources {
+		sources[i], err = sourcedomain.NewRSSSource(fmt.Sprintf("Source %d", i), fmt.Sprintf("https://example.test/rss%d", i))
+		require.NoError(t, err)
+		require.NoError(t, sourcesqlite.NewRepository(db).CreateSource(context.Background(), sources[i]))
+		entries[i], err = entrydomain.NewEntry(sources[i].ID, entrydomain.EntryMetadata{Title: "Article", Link: "https://example.test/shared"})
+		require.NoError(t, err)
+	}
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	for _, e := range entries {
+		go func(e *entrydomain.Entry) {
+			<-start
+			_, err := NewRepository(db).CreateEntry(context.Background(), e)
+			results <- err
+		}(e)
+	}
+	close(start)
+	successes, conflicts := 0, 0
+	for range entries {
+		err := <-results
+		if err == nil {
+			successes++
+			continue
+		}
+		var failure *apperr.AppError
+		require.ErrorAs(t, err, &failure)
+		require.Equal(t, apperr.ResourceConflict.Code, failure.Code)
+		conflicts++
+	}
+	require.Equal(t, 1, successes)
+	require.Equal(t, 1, conflicts)
+	got, err := NewRepository(db).GetEntryByLink(context.Background(), "https://example.test/shared")
+	require.NoError(t, err)
+	require.Contains(t, []uuid.UUID{entries[0].ID, entries[1].ID}, got.ID)
+}

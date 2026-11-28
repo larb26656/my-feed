@@ -146,3 +146,12 @@ func TestIngestionLeavesAnotherSourcesEntryUnchanged(t *testing.T) {
 	require.Equal(t, owner, result.Entry.SourceID)
 	require.Equal(t, "Original", result.Entry.Title)
 }
+
+func TestIngestionRejectsMissingTitleEvenWhenAnotherSourceOwnsLink(t *testing.T) {
+	owner, incoming := uuid.New(), uuid.New()
+	existing, err := domain.NewEntry(owner, domain.EntryMetadata{Title: "Original", Link: "https://example.test/a"})
+	require.NoError(t, err)
+	repo := upsertRepo{lookup: func() (*domain.Entry, error) { return existing, nil }}
+	_, err = service.New(repo, rssLookup{id: incoming}).IngestEntry(context.Background(), service.IngestEntryInput{SourceID: incoming, Title: "  ", Link: existing.Link})
+	require.Error(t, err)
+}
