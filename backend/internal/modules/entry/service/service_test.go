@@ -24,7 +24,7 @@ type upsertRepo struct {
 	update func(*domain.Entry) (*domain.Entry, error)
 }
 
-func (r upsertRepo) GetEntryBySourceAndLink(context.Context, uuid.UUID, string) (*domain.Entry, error) {
+func (r upsertRepo) GetEntryByLink(context.Context, string) (*domain.Entry, error) {
 	return r.lookup()
 }
 
@@ -119,4 +119,39 @@ func TestIngestionPropagatesStorageFailuresInsteadOfReportingSuccess(t *testing.
 			require.Nil(t, result)
 		})
 	}
+}
+
+func TestIngestLinklessEntriesAreCreatedIndependently(t *testing.T) {
+	sourceID := uuid.New()
+	repo := upsertRepo{create: func(e *domain.Entry) (*domain.Entry, error) { return e, nil }}
+	svc := service.New(repo, rssLookup{id: sourceID})
+	first, err := svc.IngestEntry(context.Background(), service.IngestEntryInput{SourceID: sourceID, Title: "First", Link: "  "})
+	require.NoError(t, err)
+	second, err := svc.IngestEntry(context.Background(), service.IngestEntryInput{SourceID: sourceID, Title: "Second"})
+	require.NoError(t, err)
+	require.True(t, first.Created)
+	require.True(t, second.Created)
+	require.NotEqual(t, first.Entry.ID, second.Entry.ID)
+	require.Empty(t, first.Entry.Link)
+}
+
+func TestIngestionLeavesAnotherSourcesEntryUnchanged(t *testing.T) {
+	owner, incoming := uuid.New(), uuid.New()
+	existing, err := domain.NewEntry(owner, domain.EntryMetadata{Title: "Original", Link: "https://example.test/a"})
+	require.NoError(t, err)
+	repo := upsertRepo{lookup: func() (*domain.Entry, error) { return existing, nil }}
+	result, err := service.New(repo, rssLookup{id: incoming}).IngestEntry(context.Background(), service.IngestEntryInput{SourceID: incoming, Title: "Different", Link: existing.Link})
+	require.NoError(t, err)
+	require.False(t, result.Created)
+	require.Equal(t, owner, result.Entry.SourceID)
+	require.Equal(t, "Original", result.Entry.Title)
+}
+
+func TestIngestionRejectsMissingTitleEvenWhenAnotherSourceOwnsLink(t *testing.T) {
+	owner, incoming := uuid.New(), uuid.New()
+	existing, err := domain.NewEntry(owner, domain.EntryMetadata{Title: "Original", Link: "https://example.test/a"})
+	require.NoError(t, err)
+	repo := upsertRepo{lookup: func() (*domain.Entry, error) { return existing, nil }}
+	_, err = service.New(repo, rssLookup{id: incoming}).IngestEntry(context.Background(), service.IngestEntryInput{SourceID: incoming, Title: "  ", Link: existing.Link})
+	require.Error(t, err)
 }

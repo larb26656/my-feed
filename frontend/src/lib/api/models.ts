@@ -7,7 +7,7 @@ export type Entry = {
 	id: string;
 	sourceId: string;
 	title: string;
-	link: string;
+	link: string | null;
 	description: string;
 	createdAt: string;
 	thumbnail?: string;

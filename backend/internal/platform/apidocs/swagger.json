@@ -274,7 +274,10 @@
                         "type": "string"
                     },
                     "link": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     },
                     "publishedAt": {
                         "type": "string"
@@ -322,7 +325,6 @@
                     }
                 },
                 "required": [
-                    "link",
                     "sourceId",
                     "title"
                 ],
@@ -350,7 +352,6 @@
                     }
                 },
                 "required": [
-                    "link",
                     "title"
                 ],
                 "type": "object"
@@ -983,6 +984,16 @@
                     "required": true
                 },
                 "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_larb26656_my-feed_backend_internal_platform_http.SuccessResponse-internal_modules_entry_adapter_http_entryResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
                     "201": {
                         "content": {
                             "application/json": {

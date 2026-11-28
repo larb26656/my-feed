@@ -35,6 +35,7 @@ type FailEnvelope = {
 };
 
 export type ApiResult<TData, TMeta = undefined> = {
+	status: number;
 	data: TData;
 	meta?: TMeta;
 };
@@ -167,7 +168,7 @@ export async function api<TData, TMeta = undefined>(
 	}
 
 	const success = body as SuccessEnvelope<TData, TMeta>;
-	return { data: success.data, meta: success.meta };
+	return { data: success.data, meta: success.meta, status: response.status };
 }
 
 /** Fetch an authenticated image as a Blob for use in an avatar. */

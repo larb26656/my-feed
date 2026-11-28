@@ -102,3 +102,24 @@ test("links the source name and avatar to its feed", () => {
 			.getAttribute("href"),
 	).toBe("/sources/source");
 });
+
+test("shows a linkless Entry without original-link actions", () => {
+	const { container } = render(
+		<FeedItem
+			entry={{
+				...entry,
+				link: null,
+				thumbnail: "https://example.com/image.png",
+			}}
+			disabled={false}
+			onToggle={vi.fn()}
+		/>,
+	);
+	expect(screen.getByText("Entry").closest("a")).toBeNull();
+	expect(
+		container
+			.querySelector('img[src="https://example.com/image.png"]')
+			?.closest("a"),
+	).toBeNull();
+	expect(screen.queryByRole("button", { name: "Copy link" })).toBeNull();
+});

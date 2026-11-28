@@ -14,7 +14,13 @@ import { useSaveLink } from "#/hooks/queries";
 
 const recordLinkSchema = z.object({
 	title: z.string().trim().min(1, "Please enter an entry title"),
-	link: z.url("Please enter a valid link"),
+	link: z
+		.string()
+		.trim()
+		.refine(
+			(value) => !value || z.url().safeParse(value).success,
+			"Please enter a valid link",
+		),
 	description: z.string().trim(),
 	thumbnail: z.union([z.literal(""), z.url("Please enter a valid image URL")]),
 	publishedAt: z
@@ -51,8 +57,11 @@ export function RecordLinkPage() {
 					: {}),
 			},
 			{
-				onSuccess: () => {
-					toastManager.add({ title: "Link saved", type: "success" });
+				onSuccess: ({ created }) => {
+					toastManager.add({
+						title: created ? "Link saved" : "Link already exists",
+						type: "success",
+					});
 					form.reset();
 				},
 				onError: (error) => {
@@ -70,7 +79,7 @@ export function RecordLinkPage() {
 		<section>
 			<h1 className="sr-only">Save Link</h1>
 			<p className="mt-2 text-sm text-muted-foreground">
-				Add a link as an entry in the “Saved links” source
+				Add an entry to the “Saved links” source
 			</p>
 			<form
 				className="mt-6 rounded-xl border bg-card p-5"
@@ -106,7 +115,7 @@ export function RecordLinkPage() {
 						control={form.control}
 						render={({ field, fieldState }) => (
 							<Field data-invalid={fieldState.invalid}>
-								<FieldLabel htmlFor="entry-link">Link</FieldLabel>
+								<FieldLabel htmlFor="entry-link">Link (optional)</FieldLabel>
 								<Input
 									{...field}
 									id="entry-link"

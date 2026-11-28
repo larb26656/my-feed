@@ -59,7 +59,6 @@ func TestNewEntryRejectsMissingRequiredFields(t *testing.T) {
 		sourceID                   uuid.UUID
 	}{
 		{"blank title", " ", "https://example.test/a", "title is required", uuid.New()},
-		{"blank link", "News", "", "link is required", uuid.New()},
 		{"missing source", "News", "https://example.test/a", "source id is required", uuid.Nil},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
@@ -190,7 +189,7 @@ func TestRefreshMetadataUpdatesMutableFieldsWithoutChangingIdentity(t *testing.T
 
 func TestRefreshMetadataRejectsBlankRequiredFields(t *testing.T) {
 	for _, scenario := range []struct{ name, title, link, message string }{
-		{"blank title", " ", "https://example.test/a", "title is required"}, {"blank link", "Updated", "", "link is required"},
+		{"blank title", " ", "https://example.test/a", "title is required"},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
 			// Arrange

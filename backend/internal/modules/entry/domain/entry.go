@@ -104,9 +104,6 @@ func normalizeEntryMetadata(meta EntryMetadata) (title, link, description string
 	if title == "" {
 		return "", "", "", apperr.InvalidInput.New("title is required")
 	}
-	if link == "" {
-		return "", "", "", apperr.InvalidInput.New("link is required")
-	}
 	return title, link, strings.TrimSpace(meta.Description), nil
 }
 
